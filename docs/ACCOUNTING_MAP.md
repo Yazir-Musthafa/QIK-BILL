@@ -1,7 +1,113 @@
-# Accounting map — reserved for Phase 3
+# Accounting map
 
-No posting engine is implemented in Phase 1. The `Nexora.Accounting` project is an architectural boundary only. Demonstration dashboard values are not accounting entries.
+Status: Phase 3, 10 October 2026.
 
-Phase 3 must document and test the debit/credit mappings for inventory, sales, purchases, input/output GST, discounts, returns, receipts, payments, expenses and cost of goods sold before any financial workflow is enabled. It must also define rounding, immutable posting and reversal, fiscal closing, costing and reconciliation to the same underlying ledger.
+The posting engine, chart of accounts and reports are implemented and tested (`Nexora.Accounting`). The sales, purchase, inventory and expense workflows that will generate vouchers from this map are **not built yet** (Phases 4, 5 and 7). Until then, vouchers are entered by hand. Nothing here is a statement of GST compliance.
 
-Do not use the Phase 1 application for statutory records, GST filing or financial decisions.
+## Principles
+
+1. **Double entry everywhere.** A voucher posts only if total debits equal total credits, every line has exactly one positive side, there are at least two lines and at least two different accounts. `Voucher.EnsureBalanced` enforces this in the domain, and it is tested.
+2. **Money is `decimal`, in paise.** Stored amounts have at most two decimal places, and more precision is rejected rather than silently rounded. In the database, amounts are stored as whole paise (64-bit integers).
+3. **Rounding policy.** Calculated amounts (tax, discounts, quantity × rate) round half away from zero to the paisa with `Money.Round`, for example ₹0.005 → ₹0.01. Rounding a document total to whole rupees posts the difference to **Round Off** as its own line.
+4. **Posted means immutable.** Posted vouchers, their lines and the ledger entries cannot be updated or deleted. Three layers enforce this: the domain model, the data context, and SQLite triggers. A correction is a **reversal**: a new voucher with debits and credits swapped, dated on or after the original, linked to it, and allowed at most once.
+5. **One source of truth.** Every report reads the same `LedgerEntries` rows with the same rules, so they reconcile:
+   - the trial balance;
+   - each ledger statement;
+   - profit and loss;
+   - the balance sheet.
+   A test posts a mixed set of vouchers and checks they agree.
+6. **Profit is never "cash in minus cash out".** Income and expense accounts decide profit. Cost of goods sold will come from the company's costing method (Phase 4), posted to **Cost of Goods Sold** when goods leave stock.
+
+## Financial years
+
+- Years run from 1 April to 31 March. A company has a first year, and years are opened one after another (`OpenNextYearAsync`).
+- Posting is allowed only on dates inside an **open** year, on or after the start of the company's books.
+- **Closing** a year blocks posting and reversals dated inside it. It is refused while draft vouchers are dated in that year. An authorised user can reopen it; reopening is audited.
+- **Carry-forward is computed, not posted.**
+  - Asset, liability and equity balances accumulate across years.
+  - Income and expense accounts start each year at zero.
+  - The net profit of all earlier years appears in **Retained Earnings**.
+  - No closing entries are needed, so a report for any date is always derived from the original postings.
+- **Opening balances** are posted as an *Opening* voucher dated the first day of a year, for balance-sheet accounts only. Any difference between debits and credits goes to **Opening Balance Difference**, so the books always balance and the difference stays visible until it is corrected.
+
+## System accounts
+
+These accounts are created for every company. They have stable keys (`SystemAccounts` in code) and cannot be deactivated. Users can rename them, add accounts under groups, and create their own groups.
+
+| Key | Code | Account | Nature | Kind |
+|---|---|---|---|---|
+| `cash` | 1111 | Cash | Asset | Cash |
+| `bank-accounts` | 1120 | Bank Accounts (group) | Asset | Group |
+| `sundry-debtors` | 1130 | Sundry Debtors (group, one ledger per customer) | Asset | Group |
+| `inventory` | 1141 | Inventory | Asset | Inventory |
+| `input-cgst`, `input-sgst`, `input-igst`, `input-cess` | 1151–1154 | Input CGST, SGST, IGST and Cess | Asset | Tax |
+| `sundry-creditors` | 2110 | Sundry Creditors (group, one ledger per supplier) | Liability | Group |
+| `output-cgst`, `output-sgst`, `output-igst`, `output-cess` | 2121–2124 | Output CGST, SGST, IGST and Cess | Liability | Tax |
+| `rcm-payable` | 2125 | GST Payable under Reverse Charge | Liability | Tax |
+| `capital` | 3101 | Owner's Capital | Equity | General |
+| `retained-earnings` | 3201 | Retained Earnings | Equity | General |
+| `opening-difference` | 3202 | Opening Balance Difference | Equity | General |
+| `sales` | 4101 | Sales | Income | General |
+| `sales-returns` | 4102 | Sales Returns | Income (debit-side) | General |
+| `discount-received` | 4301 | Discount Received | Income | General |
+| `purchases` | 5101 | Purchases (non-stock) | Expense | General |
+| `purchase-returns` | 5102 | Purchase Returns (non-stock) | Expense (credit-side) | General |
+| `cogs` | 5201 | Cost of Goods Sold | Expense | General |
+| `freight-inward` | 5202 | Freight Inward | Expense | General |
+| `discount-allowed` | 5301 | Discount Allowed | Expense | General |
+| `round-off` | 5302 | Round Off | Expense (either side) | General |
+| `bank-charges` | 5303 | Bank Charges | Expense | General |
+| `inventory-adjustment` | 5304 | Inventory Adjustments | Expense | General |
+
+## Voucher types and account rules
+
+| Type | Rule enforced at posting | Numbering (default) |
+|---|---|---|
+| Journal | Must not touch cash or bank accounts | `JV/{FY}/0001` |
+| Payment | Must credit a cash or bank account | `PV/{FY}/0001` |
+| Receipt | Must debit a cash or bank account | `RV/{FY}/0001` |
+| Contra | Cash and bank accounts only | `CV/{FY}/0001` |
+| Sales, Purchase, Expense, Income, Credit note, Debit note | Balance rules only (workflows add their own rules in Phases 5 and 7) | `SV/`, `PU/`, `EV/`, `IV/`, `CN/`, `DN/` |
+| Opening | Balance-sheet accounts only; created by the opening balances function | `OB/{FY}/001` |
+| Reversal | Created only by reversing a posted voucher | `RJ/{FY}/0001` |
+
+Numbers come from the company's numbering rules (Settings → Document numbering). They're allocated inside the posting transaction, so they are unique and gapless per type and period, and concurrent posting is tested. Drafts have no number.
+
+## Business event mappings (to be implemented by later phases)
+
+The table uses perpetual inventory. *Party* means the customer's or supplier's own ledger under Sundry Debtors or Sundry Creditors (Phase 5). Intra-state supplies use CGST + SGST; inter-state supplies use IGST. Place of supply decides which (Phase 5).
+
+| Event | Debit | Credit |
+|---|---|---|
+| Credit sale (taxable) | Party (Sundry Debtors) — invoice total | Sales — taxable value; Output CGST/SGST or IGST (+ Cess) — tax; Round Off if rounded |
+| Cash sale | Cash or Bank — total | Sales; Output GST |
+| Cost of goods sold (on each sale) | Cost of Goods Sold — cost at the company's costing method | Inventory |
+| Sales return / credit note | Sales Returns — taxable value; Output GST — tax reversed | Party or Cash/Bank |
+| Return to stock (with a sales return) | Inventory — cost | Cost of Goods Sold |
+| Discount allowed (settlement, after the invoice) | Discount Allowed | Party |
+| Trade discount (on the invoice) | — (reduces taxable value; not posted separately) | — |
+| Receipt from customer | Cash or Bank | Party |
+| Purchase of stock (credit) | Inventory — taxable value; Input CGST/SGST or IGST (+ Cess) — eligible tax | Party (Sundry Creditors) |
+| Purchase with ineligible input tax | Inventory — taxable value plus the ineligible tax | Party |
+| Purchase of services or non-stock items | Purchases (or the specific expense) ; Input GST | Party or Cash/Bank |
+| Freight on purchases | Freight Inward, or Inventory if capitalised (the costing decision is Phase 4) | Party or Cash/Bank |
+| Purchase return / debit note | Party | Inventory — cost; Input GST reversed |
+| Reverse-charge purchase | Expense or Inventory; Input GST (if eligible) | Party; GST Payable under Reverse Charge |
+| Discount received | Party | Discount Received |
+| Payment to supplier | Party | Cash or Bank |
+| Expense paid | Expense account; Input GST if eligible | Cash or Bank (or Party if on credit) |
+| Stock adjustment: shortage, damage, expiry | Inventory Adjustments | Inventory |
+| Stock adjustment: excess found | Inventory | Inventory Adjustments |
+| Service job spare parts (Phase 7) | Cost of Goods Sold | Inventory |
+| Service invoice labour (Phase 7) | Party or Cash | Sales (or a service income ledger); Output GST |
+| Bank charges | Bank Charges | Bank |
+| Owner introduces capital | Cash or Bank | Owner's Capital |
+| Opening balances | Assets | Liabilities, Capital; any difference to Opening Balance Difference |
+
+## Not implemented in Phase 3
+
+Several items from section H of the brief are not built yet:
+
+- **Phase 8 reporting work:** cash flow statement, bank reconciliation, cost and profit centres, receivable and payable ageing, bill-wise allocation, and ledger export.
+- **Phase 5:** customer and supplier sub-ledgers created automatically from party masters. Until then, parties are ordinary ledgers created under Sundry Debtors or Sundry Creditors.
+- **Performance at scale:** reports aggregate in memory over the company's ledger entries. Amounts are stored as integer paise, so they can move to SQL aggregation (`SUM`) when volumes require it.
