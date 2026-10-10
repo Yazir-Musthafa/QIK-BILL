@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Nexora: build",
+      "label": "QIK Suite: build",
       "type": "process",
       "command": "dotnet",
       "args": ["build", "Nexora.sln", "--configuration", "Debug"],
@@ -10,7 +10,7 @@
       "group": { "kind": "build", "isDefault": true }
     },
     {
-      "label": "Nexora: test",
+      "label": "QIK Suite: test",
       "type": "process",
       "command": "dotnet",
       "args": ["test", "tests/Nexora.Tests/Nexora.Tests.csproj", "--configuration", "Debug"],

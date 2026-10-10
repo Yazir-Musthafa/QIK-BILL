@@ -1,6 +1,6 @@
-# Nexora design system
+# QIK Suite design system
 
-Direction: **calm, dense, precise**. Nexora should feel like a careful accounting tool or code editor, not a marketing page. Information, amounts and keyboard navigation come first.
+Direction: **calm, dense, precise**. QIK Suite should feel like a careful accounting tool or code editor, not a marketing page. Information, amounts and keyboard navigation come first.
 
 The source of truth is in `src/Nexora.Desktop/Themes/`. `tests/Nexora.Tests/Design/DesignRuleTests.cs` enforces the rules below on every build, and each rule has been checked to fail when it is broken. Visual quality on Windows has not been verified yet. See `QA_WINDOWS.md`.
 

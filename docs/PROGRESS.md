@@ -1,4 +1,8 @@
-# Nexora implementation progress
+# QIK Suite implementation progress
+
+## Rename: Nexora Business Suite → QIK Suite (10 October 2026)
+
+The product name users see is now QIK Suite, and the executable is `QIKSuite.exe`. The data folder is `%LocalAppData%\QIKSuite`, with a tested, staged copy from the old `Nexora\BusinessSuite` folder. Internal namespaces and project names stay `Nexora.*`; see `DECISIONS.md`. A test checks that every WPF `;component` resource URI matches the assembly name. Entries below dated before the rename refer to the old name where they describe what was built at the time.
 
 ## Phase 3: complete on macOS, Windows runtime unverified (10 October 2026)
 
@@ -80,7 +84,7 @@ The Settings screens (general, company profile with logo upload, branches and wa
 |---|---|
 | Solution builds | `dotnet build Nexora.sln`: 0 warnings, 0 errors, with warnings treated as errors. Includes the XAML markup compile, which checks types, properties and element names. |
 | Locked restore | `dotnet restore --locked-mode` passes, both before and after a `win-x64` publish. |
-| Self-contained publish | `dotnet publish -r win-x64 --self-contained` produces `Nexora.exe`, the native `e_sqlite3.dll` and the WPF runtime (149 MB). The output was not run. |
+| Self-contained publish | `dotnet publish -r win-x64 --self-contained` produced `Nexora.exe` (now `QIKSuite.exe`; see the rename note at the top), the native `e_sqlite3.dll` and the WPF runtime (149 MB). The output was not run. |
 | Tests | **221 passed, 0 failed** (`dotnet test tests/Nexora.Tests`). |
 | Domain rules | Financial year (April–March, labels, boundaries), GST state codes, company and username validation, lockout after 5 failures for 15 minutes. |
 | Password security | PBKDF2-HMAC-SHA256 with 600,000 iterations and a unique 16-byte salt. Comparison is fixed-time. Older hashes are upgraded at sign-in. Malformed hashes fail without throwing. Password policy has a 10-character minimum and rejects passwords containing the username. |

@@ -1,4 +1,4 @@
-# PROJECT: NEXORA BUSINESS SUITE
+# PROJECT: QIK SUITE (formerly Nexora Business Suite)
 A commercial Windows desktop application for billing, inventory, accounting, CRM and service management, sold to multiple business customers in India.
 
 ## 0. ROLE AND WORKING METHOD
