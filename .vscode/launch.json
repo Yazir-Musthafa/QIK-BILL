@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Nexora desktop (Windows only)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "Nexora: build",
+      "program": "${workspaceFolder}/src/Nexora.Desktop/bin/Debug/net10.0-windows/Nexora.dll",
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "stopAtEntry": false
+    }
+  ]
+}
