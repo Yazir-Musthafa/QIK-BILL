@@ -26,6 +26,10 @@ public static class DependencyInjection
         services.AddSingleton<ICompanySeedContributor, Inventory.InventorySeedContributor>();
         services.AddSingleton<Inventory.InventoryCatalogueService>();
         services.AddSingleton<Inventory.StockService>();
+        services.AddSingleton<ICompanySeedContributor, Billing.BillingSeedContributor>();
+        services.AddSingleton<Billing.PartyService>();
+        services.AddSingleton<Billing.BillingService>();
+        services.AddSingleton<Billing.SettlementService>();
         return services;
     }
 }

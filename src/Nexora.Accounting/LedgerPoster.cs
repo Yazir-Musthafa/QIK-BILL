@@ -31,6 +31,18 @@ internal sealed class LedgerPoster(VoucherService vouchers, IAuthorizer authoriz
             LedgerAccountRole.InventoryAdjustment => SystemAccounts.InventoryAdjustment,
             LedgerAccountRole.OpeningBalanceDifference => SystemAccounts.OpeningBalanceDifference,
             LedgerAccountRole.CostOfGoodsSold => SystemAccounts.CostOfGoodsSold,
+            LedgerAccountRole.Cash => SystemAccounts.Cash,
+            LedgerAccountRole.SundryDebtors => SystemAccounts.SundryDebtors,
+            LedgerAccountRole.SundryCreditors => SystemAccounts.SundryCreditors,
+            LedgerAccountRole.Sales => SystemAccounts.Sales,
+            LedgerAccountRole.SalesReturns => SystemAccounts.SalesReturns,
+            LedgerAccountRole.OutputCgst => SystemAccounts.OutputCgst,
+            LedgerAccountRole.OutputSgst => SystemAccounts.OutputSgst,
+            LedgerAccountRole.OutputIgst => SystemAccounts.OutputIgst,
+            LedgerAccountRole.InputCgst => SystemAccounts.InputCgst,
+            LedgerAccountRole.InputSgst => SystemAccounts.InputSgst,
+            LedgerAccountRole.InputIgst => SystemAccounts.InputIgst,
+            LedgerAccountRole.RoundOff => SystemAccounts.RoundOff,
             _ => throw new ArgumentOutOfRangeException(nameof(role)),
         };
         var account = (await unit.ListAsync<Account>(a => a.SystemKey == key, cancellationToken)).SingleOrDefault()
@@ -45,9 +57,9 @@ internal sealed class LedgerPoster(VoucherService vouchers, IAuthorizer authoriz
         var accounts = (await unit.ListAsync<Account>(a => ids.Contains(a.Id), cancellationToken)).ToDictionary(a => a.Id);
         bool CashOrBank(LedgerPostingLine l) => accounts.TryGetValue(l.AccountId, out var a) && a.IsCashOrBank;
         // Choose the type the entry really is, so the usual voucher-type rules still apply.
-        var type = posting.Lines.Any(l => l.Credit > 0 && CashOrBank(l)) ? VoucherType.Payment
+        var type = posting.Type ?? (posting.Lines.Any(l => l.Credit > 0 && CashOrBank(l)) ? VoucherType.Payment
             : posting.Lines.Any(l => l.Debit > 0 && CashOrBank(l)) ? VoucherType.Receipt
-            : VoucherType.Journal;
+            : VoucherType.Journal);
 
         var voucher = new Voucher(Guid.NewGuid(), session.CompanyId, type, posting.Date, posting.Narration, clock.UtcNow, session.UserId);
         voucher.MarkSource(posting.SourceType, posting.SourceId);

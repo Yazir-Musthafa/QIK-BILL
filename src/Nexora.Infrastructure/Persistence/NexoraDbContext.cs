@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
 using Nexora.Domain.Accounting;
 using Nexora.Domain.Audit;
+using Nexora.Domain.Billing;
 using Nexora.Domain.Common;
 using Nexora.Domain.Companies;
 using Nexora.Domain.Inventory;
@@ -178,6 +179,14 @@ internal static class ImmutabilityRules
         // Original values decide: posting a draft (Draft -> Posted, unlocked -> locked) is allowed, anything after is not.
         Voucher => entry.OriginalValues.GetValue<VoucherStatus>(nameof(Voucher.Status)) == VoucherStatus.Posted,
         VoucherLine => entry.OriginalValues.GetValue<bool>(nameof(VoucherLine.IsLocked)),
+        // Billing follows the same rules: drafts are editable, posted documents and their lines are not, and
+        // settlements, allocations, cancellations and reversals are append-only.
+        BillingDocument => entry.OriginalValues.GetValue<BillingStatus>(nameof(BillingDocument.Status)) == BillingStatus.Posted,
+        BillingLine => entry.OriginalValues.GetValue<bool>(nameof(BillingLine.IsLocked)),
+        BillingCancellation => true,
+        Settlement => true,
+        SettlementReversal => true,
+        Allocation => true,
         _ => false,
     };
 }

@@ -24,7 +24,7 @@ public sealed record StockLineInput(Guid ProductId, decimal Quantity, Guid? Unit
 /// Value of one posted line, signed like the movement: <see cref="StockValue"/> is what the stock ledger records;
 /// <see cref="EnteredValue"/> is what incoming stock cost. They differ only when a receipt settles negative stock.
 /// </summary>
-internal sealed record StockLineValue(int LineNumber, decimal EnteredValue, decimal StockValue);
+internal sealed record StockLineValue(int LineNumber, decimal EnteredValue, decimal StockValue, Guid? BatchId);
 
 internal sealed record StockCoreResult(StockDocument Document, IReadOnlyList<StockLineValue> Lines, decimal Increases, decimal Decreases, decimal Entered);
 
@@ -224,7 +224,7 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
             if (lineStock > 0) increases += lineStock;
             else decreases -= lineStock;
             if (lineEntered > 0) entered += lineEntered;
-            values.Add(new StockLineValue(lineNumber, lineEntered, lineStock));
+            values.Add(new StockLineValue(lineNumber, lineEntered, lineStock, batch?.Id));
         }
 
         return new StockCoreResult(document, values, increases, decreases, entered);

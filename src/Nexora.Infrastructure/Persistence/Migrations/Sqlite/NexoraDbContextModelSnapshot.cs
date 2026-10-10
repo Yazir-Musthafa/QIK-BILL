@@ -329,6 +329,591 @@ namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
                     b.ToTable("AuditEntries", (string)null);
                 });
 
+            modelBuilder.Entity("Nexora.Domain.Billing.Allocation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("AmountPaise");
+
+                    b.Property<Guid>("ChargeId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ChargeSource")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CreditId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreditSource")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PartyId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("CompanyId", "ChargeId");
+
+                    b.HasIndex("CompanyId", "CreditId");
+
+                    b.HasIndex("CompanyId", "PartyId");
+
+                    b.ToTable("Allocations", (string)null);
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Billing.BillingCancellation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CancelledBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CancelledUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ReversalVoucherId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("StockReversalId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("CompanyId", "DocumentId")
+                        .IsUnique();
+
+                    b.HasIndex("CompanyId", "ReversalVoucherId");
+
+                    b.HasIndex("CompanyId", "StockReversalId");
+
+                    b.ToTable("BillingCancellations", (string)null);
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Billing.BillingDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("CashAccountId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Cgst")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("CgstPaise");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CostOfGoods")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("CostOfGoodsPaise");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("DiscountAmount")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("DiscountAmountPaise");
+
+                    b.Property<long>("GrossAmount")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("GrossAmountPaise");
+
+                    b.Property<long>("Igst")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("IgstPaise");
+
+                    b.Property<bool>("IsInterState")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Narration")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Number")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("OriginalDocumentId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PartyGstin")
+                        .IsRequired()
+                        .HasMaxLength(15)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("PartyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PartyName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PlaceOfSupply")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("PostedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("PostedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("PricesIncludeTax")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("RoundOff")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("RoundOffPaise");
+
+                    b.Property<bool>("RoundToRupee")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("Sgst")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("SgstPaise");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("StockDocumentId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("TaxableAmount")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("TaxableAmountPaise");
+
+                    b.Property<long>("Total")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("TotalPaise");
+
+                    b.Property<Guid?>("VoucherId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("CompanyId", "CashAccountId");
+
+                    b.HasIndex("CompanyId", "OriginalDocumentId");
+
+                    b.HasIndex("CompanyId", "PartyId");
+
+                    b.HasIndex("CompanyId", "StockDocumentId");
+
+                    b.HasIndex("CompanyId", "VoucherId");
+
+                    b.HasIndex("CompanyId", "WarehouseId");
+
+                    b.HasIndex("CompanyId", "Kind", "Date");
+
+                    b.HasIndex("CompanyId", "Kind", "Number")
+                        .IsUnique();
+
+                    b.ToTable("BillingDocuments", (string)null);
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Billing.BillingLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("BaseQuantity")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("BaseQuantityMilli");
+
+                    b.Property<Guid?>("BatchId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BatchNumber")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Cgst")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("CgstPaise");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CostValue")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("CostValuePaise");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("DiscountAmount")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("DiscountAmountPaise");
+
+                    b.Property<decimal>("DiscountPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly?>("ExpiresOn")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("GrossAmount")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("GrossAmountPaise");
+
+                    b.Property<string>("HsnCode")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Igst")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("IgstPaise");
+
+                    b.Property<bool>("IsLocked")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("LineNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("OriginalLineId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Quantity")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("QuantityMilli");
+
+                    b.Property<long>("Rate")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("RatePaise");
+
+                    b.Property<string>("SerialNumber")
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Sgst")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("SgstPaise");
+
+                    b.Property<Guid?>("TaxCategoryId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("TaxRatePercent")
+                        .HasPrecision(6, 3)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("TaxableAmount")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("TaxableAmountPaise");
+
+                    b.Property<Guid>("UnitId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("CompanyId", "BatchId");
+
+                    b.HasIndex("CompanyId", "OriginalLineId");
+
+                    b.HasIndex("CompanyId", "ProductId");
+
+                    b.HasIndex("CompanyId", "TaxCategoryId");
+
+                    b.HasIndex("CompanyId", "UnitId");
+
+                    b.HasIndex("CompanyId", "DocumentId", "LineNumber")
+                        .IsUnique();
+
+                    b.ToTable("BillingLines", (string)null);
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Billing.BillingSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("PricesIncludeTax")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("RoundToRupee")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId")
+                        .IsUnique();
+
+                    b.ToTable("BillingSettings", (string)null);
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Billing.Party", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CreditLimit")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("CreditLimitPaise");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Gstin")
+                        .IsRequired()
+                        .HasMaxLength(15)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Pincode")
+                        .IsRequired()
+                        .HasMaxLength(6)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StateCode")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId")
+                        .IsUnique();
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("CompanyId", "AccountId");
+
+                    b.HasIndex("CompanyId", "Kind", "Name")
+                        .IsUnique();
+
+                    b.ToTable("Parties", (string)null);
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Billing.Settlement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("AmountPaise");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Narration")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PartyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PostedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("PostedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("VoucherId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("CompanyId", "AccountId");
+
+                    b.HasIndex("CompanyId", "PartyId");
+
+                    b.HasIndex("CompanyId", "VoucherId");
+
+                    b.HasIndex("CompanyId", "Kind", "Number")
+                        .IsUnique();
+
+                    b.ToTable("Settlements", (string)null);
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Billing.SettlementReversal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ReversalVoucherId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ReversedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ReversedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SettlementId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("CompanyId", "ReversalVoucherId");
+
+                    b.HasIndex("CompanyId", "SettlementId")
+                        .IsUnique();
+
+                    b.ToTable("SettlementReversals", (string)null);
+                });
+
             modelBuilder.Entity("Nexora.Domain.Companies.Branch", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1200,6 +1785,222 @@ namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
                         .WithMany()
                         .HasForeignKey("CompanyId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Billing.Allocation", b =>
+                {
+                    b.HasOne("Nexora.Domain.Companies.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Billing.Party", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "PartyId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Billing.BillingCancellation", b =>
+                {
+                    b.HasOne("Nexora.Domain.Companies.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Billing.BillingDocument", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "DocumentId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Accounting.Voucher", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "ReversalVoucherId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Nexora.Domain.Inventory.StockDocument", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "StockReversalId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction);
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Billing.BillingDocument", b =>
+                {
+                    b.HasOne("Nexora.Domain.Companies.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Accounting.Account", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "CashAccountId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Nexora.Domain.Billing.BillingDocument", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "OriginalDocumentId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Nexora.Domain.Billing.Party", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "PartyId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Nexora.Domain.Inventory.StockDocument", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "StockDocumentId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Nexora.Domain.Accounting.Voucher", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "VoucherId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Nexora.Domain.Companies.Warehouse", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "WarehouseId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Billing.BillingLine", b =>
+                {
+                    b.HasOne("Nexora.Domain.Companies.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Inventory.Batch", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "BatchId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Nexora.Domain.Billing.BillingDocument", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "DocumentId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Billing.BillingLine", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "OriginalLineId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Nexora.Domain.Inventory.Product", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "ProductId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Inventory.TaxCategory", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "TaxCategoryId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Nexora.Domain.Inventory.Unit", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "UnitId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Billing.BillingSettings", b =>
+                {
+                    b.HasOne("Nexora.Domain.Companies.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Billing.Party", b =>
+                {
+                    b.HasOne("Nexora.Domain.Companies.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Accounting.Account", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "AccountId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Billing.Settlement", b =>
+                {
+                    b.HasOne("Nexora.Domain.Companies.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Accounting.Account", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "AccountId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Billing.Party", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "PartyId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Accounting.Voucher", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "VoucherId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Billing.SettlementReversal", b =>
+                {
+                    b.HasOne("Nexora.Domain.Companies.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Accounting.Voucher", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "ReversalVoucherId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Billing.Settlement", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "SettlementId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
                 });
 

@@ -1,3 +1,5 @@
+using Nexora.Domain.Accounting;
+
 namespace Nexora.Application.Abstractions;
 
 /// <summary>Accounts that modules outside Accounting post to, resolved to each company's system accounts.</summary>
@@ -7,12 +9,28 @@ public enum LedgerAccountRole
     InventoryAdjustment,
     OpeningBalanceDifference,
     CostOfGoodsSold,
+    Cash,
+    SundryDebtors,
+    SundryCreditors,
+    Sales,
+    SalesReturns,
+    OutputCgst,
+    OutputSgst,
+    OutputIgst,
+    InputCgst,
+    InputSgst,
+    InputIgst,
+    RoundOff,
 }
 
 public sealed record LedgerPostingLine(Guid AccountId, decimal Debit, decimal Credit, string? Narration = null);
 
-/// <summary>An accounting entry requested by another module, for example a stock receipt.</summary>
-public sealed record LedgerPosting(DateOnly Date, string Narration, string SourceType, Guid SourceId, IReadOnlyList<LedgerPostingLine> Lines);
+/// <summary>
+/// An accounting entry requested by another module, for example a stock receipt. Without a <see cref="Type"/>, the
+/// voucher type follows the cash or bank lines (payment, receipt or journal).
+/// </summary>
+public sealed record LedgerPosting(DateOnly Date, string Narration, string SourceType, Guid SourceId, IReadOnlyList<LedgerPostingLine> Lines,
+    VoucherType? Type = null);
 
 /// <summary>
 /// Posts accounting vouchers on behalf of other modules, inside the caller's unit of work, so the business document
