@@ -2,11 +2,11 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Nexora desktop (Windows only)",
+      "name": "QIK Suite desktop (Windows only)",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "Nexora: build",
-      "program": "${workspaceFolder}/src/Nexora.Desktop/bin/Debug/net10.0-windows/Nexora.dll",
+      "preLaunchTask": "QIK Suite: build",
+      "program": "${workspaceFolder}/src/Nexora.Desktop/bin/Debug/net10.0-windows/QIKSuite.dll",
       "cwd": "${workspaceFolder}",
       "console": "internalConsole",
       "stopAtEntry": false

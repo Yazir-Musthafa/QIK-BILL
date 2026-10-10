@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Restores, builds, tests and publishes Nexora as a self-contained win-x64 build.
+  Restores, builds, tests and publishes QIK Suite (QIKSuite.exe) as a self-contained win-x64 build.
 
 .DESCRIPTION
   Run from any directory on Windows with the .NET SDK pinned in global.json installed.

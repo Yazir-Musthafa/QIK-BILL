@@ -1,4 +1,4 @@
-# Nexora Business Suite
+# QIK Suite
 
 A Windows desktop application (WPF, .NET 10) for billing, inventory, accounting, CRM and service management for Indian businesses. **Status: Phases 1–3 of 9.** Built so far:
 
@@ -19,7 +19,7 @@ The full specification is in `docs/PROJECT_BRIEF.md`, and status is in `docs/PRO
 | `src/Nexora.Infrastructure` | EF Core `NexoraDbContext` (company filters, write guard, audit capture, immutability), SQLite provider behind `IDatabaseProvider`, and migrations. |
 | `src/Nexora.Accounting` | Posting engine, chart-of-accounts template, ledgers and financial statements. See `docs/ACCOUNTING_MAP.md`. |
 | `src/Nexora.Printing` | Reserved for Phase 6. |
-| `src/Nexora.Desktop` | WPF app: views, view models, design system (`Themes/`). Builds `Nexora.exe`. |
+| `src/Nexora.Desktop` | WPF app: views, view models, design system (`Themes/`). Builds `QIKSuite.exe`. |
 | `tests/Nexora.Tests` | xUnit tests: domain, security, permissions, company isolation, audit, accounting and reconciliation, SQLite integration, XAML design rules. |
 
 ## Build
@@ -30,7 +30,7 @@ You need the .NET SDK version in `global.json` (10.0.401, latest patch allowed).
 
 ```powershell
 ./scripts/build-windows.ps1            # restore, build, test, publish win-x64
-./artifacts/publish/win-x64/Nexora.exe
+./artifacts/publish/win-x64/QIKSuite.exe
 ```
 
 **macOS or Linux (build and test only; WPF cannot run):**
@@ -57,7 +57,7 @@ EF may write `NexoraDbContextModelSnapshot.cs` into a folder named after its nam
 
 ## Runtime data
 
-Data lives in `%LOCALAPPDATA%\Nexora\BusinessSuite\`: `nexora.db` (SQLite, WAL mode) and `logs\nexora-YYYYMMDD.jsonl`. Logs roll daily and are kept for 14 days. Logs record error types, never passwords or exception messages.
+Data lives in `%LOCALAPPDATA%\QIKSuite\`: `qiksuite.db` (SQLite, WAL mode) and `logs\qiksuite-YYYYMMDD.jsonl`. Logs roll daily and are kept for 14 days. Logs record error types, never passwords or exception messages.
 
 ## Keyboard
 

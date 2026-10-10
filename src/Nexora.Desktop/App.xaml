@@ -7,10 +7,10 @@
     <ResourceDictionary>
       <!-- Index 0 is the theme token dictionary; ThemeService replaces it at runtime. -->
       <ResourceDictionary.MergedDictionaries>
-        <ResourceDictionary Source="/Nexora;component/Themes/Light.xaml" />
-        <ResourceDictionary Source="/Nexora;component/Themes/Typography.xaml" />
-        <ResourceDictionary Source="/Nexora;component/Themes/Controls.xaml" />
-        <ResourceDictionary Source="/Nexora;component/Views/ViewTemplates.xaml" />
+        <ResourceDictionary Source="/QIKSuite;component/Themes/Light.xaml" />
+        <ResourceDictionary Source="/QIKSuite;component/Themes/Typography.xaml" />
+        <ResourceDictionary Source="/QIKSuite;component/Themes/Controls.xaml" />
+        <ResourceDictionary Source="/QIKSuite;component/Views/ViewTemplates.xaml" />
       </ResourceDictionary.MergedDictionaries>
       <controls:VisibleWhenConverter x:Key="VisibleWhen" />
       <controls:HasTextConverter x:Key="HasText" />

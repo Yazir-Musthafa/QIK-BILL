@@ -5,8 +5,8 @@ Phases 1–3 were built and tested on macOS. Nothing in this list has been perfo
 ## Setup
 
 1. Install the .NET SDK version in `global.json`.
-2. Run `./scripts/build-windows.ps1`, or start `artifacts/publish/win-x64/Nexora.exe`.
-3. Data is stored in `%LOCALAPPDATA%\Nexora\BusinessSuite\` (`nexora.db`, and `logs\nexora-*.jsonl`). Delete that folder to repeat first-run setup.
+2. Run `./scripts/build-windows.ps1`, or start `artifacts/publish/win-x64/QIKSuite.exe`.
+3. Data is stored in `%LOCALAPPDATA%\QIKSuite\` (`qiksuite.db`, and `logs\qiksuite-*.jsonl`). Delete that folder to repeat first-run setup.
 
 ## First run and sign-in
 
@@ -18,7 +18,7 @@ Phases 1–3 were built and tested on macOS. Nothing in this list has been perfo
 - [ ] Close and reopen. The sign-in screen appears with focus in Username.
 - [ ] A wrong password shows "The username or password is incorrect.", and the password box clears and takes focus.
 - [ ] Five wrong passwords lock the account for 15 minutes, with a clear message.
-- [ ] A second launch while Nexora is open shows "already running".
+- [ ] A second launch while QIK Suite is open shows "already running".
 
 ## Shell
 
@@ -51,7 +51,7 @@ Phases 1–3 were built and tested on macOS. Nothing in this list has been perfo
 
 ## Robustness
 
-- [ ] Make `%LOCALAPPDATA%\Nexora` read-only. Startup shows the "could not start" message, and the log records only the error type.
+- [ ] Make `%LOCALAPPDATA%\QIKSuite` read-only. Startup shows the "could not start" message, and the log records only the error type.
 - [ ] The log files contain no passwords, usernames typed at sign-in, or database paths in error messages.
 
 ## Phase 2: companies, users, roles, audit

@@ -32,7 +32,7 @@ public static class NavCatalog
         new("accounts.ledgers", "Ledgers", "\uE82D", "Accounts", null, "Ledger statement for any account.", Nexora.Domain.Security.Permissions.AccountsView),
         new("accounts.trial-balance", "Trial balance", "\uE9D5", "Accounts", null, "Debit and credit balances of every account.", Nexora.Domain.Security.Permissions.AccountsView),
         new("accounts.statements", "Financial statements", "\uE9F9", "Accounts", null, "Profit and loss and balance sheet.", Nexora.Domain.Security.Permissions.AccountsView),
-        new("accounts.opening", "Opening balances", "\uE81C", "Accounts", null, "Balances brought into Nexora at the start of a year.", Nexora.Domain.Security.Permissions.AccountsManage),
+        new("accounts.opening", "Opening balances", "\uE81C", "Accounts", null, "Balances brought into QIK Suite at the start of a year.", Nexora.Domain.Security.Permissions.AccountsManage),
         new("accounts.expenses", "Expenses", "", "Accounts", 7, "Expense vouchers, categories, approvals and recurring expenses.", Nexora.Domain.Security.Permissions.ExpensesView),
         new("crm", "CRM", "", "Relationships", 7, "Leads, follow-ups, activity timeline and communication history.", Nexora.Domain.Security.Permissions.CrmView),
         new("service", "Service jobs", "", "Relationships", 7, "Service tickets, job cards, warranty and spare-part consumption.", Nexora.Domain.Security.Permissions.ServiceView),

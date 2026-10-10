@@ -6,7 +6,7 @@
   <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
     <Grid Margin="16,48">
       <StackPanel Width="520" HorizontalAlignment="Center" VerticalAlignment="Center">
-        <TextBlock Text="Nexora" Style="{StaticResource Text.Section}" Foreground="{DynamicResource AccentBrush}" />
+        <TextBlock Text="QIK Suite" Style="{StaticResource Text.Section}" Foreground="{DynamicResource AccentBrush}" />
         <TextBlock Text="Set up your workspace" Style="{StaticResource Text.Title}" Margin="0,16,0,4" />
         <TextBlock Style="{StaticResource Text.Secondary}"
                    Text="Create your company and the administrator account. You can add more companies and users later." />

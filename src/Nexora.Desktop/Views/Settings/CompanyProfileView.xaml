@@ -74,7 +74,7 @@
             <TextBlock Text="GSTIN" Style="{StaticResource Text.Label}" />
             <TextBox Text="{Binding Gstin, UpdateSourceTrigger=PropertyChanged}" MaxLength="15" CharacterCasing="Upper" AutomationProperties.Name="GSTIN" />
             <TextBlock Style="{StaticResource Text.Caption}" Margin="0,4,0,0" TextWrapping="Wrap"
-                       Text="Checked for format and check character only. Nexora does not verify it with the GST portal." />
+                       Text="Checked for format and check character only. QIK Suite does not verify it with the GST portal." />
           </StackPanel>
           <StackPanel Grid.Row="5" Grid.ColumnSpan="3" Orientation="Horizontal">
             <Button Content="Save profile" Style="{StaticResource Button.Primary}" Command="{Binding SaveCommand}" Margin="0,0,8,0" />

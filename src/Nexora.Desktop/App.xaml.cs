@@ -10,6 +10,7 @@ using Nexora.Desktop.Services;
 using Nexora.Desktop.ViewModels;
 using Nexora.Infrastructure;
 using Nexora.Infrastructure.Persistence.Providers;
+using Nexora.Infrastructure.Storage;
 using Serilog;
 using Serilog.Formatting.Json;
 
@@ -27,21 +28,21 @@ public partial class App : System.Windows.Application
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         try
         {
-            _instanceMutex = new Mutex(true, "Local\\Nexora.BusinessSuite.Desktop", out _ownsMutex);
+            _instanceMutex = new Mutex(true, "Local\\QIKSuite.Desktop", out _ownsMutex);
             if (!_ownsMutex)
             {
-                MessageBox.Show("Nexora is already running. Switch to its open window to continue.",
-                    "Nexora Business Suite", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("QIK Suite is already running. Switch to its open window to continue.",
+                    "QIK Suite", MessageBoxButton.OK, MessageBoxImage.Information);
                 Shutdown();
                 return;
             }
 
-            var dataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Nexora", "BusinessSuite");
-            Directory.CreateDirectory(dataDirectory);
+            // Creates %LocalAppData%\QIKSuite, copying data across from the pre-rename Nexora folder if needed.
+            var data = DataDirectory.Prepare(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+            var dataDirectory = data.Path;
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.Information()
-                .WriteTo.File(new JsonFormatter(), Path.Combine(dataDirectory, "logs", "nexora-.jsonl"),
+                .WriteTo.File(new JsonFormatter(), Path.Combine(dataDirectory, "logs", "qiksuite-.jsonl"),
                     rollingInterval: RollingInterval.Day, retainedFileCountLimit: 14,
                     fileSizeLimitBytes: 5 * 1024 * 1024, rollOnFileSizeLimit: true)
                 .CreateLogger();
@@ -50,7 +51,7 @@ public partial class App : System.Windows.Application
             TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
             AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
 
-            _services = ConfigureServices(Path.Combine(dataDirectory, "nexora.db")).BuildServiceProvider(new ServiceProviderOptions
+            _services = ConfigureServices(data.DatabasePath).BuildServiceProvider(new ServiceProviderOptions
             {
                 ValidateOnBuild = true,
                 ValidateScopes = true
@@ -58,6 +59,7 @@ public partial class App : System.Windows.Application
 
             var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "unknown";
             Log.Information("Application starting; version {Version}; runtime {Runtime}", version, Environment.Version.ToString());
+            if (data.MigratedFromLegacy) Log.Information("Data copied from the previous Nexora data folder; the old folder was left in place");
             var workspace = _services.GetRequiredService<IWorkspaceService>();
             await workspace.InitializeAsync();
             var window = _services.GetRequiredService<MainWindow>();
@@ -72,9 +74,9 @@ public partial class App : System.Windows.Application
             // Exception messages can contain paths, entered values or connection strings.
             // Log only the type and a controlled operation name, never credentials or business data.
             Log.Fatal("Startup failed; error type {ErrorType}", exception.GetType().FullName);
-            MessageBox.Show("Nexora could not start. Check that your Windows user can write to its local application-data folder, " +
-                "close other Nexora windows, and try again. Your existing company data has not been intentionally removed.",
-                "Nexora could not start", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show("QIK Suite could not start. Check that your Windows user can write to its local application-data folder, " +
+                "close other QIK Suite windows, and try again. Your existing company data has not been intentionally removed.",
+                "QIK Suite could not start", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
         }
     }
@@ -102,9 +104,9 @@ public partial class App : System.Windows.Application
     {
         Log.Error("Unhandled interface error; error type {ErrorType}", e.Exception.GetType().FullName);
         e.Handled = true;
-        MessageBox.Show("Nexora encountered an unexpected error and must close. Reopen the application and retry your last action. " +
+        MessageBox.Show("QIK Suite encountered an unexpected error and must close. Reopen the application and retry your last action. " +
             "If the problem continues, contact your administrator with the time of the error.",
-            "Nexora needs to close", MessageBoxButton.OK, MessageBoxImage.Error);
+            "QIK Suite needs to close", MessageBoxButton.OK, MessageBoxImage.Error);
         Shutdown(1);
     }
 

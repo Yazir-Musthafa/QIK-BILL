@@ -4,7 +4,7 @@ Read this first, then `PROJECT_BRIEF.md` (the full spec; there is no `AGENTS.md`
 
 ## State
 
-- **Build:** clean, 0 warnings. `dotnet restore --locked-mode` passes, and a `win-x64` self-contained publish produces `Nexora.exe`.
+- **Build:** clean, 0 warnings. `dotnet restore --locked-mode` passes, and a `win-x64` self-contained publish produces `QIKSuite.exe`.
 - **Tests:** **455 passing** (`dotnet test tests/Nexora.Tests`).
 - **Migrations:** `InitialWorkspace`, `CompaniesUsersRolesAudit`, `AccountingEngine`. The last contains SQLite immutability triggers.
 - **Not yet run:** the WPF UI, printing and the installer. Nothing has run on Windows.

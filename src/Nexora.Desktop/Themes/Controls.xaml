@@ -6,7 +6,7 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:controls="clr-namespace:Nexora.Desktop.Controls">
   <ResourceDictionary.MergedDictionaries>
-    <ResourceDictionary Source="/Nexora;component/Themes/Typography.xaml" />
+    <ResourceDictionary Source="/QIKSuite;component/Themes/Typography.xaml" />
   </ResourceDictionary.MergedDictionaries>
 
   <!-- Keyboard focus ring: 2px accent outline, shown for keyboard focus only -->

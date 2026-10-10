@@ -47,7 +47,7 @@ public sealed partial class LoginViewModel(IWorkspaceService workspace, ILogger<
         catch (Exception exception)
         {
             logger.LogError("Sign-in failed unexpectedly; error type {ErrorType}", exception.GetType().FullName);
-            Error = "Nexora could not open the company database. Close other Nexora windows and try again.";
+            Error = "QIK Suite could not open the company database. Close other QIK Suite windows and try again.";
         }
         finally
         {

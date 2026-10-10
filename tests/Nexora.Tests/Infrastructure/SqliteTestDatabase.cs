@@ -17,7 +17,7 @@ public sealed class SqliteTestDatabase : IAsyncDisposable
 
     public SqliteTestDatabase()
     {
-        _directory = Path.Combine(Path.GetTempPath(), "nexora-tests", Guid.NewGuid().ToString("N"));
+        _directory = Path.Combine(Path.GetTempPath(), "qiksuite-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_directory);
         DatabasePath = Path.Combine(_directory, "nexora.db");
 

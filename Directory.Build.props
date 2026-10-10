@@ -12,7 +12,8 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AnalysisLevel>latest</AnalysisLevel>
     <Version>0.1.0</Version>
-    <Company>Nexora</Company>
-    <Product>Nexora Business Suite</Product>
+    <Company>QIK</Company>
+    <Product>QIK Suite</Product>
+    <Description>QIK Suite: billing, inventory, accounting, CRM and service management for Indian businesses.</Description>
   </PropertyGroup>
 </Project>
