@@ -1,0 +1,62 @@
+<UserControl x:Class="Nexora.Desktop.Views.Settings.AuditView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <DockPanel Margin="0,0,0,24">
+    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+      <Button DockPanel.Dock="Right" Content="Verify integrity" Command="{Binding VerifyCommand}" />
+      <TextBlock Text="Audit trail" Style="{StaticResource Text.Section}" VerticalAlignment="Center" />
+    </DockPanel>
+
+    <Border DockPanel.Dock="Top" Margin="0,0,0,8" Padding="12,8" CornerRadius="{StaticResource PanelRadius}" BorderThickness="1"
+            BorderBrush="{DynamicResource BorderBrush}" Background="{DynamicResource SurfaceSubtleBrush}"
+            Visibility="{Binding Verification, Converter={StaticResource VisibleWhen}}">
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Left" Margin="0,0,10,0" VerticalAlignment="Top">
+          <TextBlock.Style>
+            <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Icon}">
+              <Setter Property="Text" Value="&#xE73E;" />
+              <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding IsIntact}" Value="False">
+                  <Setter Property="Text" Value="&#xE7BA;" />
+                  <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </TextBlock.Style>
+        </TextBlock>
+        <TextBlock Text="{Binding Verification}" Style="{StaticResource Text.Body}" />
+      </DockPanel>
+    </Border>
+
+    <TextBlock DockPanel.Dock="Bottom" Text="{Binding Error}" Style="{StaticResource Text.Error}" Visibility="{Binding Error, Converter={StaticResource VisibleWhen}}" />
+
+    <Border DockPanel.Dock="Right" Width="340" Margin="16,0,0,0" Style="{StaticResource Panel}" VerticalAlignment="Top"
+            Visibility="{Binding Selected, Converter={StaticResource VisibleWhen}}">
+      <StackPanel>
+        <TextBlock Text="{Binding Selected.Summary}" Style="{StaticResource Text.Body}" FontWeight="SemiBold" />
+        <TextBlock Style="{StaticResource Text.Caption}" Margin="0,4,0,12">
+          <Run Text="{Binding Selected.UserName, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Selected.OccurredUtc, Mode=OneWay, StringFormat=dd MMM yyyy HH:mm:ss}" /><Run Text=" UTC" />
+        </TextBlock>
+        <DataGrid ItemsSource="{Binding SelectedChanges}" MaxHeight="420" AutomationProperties.Name="Changed values">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Field" Binding="{Binding Property}" Width="100" />
+            <DataGridTextColumn Header="Old" Binding="{Binding OldValue}" Width="*" />
+            <DataGridTextColumn Header="New" Binding="{Binding NewValue}" Width="*" />
+          </DataGrid.Columns>
+        </DataGrid>
+        <TextBlock Text="No field values for this event." Style="{StaticResource Text.Caption}" Margin="0,8,0,0"
+                   Visibility="{Binding SelectedChanges.Count, Converter={StaticResource VisibleWhen}, ConverterParameter=invert}" />
+      </StackPanel>
+    </Border>
+
+    <DataGrid ItemsSource="{Binding Entries}" SelectedItem="{Binding Selected}" SelectionMode="Single" AutomationProperties.Name="Audit entries">
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="When (UTC)" Binding="{Binding OccurredUtc, StringFormat=dd MMM yyyy HH:mm}" Width="130" />
+        <DataGridTextColumn Header="User" Binding="{Binding UserName}" Width="100" />
+        <DataGridTextColumn Header="Action" Binding="{Binding Action}" Width="110" />
+        <DataGridTextColumn Header="Summary" Binding="{Binding Summary}" Width="*" />
+      </DataGrid.Columns>
+    </DataGrid>
+  </DockPanel>
+</UserControl>

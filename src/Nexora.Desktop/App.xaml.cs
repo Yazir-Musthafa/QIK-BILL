@@ -91,6 +91,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<MainViewModel>();
         services.AddTransient<SetupWizardViewModel>();
         services.AddTransient<LoginViewModel>();
+        services.AddTransient<ViewModels.Settings.ChangePasswordViewModel>();
         services.AddSingleton<MainWindow>();
         return services;
     }

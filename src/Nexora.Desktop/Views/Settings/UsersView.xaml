@@ -1,0 +1,87 @@
+<UserControl x:Class="Nexora.Desktop.Views.Settings.UsersView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <DockPanel Margin="0,0,0,24">
+    <TextBlock DockPanel.Dock="Top" Text="Users" Style="{StaticResource Text.Section}" Margin="0,0,0,8" />
+    <TextBlock DockPanel.Dock="Bottom" Text="{Binding Error}" Style="{StaticResource Text.Error}" Visibility="{Binding Error, Converter={StaticResource VisibleWhen}}" />
+
+    <ScrollViewer DockPanel.Dock="Right" Width="320" Margin="16,0,0,0" VerticalScrollBarVisibility="Auto" Focusable="False"
+                  Visibility="{Binding CanEdit, Converter={StaticResource VisibleWhen}}">
+      <StackPanel>
+        <!-- Selected user -->
+        <Border Style="{StaticResource Panel}" Visibility="{Binding Selected, Converter={StaticResource VisibleWhen}}" Margin="0,0,0,16">
+          <StackPanel>
+            <TextBlock Text="{Binding Selected.DisplayName}" Style="{StaticResource Text.Section}" />
+            <TextBlock Text="{Binding Selected.Username}" Style="{StaticResource Text.Caption}" Margin="0,0,0,12" />
+            <TextBlock Text="Role" Style="{StaticResource Text.Label}" />
+            <DockPanel>
+              <Button DockPanel.Dock="Right" Content="Apply" Command="{Binding ChangeRoleCommand}" Margin="8,0,0,0" />
+              <ComboBox ItemsSource="{Binding Roles}" SelectedItem="{Binding SelectedRole}" DisplayMemberPath="Name" AutomationProperties.Name="Role" />
+            </DockPanel>
+            <TextBlock Text="Temporary password" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
+            <DockPanel>
+              <Button DockPanel.Dock="Right" Content="Reset" Command="{Binding ResetPasswordCommand}" Margin="8,0,0,0" />
+              <PasswordBox x:Name="ResetPassword" PasswordChanged="OnResetPasswordChanged" MaxLength="128" AutomationProperties.Name="Temporary password for reset" />
+            </DockPanel>
+            <Button Margin="0,16,0,0" HorizontalAlignment="Left" Command="{Binding ToggleActiveCommand}">
+              <Button.Style>
+                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                  <Setter Property="Content" Value="Remove access" />
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding Selected.IsActive}" Value="False"><Setter Property="Content" Value="Restore access" /></DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </Button.Style>
+            </Button>
+          </StackPanel>
+        </Border>
+
+        <!-- New user -->
+        <Border Style="{StaticResource Panel}">
+          <StackPanel>
+            <TextBlock Text="Add a user" Style="{StaticResource Text.Section}" Margin="0,0,0,12" />
+            <TextBlock Text="Full name" Style="{StaticResource Text.Label}" />
+            <TextBox Text="{Binding NewDisplayName, UpdateSourceTrigger=PropertyChanged}" MaxLength="80" AutomationProperties.Name="New user full name" />
+            <TextBlock Text="Username" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
+            <TextBox Text="{Binding NewUsername, UpdateSourceTrigger=PropertyChanged}" MaxLength="32" AutomationProperties.Name="New username" />
+            <TextBlock Text="Temporary password" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
+            <PasswordBox x:Name="NewPassword" PasswordChanged="OnNewPasswordChanged" MaxLength="128" AutomationProperties.Name="New user temporary password" />
+            <TextBlock Text="Role" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
+            <ComboBox ItemsSource="{Binding Roles}" SelectedItem="{Binding NewRole}" DisplayMemberPath="Name" AutomationProperties.Name="New user role" />
+            <Button Content="Create user" Style="{StaticResource Button.Primary}" Command="{Binding CreateCommand}" HorizontalAlignment="Left" Margin="0,16,0,0" />
+            <Separator Margin="0,16" />
+            <TextBlock Text="Or give an existing account access" Style="{StaticResource Text.Label}" />
+            <DockPanel>
+              <Button DockPanel.Dock="Right" Content="Add" Command="{Binding AddExistingCommand}" Margin="8,0,0,0" />
+              <TextBox Text="{Binding ExistingUsername, UpdateSourceTrigger=PropertyChanged}" MaxLength="32" AutomationProperties.Name="Existing username" />
+            </DockPanel>
+            <TextBlock Style="{StaticResource Text.Caption}" Margin="0,4,0,0" TextWrapping="Wrap" Text="Uses the role selected above." />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+
+    <DataGrid ItemsSource="{Binding Users}" SelectedItem="{Binding Selected}" SelectionMode="Single" AutomationProperties.Name="Users">
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="Name" Binding="{Binding DisplayName}" Width="*" />
+        <DataGridTextColumn Header="Username" Binding="{Binding Username}" Width="120" />
+        <DataGridTextColumn Header="Role" Binding="{Binding RoleName}" Width="140" />
+        <DataGridTemplateColumn Header="Status" Width="150">
+          <DataGridTemplateColumn.CellTemplate>
+            <DataTemplate>
+              <StackPanel Orientation="Horizontal">
+                <Border Style="{StaticResource Badge}" Visibility="{Binding IsActive, Converter={StaticResource VisibleWhen}, ConverterParameter=invert}">
+                  <TextBlock Text="No access" />
+                </Border>
+                <Border Style="{StaticResource Badge.Warning}" Visibility="{Binding MustChangePassword, Converter={StaticResource VisibleWhen}}">
+                  <TextBlock Text="Temporary password" />
+                </Border>
+              </StackPanel>
+            </DataTemplate>
+          </DataGridTemplateColumn.CellTemplate>
+        </DataGridTemplateColumn>
+        <DataGridTextColumn Header="Last sign-in (UTC)" Binding="{Binding LastSignInUtc, StringFormat=dd MMM yyyy HH:mm}" Width="140" />
+      </DataGrid.Columns>
+    </DataGrid>
+  </DockPanel>
+</UserControl>

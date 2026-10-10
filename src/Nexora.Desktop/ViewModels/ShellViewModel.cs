@@ -1,10 +1,13 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Nexora.Application;
+using Nexora.Application.Security;
 using Nexora.Domain.Companies;
 using Nexora.Desktop.Services;
+using Nexora.Desktop.ViewModels.Settings;
 
 namespace Nexora.Desktop.ViewModels;
 
@@ -19,25 +22,31 @@ public sealed partial class ShellViewModel : ObservableObject
     private readonly ToastService _toasts;
     private readonly ILoggerFactory _loggers;
     private readonly ILogger<ShellViewModel> _logger;
+    private readonly IServiceProvider _services;
+    private readonly IAuthorizer _authorizer;
     private bool _suppressCompanySwitch;
 
     public ShellViewModel(IWorkspaceService workspace, IThemeService theme, DialogService dialogs, ToastService toasts,
-        ILoggerFactory loggers, SessionInfo session, bool sidebarCollapsed)
+        ILoggerFactory loggers, IServiceProvider services, IAuthorizer authorizer, SessionInfo session, bool sidebarCollapsed)
     {
         _workspace = workspace;
         _theme = theme;
         _dialogs = dialogs;
         _toasts = toasts;
         _loggers = loggers;
+        _services = services;
+        _authorizer = authorizer;
         _logger = loggers.CreateLogger<ShellViewModel>();
         _session = session;
         _isSidebarCollapsed = sidebarCollapsed;
-        NavItems = NavCatalog.Items;
+        _navItems = VisibleNavItems();
     }
 
     public event EventHandler? SignedOut;
 
-    public IReadOnlyList<NavItem> NavItems { get; }
+    /// <summary>Destinations the current role may open. Hiding is a convenience; services enforce permissions.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<NavItem> _navItems;
 
     public ObservableCollection<CompanySummary> Companies { get; } = [];
 
@@ -105,6 +114,7 @@ public sealed partial class ShellViewModel : ObservableObject
     public void Navigate(string key)
     {
         var item = NavCatalog.Find(key);
+        if (item.Permission is { } permission && !_authorizer.Has(permission)) item = NavCatalog.Find(NavCatalog.Dashboard);
         // Set the key first so the selection change below does not navigate a second time.
         CurrentPageKey = item.Key;
         SelectedNavItem = NavItems.Contains(item) ? item : null;
@@ -180,6 +190,13 @@ public sealed partial class ShellViewModel : ObservableObject
     private void GoToDashboard() => Navigate(NavCatalog.Dashboard);
 
     [RelayCommand]
+    private void ChangePassword()
+    {
+        IsUserMenuOpen = false;
+        Navigate(NavCatalog.ChangePassword);
+    }
+
+    [RelayCommand]
     private void SignOut()
     {
         IsUserMenuOpen = false;
@@ -201,7 +218,7 @@ public sealed partial class ShellViewModel : ObservableObject
     {
         _theme.Apply(theme);
         OnPropertyChanged(nameof(IsDarkTheme));
-        if (CurrentPage is SettingsViewModel settings) settings.IsDarkTheme = theme == ThemeService.Dark;
+        if (CurrentPage is SettingsViewModel settings) settings.SyncTheme(theme == ThemeService.Dark);
         _ = SavePreferencesAsync();
     }
 
@@ -214,10 +231,12 @@ public sealed partial class ShellViewModel : ObservableObject
                 _ = dashboard.LoadAsync();
                 return dashboard;
             case NavCatalog.Settings:
-                var settings = new SettingsViewModel(_workspace, _dialogs, _toasts, _loggers.CreateLogger<SettingsViewModel>(),
-                    _theme.Current, ReloadCompaniesAsync, t => { if (t != _theme.Current) SetTheme(t); });
-                _ = LoadSafelyAsync(settings.LoadAsync);
-                return settings;
+                var context = new ShellContext(() => _theme.Current, t => { if (t != _theme.Current) SetTheme(t); }, SessionChangedAsync, Navigate);
+                return ActivatorUtilities.CreateInstance<SettingsViewModel>(_services, context);
+            case NavCatalog.ChangePassword:
+                var change = ActivatorUtilities.CreateInstance<ChangePasswordViewModel>(_services);
+                change.Changed += (_, _) => Navigate(NavCatalog.Dashboard);
+                return change;
             case NavCatalog.Help:
                 return new HelpViewModel();
             case NavCatalog.Gallery:
@@ -247,12 +266,30 @@ public sealed partial class ShellViewModel : ObservableObject
         SelectedPaletteEntry = PaletteResults.FirstOrDefault();
     }
 
+    /// <summary>Picks up role or company changes made from Settings; signs out if access was removed.</summary>
+    private async Task SessionChangedAsync()
+    {
+        if (_workspace.CurrentSession is not { } current)
+        {
+            SignedOut?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
+        Session = current;
+        NavItems = VisibleNavItems();
+        await ReloadCompaniesAsync();
+    }
+
+    private IReadOnlyList<NavItem> VisibleNavItems() =>
+        NavCatalog.Items.Where(i => i.Permission is null || _authorizer.Has(i.Permission)).ToList();
+
     private async Task SwitchCompanyAsync(CompanySummary company)
     {
         try
         {
             Session = await _workspace.SwitchCompanyAsync(company.Id);
-            _toasts.Show($"Switched to {company.Name}.");
+            NavItems = VisibleNavItems();
+            _toasts.Show($"Switched to {company.Name} as {Session.RoleName}.");
             Navigate(CurrentPageKey ?? NavCatalog.Dashboard);
         }
         catch (WorkspaceValidationException exception)
@@ -281,16 +318,4 @@ public sealed partial class ShellViewModel : ObservableObject
         }
     }
 
-    private async Task LoadSafelyAsync(Func<Task> load)
-    {
-        try
-        {
-            await load();
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError("Page failed to load; error type {ErrorType}", exception.GetType().FullName);
-            _toasts.Show("This page could not be loaded. Try again.", ToastKind.Error);
-        }
-    }
 }

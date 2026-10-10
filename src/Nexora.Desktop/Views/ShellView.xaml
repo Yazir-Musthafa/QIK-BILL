@@ -116,7 +116,10 @@
                     <TextBlock Text="{Binding Session.DisplayName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                     <TextBlock Text="{Binding Session.Username}" Style="{StaticResource Text.Caption}" />
                   </StackPanel>
+                  <TextBlock Text="{Binding Session.RoleName}" Style="{StaticResource Text.Caption}" Margin="8,0,8,4" />
                   <Separator />
+                  <Button Style="{StaticResource Button.Subtle}" HorizontalContentAlignment="Left" Content="Change password"
+                          Command="{Binding ChangePasswordCommand}" />
                   <Button Style="{StaticResource Button.Subtle}" HorizontalContentAlignment="Left" Content="Sign out"
                           Command="{Binding SignOutCommand}" />
                 </StackPanel>

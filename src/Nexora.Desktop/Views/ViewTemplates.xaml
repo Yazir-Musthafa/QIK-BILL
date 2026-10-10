@@ -2,13 +2,23 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:vm="clr-namespace:Nexora.Desktop.ViewModels"
-                    xmlns:views="clr-namespace:Nexora.Desktop.Views">
+                    xmlns:views="clr-namespace:Nexora.Desktop.Views"
+                    xmlns:svm="clr-namespace:Nexora.Desktop.ViewModels.Settings"
+                    xmlns:sviews="clr-namespace:Nexora.Desktop.Views.Settings">
   <DataTemplate DataType="{x:Type vm:SetupWizardViewModel}"><views:SetupWizardView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:LoginViewModel}"><views:LoginView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:ShellViewModel}"><views:ShellView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:DashboardViewModel}"><views:DashboardView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:PlaceholderViewModel}"><views:PlaceholderView /></DataTemplate>
-  <DataTemplate DataType="{x:Type vm:SettingsViewModel}"><views:SettingsView /></DataTemplate>
+  <DataTemplate DataType="{x:Type svm:SettingsViewModel}"><views:SettingsView /></DataTemplate>
+  <DataTemplate DataType="{x:Type svm:GeneralSettingsViewModel}"><sviews:GeneralSettingsView /></DataTemplate>
+  <DataTemplate DataType="{x:Type svm:CompanyProfileViewModel}"><sviews:CompanyProfileView /></DataTemplate>
+  <DataTemplate DataType="{x:Type svm:LocationsViewModel}"><sviews:LocationsView /></DataTemplate>
+  <DataTemplate DataType="{x:Type svm:NumberingViewModel}"><sviews:NumberingView /></DataTemplate>
+  <DataTemplate DataType="{x:Type svm:UsersViewModel}"><sviews:UsersView /></DataTemplate>
+  <DataTemplate DataType="{x:Type svm:RolesViewModel}"><sviews:RolesView /></DataTemplate>
+  <DataTemplate DataType="{x:Type svm:AuditViewModel}"><sviews:AuditView /></DataTemplate>
+  <DataTemplate DataType="{x:Type svm:ChangePasswordViewModel}"><sviews:ChangePasswordView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:HelpViewModel}"><views:HelpView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:GalleryViewModel}"><views:GalleryView /></DataTemplate>
 </ResourceDictionary>

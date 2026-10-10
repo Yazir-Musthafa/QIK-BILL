@@ -1,0 +1,111 @@
+<UserControl x:Class="Nexora.Desktop.Views.Settings.LocationsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+    <StackPanel Margin="0,0,0,24">
+      <!-- Branches -->
+      <TextBlock Text="Branches" Style="{StaticResource Text.Section}" Margin="0,0,0,8" />
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="3*" />
+          <ColumnDefinition Width="16" />
+          <ColumnDefinition Width="2*" />
+        </Grid.ColumnDefinitions>
+        <DataGrid ItemsSource="{Binding Branches}" SelectedItem="{Binding SelectedBranch}" SelectionMode="Single" MaxHeight="260"
+                  AutomationProperties.Name="Branches">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Code" Binding="{Binding Code}" Width="70" />
+            <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
+            <DataGridTextColumn Header="State" Binding="{Binding StateCode}" Width="60" />
+            <DataGridTemplateColumn Header="Status" Width="110">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <Button HorizontalAlignment="Left"
+                          Command="{Binding DataContext.ToggleBranchCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                          IsEnabled="{Binding DataContext.CanEdit, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                    <Button.Style>
+                      <Style TargetType="Button" BasedOn="{StaticResource Button.Link}">
+                        <Setter Property="Content" Value="Active" />
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsActive}" Value="False"><Setter Property="Content" Value="Inactive" /></DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                  </Button>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+          </DataGrid.Columns>
+        </DataGrid>
+        <Border Grid.Column="2" Style="{StaticResource Panel}" IsEnabled="{Binding CanEdit}" VerticalAlignment="Top">
+          <StackPanel>
+            <TextBlock Text="Code" Style="{StaticResource Text.Label}" />
+            <TextBox Text="{Binding BranchCode, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" CharacterCasing="Upper" AutomationProperties.Name="Branch code" />
+            <TextBlock Text="Name" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
+            <TextBox Text="{Binding BranchName, UpdateSourceTrigger=PropertyChanged}" MaxLength="80" AutomationProperties.Name="Branch name" />
+            <TextBlock Text="State" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
+            <ComboBox ItemsSource="{Binding States}" SelectedItem="{Binding BranchState}" IsTextSearchEnabled="True" TextSearch.TextPath="Name"
+                      MaxDropDownHeight="320" AutomationProperties.Name="Branch state" />
+            <TextBlock Text="Address" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
+            <TextBox Text="{Binding BranchAddress, UpdateSourceTrigger=PropertyChanged}" MaxLength="240" AutomationProperties.Name="Branch address" />
+            <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+              <Button Content="Save branch" Style="{StaticResource Button.Primary}" Command="{Binding SaveBranchCommand}" Margin="0,0,8,0" />
+              <Button Content="New" Command="{Binding NewBranchCommand}" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- Warehouses -->
+      <TextBlock Text="Warehouses" Style="{StaticResource Text.Section}" Margin="0,24,0,8" />
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="3*" />
+          <ColumnDefinition Width="16" />
+          <ColumnDefinition Width="2*" />
+        </Grid.ColumnDefinitions>
+        <DataGrid ItemsSource="{Binding Warehouses}" SelectedItem="{Binding SelectedWarehouse}" SelectionMode="Single" MaxHeight="260"
+                  AutomationProperties.Name="Warehouses">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Code" Binding="{Binding Code}" Width="70" />
+            <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
+            <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="*" />
+            <DataGridTemplateColumn Header="Status" Width="110">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <Button HorizontalAlignment="Left"
+                          Command="{Binding DataContext.ToggleWarehouseCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                          IsEnabled="{Binding DataContext.CanEdit, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                    <Button.Style>
+                      <Style TargetType="Button" BasedOn="{StaticResource Button.Link}">
+                        <Setter Property="Content" Value="Active" />
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsActive}" Value="False"><Setter Property="Content" Value="Inactive" /></DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                  </Button>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+          </DataGrid.Columns>
+        </DataGrid>
+        <Border Grid.Column="2" Style="{StaticResource Panel}" IsEnabled="{Binding CanEdit}" VerticalAlignment="Top">
+          <StackPanel>
+            <TextBlock Text="Code" Style="{StaticResource Text.Label}" />
+            <TextBox Text="{Binding WarehouseCode, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" CharacterCasing="Upper" AutomationProperties.Name="Warehouse code" />
+            <TextBlock Text="Name" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
+            <TextBox Text="{Binding WarehouseName, UpdateSourceTrigger=PropertyChanged}" MaxLength="80" AutomationProperties.Name="Warehouse name" />
+            <TextBlock Text="Branch" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
+            <ComboBox ItemsSource="{Binding BranchChoices}" SelectedItem="{Binding WarehouseBranch}" DisplayMemberPath="Name" AutomationProperties.Name="Warehouse branch" />
+            <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+              <Button Content="Save warehouse" Style="{StaticResource Button.Primary}" Command="{Binding SaveWarehouseCommand}" Margin="0,0,8,0" />
+              <Button Content="New" Command="{Binding NewWarehouseCommand}" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </Grid>
+      <TextBlock Text="{Binding Error}" Style="{StaticResource Text.Error}" Visibility="{Binding Error, Converter={StaticResource VisibleWhen}}" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

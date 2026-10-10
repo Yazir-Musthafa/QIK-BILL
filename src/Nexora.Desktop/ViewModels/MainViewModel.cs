@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Nexora.Application;
 using Nexora.Desktop.Services;
+using Nexora.Desktop.ViewModels.Settings;
 
 namespace Nexora.Desktop.ViewModels;
 
@@ -54,8 +55,15 @@ public sealed partial class MainViewModel(
     {
         try
         {
+            if (session.MustChangePassword)
+            {
+                ShowForcedPasswordChange(welcome);
+                return;
+            }
+
             _preferences = await workspace.GetPreferencesAsync();
-            var shell = new ShellViewModel(workspace, theme, Dialogs, Toasts, loggers, session, _preferences.SidebarCollapsed);
+            var shell = new ShellViewModel(workspace, theme, Dialogs, Toasts, loggers, services,
+                services.GetRequiredService<Application.Security.IAuthorizer>(), session, _preferences.SidebarCollapsed);
             shell.SignedOut += (_, _) => ShowLogin();
             await shell.InitializeAsync();
             Current = shell;
@@ -68,6 +76,22 @@ public sealed partial class MainViewModel(
             ShowLogin();
             Toasts.Show("The workspace could not be opened. Sign in again.", ToastKind.Error);
         }
+    }
+
+    /// <summary>A temporary password must be replaced before the workspace opens.</summary>
+    private void ShowForcedPasswordChange(bool welcome)
+    {
+        var change = services.GetRequiredService<ChangePasswordViewModel>();
+        change.Changed += async (_, _) =>
+        {
+            if (workspace.CurrentSession is { } session) await ShowShellAsync(session, welcome);
+        };
+        change.Cancelled += (_, _) =>
+        {
+            workspace.SignOut();
+            ShowLogin();
+        };
+        Current = change;
     }
 
     // Window-level shortcuts. They act only when the shell is showing and no dialog is open.

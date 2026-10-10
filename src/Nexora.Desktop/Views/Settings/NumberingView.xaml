@@ -1,0 +1,27 @@
+<UserControl x:Class="Nexora.Desktop.Views.Settings.NumberingView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <DockPanel Margin="0,0,0,24">
+    <TextBlock DockPanel.Dock="Top" Text="Document numbering" Style="{StaticResource Text.Section}" Margin="0,0,0,8" />
+    <TextBlock DockPanel.Dock="Bottom" Text="{Binding Error}" Style="{StaticResource Text.Error}" Visibility="{Binding Error, Converter={StaticResource VisibleWhen}}" />
+    <Border DockPanel.Dock="Right" Width="300" Margin="16,0,0,0" Style="{StaticResource Panel}" IsEnabled="{Binding CanEdit}" VerticalAlignment="Top">
+      <StackPanel>
+        <TextBlock Text="{Binding Selected.Name}" Style="{StaticResource Text.Section}" Margin="0,0,0,12" />
+        <TextBlock Text="Prefix" Style="{StaticResource Text.Label}" />
+        <TextBox Text="{Binding Prefix, UpdateSourceTrigger=PropertyChanged}" MaxLength="20" AutomationProperties.Name="Prefix" />
+        <TextBlock Style="{StaticResource Text.Caption}" Margin="0,4,0,0" TextWrapping="Wrap" Text="{}{FY} is replaced by the financial year, for example 2026-27." />
+        <TextBlock Text="Number width" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
+        <TextBox Text="{Binding Padding, UpdateSourceTrigger=PropertyChanged}" Width="80" HorizontalAlignment="Left" MaxLength="1" AutomationProperties.Name="Number width" />
+        <CheckBox Content="Restart numbering each financial year" IsChecked="{Binding ResetEachYear}" Margin="0,12,0,0" />
+        <Button Content="Save numbering" Style="{StaticResource Button.Primary}" Command="{Binding SaveCommand}" HorizontalAlignment="Left" Margin="0,16,0,0" />
+      </StackPanel>
+    </Border>
+    <DataGrid ItemsSource="{Binding Rules}" SelectedItem="{Binding Selected}" SelectionMode="Single" AutomationProperties.Name="Numbering rules">
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="Document" Binding="{Binding Name}" Width="*" />
+        <DataGridTextColumn Header="Prefix" Binding="{Binding Prefix}" Width="120" />
+        <DataGridTextColumn Header="Next number looks like" Binding="{Binding Example}" Width="180" />
+      </DataGrid.Columns>
+    </DataGrid>
+  </DockPanel>
+</UserControl>

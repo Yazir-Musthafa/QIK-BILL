@@ -15,6 +15,7 @@
       <controls:VisibleWhenConverter x:Key="VisibleWhen" />
       <controls:HasTextConverter x:Key="HasText" />
       <controls:InverseBoolConverter x:Key="Inverse" />
+      <controls:AllTrueToVisibilityConverter x:Key="AllTrue" />
     </ResourceDictionary>
   </Application.Resources>
 </Application>
