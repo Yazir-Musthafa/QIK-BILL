@@ -242,9 +242,27 @@ public sealed partial class ShellViewModel : ObservableObject
             case NavCatalog.Gallery:
                 return new GalleryViewModel(_dialogs, _toasts);
             default:
+                if (PageTypes.TryGetValue(item.Key, out var pageType))
+                {
+                    var page = ActivatorUtilities.CreateInstance(_services, pageType);
+                    if (page is ILoadable loadable) _ = loadable.LoadAsync();
+                    return page;
+                }
+
                 return new PlaceholderViewModel(item, Navigate);
         }
     }
+
+    /// <summary>Pages built through DI. Each loads its own data and handles its own errors.</summary>
+    private static readonly Dictionary<string, Type> PageTypes = new()
+    {
+        ["accounts.chart"] = typeof(Accounting.ChartOfAccountsViewModel),
+        ["accounts.vouchers"] = typeof(Accounting.VouchersViewModel),
+        ["accounts.ledgers"] = typeof(Accounting.LedgerViewModel),
+        ["accounts.trial-balance"] = typeof(Accounting.TrialBalanceViewModel),
+        ["accounts.statements"] = typeof(Accounting.StatementsViewModel),
+        ["accounts.opening"] = typeof(Accounting.OpeningBalancesViewModel),
+    };
 
     private void RefreshPalette()
     {

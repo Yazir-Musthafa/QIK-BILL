@@ -16,6 +16,9 @@
       <controls:HasTextConverter x:Key="HasText" />
       <controls:InverseBoolConverter x:Key="Inverse" />
       <controls:AllTrueToVisibilityConverter x:Key="AllTrue" />
+      <controls:DepthIndentConverter x:Key="DepthIndent" />
+      <controls:IsNullConverter x:Key="IsNull" />
+      <controls:IndianAmountConverter x:Key="Amount" />
     </ResourceDictionary>
   </Application.Resources>
 </Application>

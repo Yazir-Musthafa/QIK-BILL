@@ -1,0 +1,47 @@
+<UserControl x:Class="Nexora.Desktop.Views.Accounting.LedgerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <DockPanel Margin="24,20,24,24">
+    <TextBlock DockPanel.Dock="Top" Text="{Binding Title}" Style="{StaticResource Text.Title}" Margin="0,0,0,16" />
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
+      <StackPanel Width="320" Margin="0,0,12,0">
+        <TextBlock Text="Account" Style="{StaticResource Text.Label}" />
+        <ComboBox ItemsSource="{Binding Accounts}" SelectedItem="{Binding Account}" DisplayMemberPath="Display" IsTextSearchEnabled="True"
+                  TextSearch.TextPath="Name" MaxDropDownHeight="360" AutomationProperties.Name="Account" />
+      </StackPanel>
+      <StackPanel Width="110" Margin="0,0,12,0">
+        <TextBlock Text="From" Style="{StaticResource Text.Label}" />
+        <TextBox Text="{Binding From, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" AutomationProperties.Name="From date (dd-mm-yyyy)" />
+      </StackPanel>
+      <StackPanel Width="110" Margin="0,0,12,0">
+        <TextBlock Text="To" Style="{StaticResource Text.Label}" />
+        <TextBox Text="{Binding To, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" AutomationProperties.Name="To date (dd-mm-yyyy)" />
+      </StackPanel>
+      <Button Content="Show" Style="{StaticResource Button.Primary}" Command="{Binding ShowCommand}" VerticalAlignment="Bottom" IsDefault="True" />
+    </StackPanel>
+    <TextBlock DockPanel.Dock="Top" Text="{Binding Error}" Style="{StaticResource Text.Error}" Margin="0,0,0,8" Visibility="{Binding Error, Converter={StaticResource VisibleWhen}}" />
+
+    <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1,0,1,1" Background="{DynamicResource SurfaceSubtleBrush}"
+            CornerRadius="0,0,6,6" Margin="0,-6,0,0" Padding="9,12,9,6" Visibility="{Binding Closing, Converter={StaticResource VisibleWhen}}">
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Right" Style="{StaticResource Text.Amount}" FontWeight="SemiBold">
+          <Run Text="Closing balance " /><Run Text="{Binding Closing, Mode=OneWay}" />
+        </TextBlock>
+        <TextBlock Style="{StaticResource Text.Caption}">
+          <Run Text="Opening balance " /><Run Text="{Binding Opening, Mode=OneWay}" />
+        </TextBlock>
+      </DockPanel>
+    </Border>
+    <DataGrid ItemsSource="{Binding Lines}" AutomationProperties.Name="Ledger lines">
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="Date" Binding="{Binding Date, StringFormat=dd-MM-yyyy}" SortMemberPath="Date" Width="90" />
+        <DataGridTextColumn Header="Voucher" Binding="{Binding VoucherNumber}" Width="130" />
+        <DataGridTextColumn Header="Type" Binding="{Binding VoucherType}" Width="80" />
+        <DataGridTextColumn Header="Narration" Binding="{Binding Narration}" Width="*" />
+        <DataGridTextColumn Header="Debit" Binding="{Binding Debit, Converter={StaticResource Amount}, ConverterParameter=blank}" Width="110" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+        <DataGridTextColumn Header="Credit" Binding="{Binding Credit, Converter={StaticResource Amount}, ConverterParameter=blank}" Width="110" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+        <DataGridTextColumn Header="Balance (Dr +)" Binding="{Binding Balance, Converter={StaticResource Amount}}" Width="130" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+      </DataGrid.Columns>
+    </DataGrid>
+  </DockPanel>
+</UserControl>

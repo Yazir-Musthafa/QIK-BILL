@@ -1,0 +1,36 @@
+<UserControl x:Class="Nexora.Desktop.Views.Accounting.FinancialYearsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <StackPanel MaxWidth="720" HorizontalAlignment="Left" Margin="0,0,0,24">
+    <TextBlock Text="Financial years" Style="{StaticResource Text.Section}" Margin="0,0,0,8" />
+    <TextBlock Style="{StaticResource Text.Secondary}" Margin="0,0,0,12" TextWrapping="Wrap"
+               Text="Balances carry forward automatically when a new year is opened. Closing a year stops anything from being posted or reversed into it." />
+    <DataGrid ItemsSource="{Binding Years}" SelectedItem="{Binding Selected}" SelectionMode="Single" AutomationProperties.Name="Financial years">
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="Year" Binding="{Binding Label}" Width="100" />
+        <DataGridTemplateColumn Header="Status" Width="100">
+          <DataGridTemplateColumn.CellTemplate>
+            <DataTemplate>
+              <Grid>
+                <Border Style="{StaticResource Badge.Success}" Visibility="{Binding IsClosed, Converter={StaticResource VisibleWhen}, ConverterParameter=invert}">
+                  <TextBlock Text="Open" />
+                </Border>
+                <Border Style="{StaticResource Badge}" Visibility="{Binding IsClosed, Converter={StaticResource VisibleWhen}}">
+                  <TextBlock Text="Closed" />
+                </Border>
+              </Grid>
+            </DataTemplate>
+          </DataGridTemplateColumn.CellTemplate>
+        </DataGridTemplateColumn>
+        <DataGridTextColumn Header="Drafts dated in year" Binding="{Binding DraftCount}" Width="150" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+        <DataGridTextColumn Header="Closed on (UTC)" Binding="{Binding ClosedUtc, StringFormat=dd MMM yyyy HH:mm}" Width="*" />
+      </DataGrid.Columns>
+    </DataGrid>
+    <StackPanel Orientation="Horizontal" Margin="0,12,0,0" Visibility="{Binding CanManage, Converter={StaticResource VisibleWhen}}">
+      <Button Content="Open next year" Style="{StaticResource Button.Primary}" Command="{Binding OpenNextCommand}" Margin="0,0,8,0" />
+      <Button Content="Close selected year" Command="{Binding CloseCommand}" Margin="0,0,8,0" />
+      <Button Content="Reopen selected year" Command="{Binding ReopenCommand}" />
+    </StackPanel>
+    <TextBlock Text="{Binding Error}" Style="{StaticResource Text.Error}" Visibility="{Binding Error, Converter={StaticResource VisibleWhen}}" />
+  </StackPanel>
+</UserControl>

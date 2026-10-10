@@ -4,7 +4,9 @@
                     xmlns:vm="clr-namespace:Nexora.Desktop.ViewModels"
                     xmlns:views="clr-namespace:Nexora.Desktop.Views"
                     xmlns:svm="clr-namespace:Nexora.Desktop.ViewModels.Settings"
-                    xmlns:sviews="clr-namespace:Nexora.Desktop.Views.Settings">
+                    xmlns:sviews="clr-namespace:Nexora.Desktop.Views.Settings"
+                    xmlns:avm="clr-namespace:Nexora.Desktop.ViewModels.Accounting"
+                    xmlns:aviews="clr-namespace:Nexora.Desktop.Views.Accounting">
   <DataTemplate DataType="{x:Type vm:SetupWizardViewModel}"><views:SetupWizardView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:LoginViewModel}"><views:LoginView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:ShellViewModel}"><views:ShellView /></DataTemplate>
@@ -19,6 +21,13 @@
   <DataTemplate DataType="{x:Type svm:RolesViewModel}"><sviews:RolesView /></DataTemplate>
   <DataTemplate DataType="{x:Type svm:AuditViewModel}"><sviews:AuditView /></DataTemplate>
   <DataTemplate DataType="{x:Type svm:ChangePasswordViewModel}"><sviews:ChangePasswordView /></DataTemplate>
+  <DataTemplate DataType="{x:Type avm:ChartOfAccountsViewModel}"><aviews:ChartOfAccountsView /></DataTemplate>
+  <DataTemplate DataType="{x:Type avm:VouchersViewModel}"><aviews:VouchersView /></DataTemplate>
+  <DataTemplate DataType="{x:Type avm:LedgerViewModel}"><aviews:LedgerView /></DataTemplate>
+  <DataTemplate DataType="{x:Type avm:TrialBalanceViewModel}"><aviews:TrialBalanceView /></DataTemplate>
+  <DataTemplate DataType="{x:Type avm:StatementsViewModel}"><aviews:StatementsView /></DataTemplate>
+  <DataTemplate DataType="{x:Type avm:OpeningBalancesViewModel}"><aviews:OpeningBalancesView /></DataTemplate>
+  <DataTemplate DataType="{x:Type avm:FinancialYearsViewModel}"><aviews:FinancialYearsView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:HelpViewModel}"><views:HelpView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:GalleryViewModel}"><views:GalleryView /></DataTemplate>
 </ResourceDictionary>

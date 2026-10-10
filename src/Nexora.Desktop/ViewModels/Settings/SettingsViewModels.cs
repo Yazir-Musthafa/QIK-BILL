@@ -39,6 +39,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         new("numbering", "Document numbering", "", Permissions.CompanyView, typeof(NumberingViewModel)),
         new("users", "Users", "", Permissions.UsersView, typeof(UsersViewModel)),
         new("roles", "Roles and permissions", "", Permissions.UsersView, typeof(RolesViewModel)),
+        new("years", "Financial years", "\uE787", Permissions.AccountsView, typeof(Accounting.FinancialYearsViewModel)),
         new("audit", "Audit trail", "", Permissions.AuditView, typeof(AuditViewModel)),
     ];
 

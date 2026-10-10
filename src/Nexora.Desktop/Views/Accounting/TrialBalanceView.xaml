@@ -1,0 +1,43 @@
+<UserControl x:Class="Nexora.Desktop.Views.Accounting.TrialBalanceView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <DockPanel Margin="24,20,24,24" MaxWidth="900" HorizontalAlignment="Left">
+    <TextBlock DockPanel.Dock="Top" Text="{Binding Title}" Style="{StaticResource Text.Title}" Margin="0,0,0,16" />
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
+      <StackPanel Width="110" Margin="0,0,12,0">
+        <TextBlock Text="As of" Style="{StaticResource Text.Label}" />
+        <TextBox Text="{Binding AsOf, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" AutomationProperties.Name="As of date (dd-mm-yyyy)" />
+      </StackPanel>
+      <Button Content="Show" Style="{StaticResource Button.Primary}" Command="{Binding ShowCommand}" VerticalAlignment="Bottom" IsDefault="True" />
+    </StackPanel>
+    <TextBlock DockPanel.Dock="Top" Text="{Binding Error}" Style="{StaticResource Text.Error}" Margin="0,0,0,8" Visibility="{Binding Error, Converter={StaticResource VisibleWhen}}" />
+
+    <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1,0,1,1" Background="{DynamicResource SurfaceSubtleBrush}"
+            CornerRadius="0,0,6,6" Margin="0,-6,0,0" Padding="9,12,0,6">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition />
+          <ColumnDefinition Width="140" />
+          <ColumnDefinition Width="140" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Orientation="Horizontal">
+          <TextBlock Text="Total" FontWeight="SemiBold" FontSize="{StaticResource FontSizeTable}" VerticalAlignment="Center" />
+          <Border Style="{StaticResource Badge.Danger}" Margin="12,0,0,0" Visibility="{Binding IsBalanced, Converter={StaticResource VisibleWhen}, ConverterParameter=invert}">
+            <TextBlock Text="Does not balance" />
+          </Border>
+        </StackPanel>
+        <TextBlock Grid.Column="1" Text="{Binding TotalDebit}" Style="{StaticResource Text.Amount}" FontWeight="SemiBold" Margin="0,0,9,0" />
+        <TextBlock Grid.Column="2" Text="{Binding TotalCredit}" Style="{StaticResource Text.Amount}" FontWeight="SemiBold" Margin="0,0,9,0" />
+      </Grid>
+    </Border>
+    <DataGrid ItemsSource="{Binding Rows}" AutomationProperties.Name="Trial balance">
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="Code" Binding="{Binding Code}" Width="80" />
+        <DataGridTextColumn Header="Account" Binding="{Binding Name}" Width="*" />
+        <DataGridTextColumn Header="Nature" Binding="{Binding Nature}" Width="90" />
+        <DataGridTextColumn Header="Debit" Binding="{Binding Debit, Converter={StaticResource Amount}, ConverterParameter=blank}" Width="140" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+        <DataGridTextColumn Header="Credit" Binding="{Binding Credit, Converter={StaticResource Amount}, ConverterParameter=blank}" Width="140" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+      </DataGrid.Columns>
+    </DataGrid>
+  </DockPanel>
+</UserControl>

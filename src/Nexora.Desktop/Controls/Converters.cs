@@ -51,3 +51,40 @@ public sealed class AllTrueToVisibilityConverter : IMultiValueConverter
     public object[] ConvertBack(object value, Type[] targetTypes, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();
 }
+
+
+/// <summary>Indentation for tree rows: 16 pixels per level.</summary>
+public sealed class DepthIndentConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        value is int depth ? depth * 16.0 : 0.0;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}
+
+/// <summary>True when the value is null, for example "nothing saved yet".</summary>
+public sealed class IsNullConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value is null;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}
+
+/// <summary>
+/// Formats a decimal with Indian digit grouping and two decimals. Parameter "blank" shows zero as empty
+/// (debit/credit columns); without it, negative values keep their sign.
+/// </summary>
+public sealed class IndianAmountConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is not decimal amount) return string.Empty;
+        if (amount == 0 && parameter is "blank") return string.Empty;
+        return Nexora.Application.Formatting.IndianNumberFormat.Number(amount);
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}

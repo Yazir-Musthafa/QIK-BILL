@@ -1,0 +1,172 @@
+<UserControl x:Class="Nexora.Desktop.Views.Accounting.VouchersView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Grid Margin="24,20,24,24">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="2*" MinWidth="320" />
+      <ColumnDefinition Width="16" />
+      <ColumnDefinition Width="3*" />
+    </Grid.ColumnDefinitions>
+
+    <!-- Voucher list -->
+    <DockPanel>
+      <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+        <Button DockPanel.Dock="Right" Content="New voucher" Style="{StaticResource Button.Primary}" Command="{Binding StartNewCommand}"
+                Visibility="{Binding CanCreate, Converter={StaticResource VisibleWhen}}" />
+        <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Title}" />
+      </DockPanel>
+      <DataGrid ItemsSource="{Binding Vouchers}" SelectedItem="{Binding Selected}" SelectionMode="Single" AutomationProperties.Name="Vouchers">
+        <DataGrid.Columns>
+          <DataGridTextColumn Header="Date" Binding="{Binding Date, StringFormat=dd-MM-yyyy}" SortMemberPath="Date" Width="86" />
+          <DataGridTextColumn Header="Number" Binding="{Binding Number}" Width="120" />
+          <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="80" />
+          <DataGridTemplateColumn Header="Status" Width="86" SortMemberPath="Status">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate>
+                <StackPanel Orientation="Horizontal">
+                  <Border Style="{StaticResource Badge}">
+                    <Border.Visibility>
+                      <Binding Path="Number" Converter="{StaticResource VisibleWhen}" ConverterParameter="invert" />
+                    </Border.Visibility>
+                    <TextBlock Text="Draft" />
+                  </Border>
+                  <Border Style="{StaticResource Badge.Warning}" Visibility="{Binding IsReversed, Converter={StaticResource VisibleWhen}}">
+                    <TextBlock Text="Reversed" />
+                  </Border>
+                </StackPanel>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTextColumn Header="Amount" Binding="{Binding Total, Converter={StaticResource Amount}}" SortMemberPath="Total" Width="*"
+                              HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+        </DataGrid.Columns>
+      </DataGrid>
+    </DockPanel>
+
+    <!-- Voucher editor -->
+    <Border Grid.Column="2" Style="{StaticResource Panel}">
+      <DockPanel>
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+          <Border DockPanel.Dock="Right" Style="{StaticResource Badge.Success}" Visibility="{Binding IsPostedVoucher, Converter={StaticResource VisibleWhen}}">
+            <TextBlock Text="Posted" />
+          </Border>
+          <TextBlock Style="{StaticResource Text.Section}">
+            <Run Text="Voucher" /><Run Text=" " /><Run Text="{Binding EditingNumber, Mode=OneWay}" />
+          </TextBlock>
+        </DockPanel>
+
+        <Grid DockPanel.Dock="Top" IsEnabled="{Binding IsReadOnly, Converter={StaticResource Inverse}}">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="140" />
+            <ColumnDefinition Width="12" />
+            <ColumnDefinition Width="120" />
+            <ColumnDefinition Width="12" />
+            <ColumnDefinition />
+          </Grid.ColumnDefinitions>
+          <StackPanel>
+            <TextBlock Text="Type" Style="{StaticResource Text.Label}" />
+            <ComboBox ItemsSource="{Binding EntryTypes}" SelectedItem="{Binding Type}" IsEnabled="{Binding EditingId, Converter={StaticResource IsNull}}"
+                      AutomationProperties.Name="Voucher type" />
+          </StackPanel>
+          <StackPanel Grid.Column="2">
+            <TextBlock Text="Date" Style="{StaticResource Text.Label}" />
+            <TextBox Text="{Binding Date, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" AutomationProperties.Name="Voucher date (dd-mm-yyyy)" />
+          </StackPanel>
+          <StackPanel Grid.Column="4">
+            <TextBlock Text="Narration" Style="{StaticResource Text.Label}" />
+            <TextBox Text="{Binding Narration, UpdateSourceTrigger=PropertyChanged}" MaxLength="500" AutomationProperties.Name="Narration" />
+          </StackPanel>
+        </Grid>
+
+        <!-- Totals and actions -->
+        <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+          <Grid Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition />
+              <ColumnDefinition Width="120" />
+              <ColumnDefinition Width="120" />
+              <ColumnDefinition Width="196" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="{Binding Difference}" Foreground="{DynamicResource DangerBrush}" FontWeight="SemiBold" VerticalAlignment="Center"
+                       Visibility="{Binding Difference, Converter={StaticResource VisibleWhen}}" />
+            <TextBlock Grid.Column="1" Text="{Binding TotalDebit}" Style="{StaticResource Text.Amount}" FontWeight="SemiBold" Margin="0,0,8,0" />
+            <TextBlock Grid.Column="2" Text="{Binding TotalCredit}" Style="{StaticResource Text.Amount}" FontWeight="SemiBold" Margin="0,0,8,0" />
+          </Grid>
+          <TextBlock Text="{Binding Error}" Style="{StaticResource Text.Error}" Margin="0,0,0,8" Visibility="{Binding Error, Converter={StaticResource VisibleWhen}}" />
+          <TextBlock Style="{StaticResource Text.Caption}" Margin="0,0,0,8" Visibility="{Binding ReversedBy, Converter={StaticResource VisibleWhen}}">
+            <Run Text="Reversed by" /><Run Text=" " /><Run Text="{Binding ReversedBy, Mode=OneWay}" />
+          </TextBlock>
+
+          <!-- Draft actions -->
+          <StackPanel Orientation="Horizontal" Visibility="{Binding IsReadOnly, Converter={StaticResource VisibleWhen}, ConverterParameter=invert}">
+            <Button Content="Post" Style="{StaticResource Button.Primary}" Command="{Binding PostCommand}" Margin="0,0,8,0"
+                    Visibility="{Binding CanPost, Converter={StaticResource VisibleWhen}}" ToolTip="Save and post to the ledger" />
+            <Button Content="Save draft" Command="{Binding SaveDraftCommand}" Margin="0,0,8,0" />
+            <Button Content="Delete draft" Command="{Binding DeleteDraftCommand}" Visibility="{Binding EditingId, Converter={StaticResource VisibleWhen}}" />
+          </StackPanel>
+
+          <!-- Posted actions -->
+          <StackPanel Orientation="Horizontal">
+            <StackPanel.Visibility>
+              <MultiBinding Converter="{StaticResource AllTrue}">
+                <Binding Path="IsPostedVoucher" />
+                <Binding Path="CanReverse" />
+              </MultiBinding>
+            </StackPanel.Visibility>
+            <TextBlock Text="Reversal date" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <TextBox Text="{Binding ReversalDate, UpdateSourceTrigger=PropertyChanged}" Width="110" MaxLength="10" Margin="0,0,8,0"
+                     AutomationProperties.Name="Reversal date (dd-mm-yyyy)" />
+            <Button Content="Reverse" Command="{Binding ReverseCommand}" IsEnabled="{Binding ReversedBy, Converter={StaticResource IsNull}}" />
+          </StackPanel>
+        </StackPanel>
+
+        <!-- Lines -->
+        <DockPanel Margin="0,16,0,0">
+          <Grid DockPanel.Dock="Top" Margin="0,0,0,4">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition />
+              <ColumnDefinition Width="120" />
+              <ColumnDefinition Width="120" />
+              <ColumnDefinition Width="160" />
+              <ColumnDefinition Width="36" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Account" Style="{StaticResource Text.Label}" />
+            <TextBlock Grid.Column="1" Text="Debit" Style="{StaticResource Text.Label}" HorizontalAlignment="Right" Margin="0,0,8,4" />
+            <TextBlock Grid.Column="2" Text="Credit" Style="{StaticResource Text.Label}" HorizontalAlignment="Right" Margin="0,0,8,4" />
+            <TextBlock Grid.Column="3" Text="Line note" Style="{StaticResource Text.Label}" />
+          </Grid>
+          <Button DockPanel.Dock="Bottom" Content="Add line" Style="{StaticResource Button.Subtle}" HorizontalAlignment="Left" Margin="0,4,0,0"
+                  Command="{Binding AddLineCommand}" Visibility="{Binding IsReadOnly, Converter={StaticResource VisibleWhen}, ConverterParameter=invert}" />
+          <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+            <ItemsControl ItemsSource="{Binding Lines}" Focusable="False" IsEnabled="{Binding IsReadOnly, Converter={StaticResource Inverse}}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Grid Margin="0,0,0,4">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition />
+                      <ColumnDefinition Width="120" />
+                      <ColumnDefinition Width="120" />
+                      <ColumnDefinition Width="160" />
+                      <ColumnDefinition Width="36" />
+                    </Grid.ColumnDefinitions>
+                    <ComboBox ItemsSource="{Binding DataContext.LedgerAccounts, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                              SelectedItem="{Binding Account}" DisplayMemberPath="Display" IsTextSearchEnabled="True" TextSearch.TextPath="Name"
+                              MaxDropDownHeight="360" Margin="0,0,8,0" AutomationProperties.Name="Account" />
+                    <TextBox Grid.Column="1" Text="{Binding Debit, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" Margin="0,0,8,0"
+                             Typography.NumeralAlignment="Tabular" AutomationProperties.Name="Debit" />
+                    <TextBox Grid.Column="2" Text="{Binding Credit, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" Margin="0,0,8,0"
+                             Typography.NumeralAlignment="Tabular" AutomationProperties.Name="Credit" />
+                    <TextBox Grid.Column="3" Text="{Binding Narration, UpdateSourceTrigger=PropertyChanged}" MaxLength="200" AutomationProperties.Name="Line note" />
+                    <Button Grid.Column="4" Style="{StaticResource Button.Icon}" Content="&#xE711;" HorizontalAlignment="Right"
+                            FontSize="{StaticResource IconSizeSmall}" AutomationProperties.Name="Remove line" ToolTip="Remove line"
+                            Command="{Binding DataContext.RemoveLineCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </DockPanel>
+      </DockPanel>
+    </Border>
+  </Grid>
+</UserControl>
