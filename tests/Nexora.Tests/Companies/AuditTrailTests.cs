@@ -173,6 +173,9 @@ public sealed class UpgradeTests
         Assert.Equal("Administrator", result.Session!.RoleName);
         Assert.Equal(6, (await db.Get<Nexora.Application.Users.RoleService>().ListAsync()).Count);
         Assert.NotEmpty(await db.Get<CompanyService>().ListNumberingAsync());
+        Assert.Equal(10, (await db.Get<Nexora.Application.Inventory.InventoryCatalogueService>().ListUnitsAsync()).Count);
+        Assert.Equal(Nexora.Domain.Inventory.CostingMethod.WeightedAverage,
+            (await db.Get<Nexora.Application.Inventory.InventoryCatalogueService>().GetSettingsAsync()).CostingMethod);
         Assert.True((await db.Get<AuditService>().VerifyAsync()).IsIntact);
 
         // Running the upgrade again changes nothing.

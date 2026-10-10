@@ -33,8 +33,7 @@ public sealed class VoucherService(
     IClock clock,
     ILogger<VoucherService> logger)
 {
-    // Serialises posting inside this process; the database transaction serialises across processes.
-    private static readonly SemaphoreSlim PostingGate = new(1, 1);
+    private static SemaphoreSlim PostingGate => PostingLock.Gate;
 
     public async Task<IReadOnlyList<VoucherSummary>> ListAsync(VoucherQuery query, CancellationToken cancellationToken = default)
     {
@@ -151,14 +150,9 @@ public sealed class VoucherService(
         {
             await using var unit = await units.BeginAsync(cancellationToken: cancellationToken);
             var original = await LoadWithLinesAsync(unit, voucherId, cancellationToken) ?? throw NotFound();
-            if (await unit.AnyAsync<Voucher>(v => v.ReversesVoucherId == voucherId, cancellationToken))
-                throw new WorkspaceValidationException($"Voucher {original.Number} has already been reversed.");
-
-            var reversal = original.CreateReversal(Guid.NewGuid(), date, narration, clock.UtcNow, session.UserId);
-            unit.Add(reversal);
-            foreach (var line in reversal.Lines) unit.Add(line);
-            var number = await PostCoreAsync(unit, reversal, session, cancellationToken);
-            unit.Record(new AuditEvent("Reversed", nameof(Voucher), original.Id.ToString(), $"Reversed voucher {original.Number} with {number}"));
+            if (original.SourceType is not null)
+                throw new WorkspaceValidationException($"Voucher {original.Number} was created by a stock document. Reverse that document under Stock instead, so stock and accounts stay in step.");
+            var (_, number) = await ReverseCoreAsync(unit, original, date, narration, session, system: false, cancellationToken);
             await unit.CommitAsync(cancellationToken);
             logger.LogInformation("Voucher reversed; user {UserId}; voucher {VoucherId}", session.UserId, original.Id);
             return number;
@@ -212,7 +206,28 @@ public sealed class VoucherService(
         }
     }
 
-    private async Task<string> PostCoreAsync(IUnitOfWork unit, Voucher voucher, SessionInfo session, CancellationToken cancellationToken)
+    /// <summary>Reverses a voucher inside the caller's unit of work. Used by manual reversal and by other modules through the ledger poster.</summary>
+    internal async Task<(Guid Id, string Number)> ReverseCoreAsync(IUnitOfWork unit, Voucher original, DateOnly date, string narration, SessionInfo session,
+        bool system, CancellationToken cancellationToken)
+    {
+        if (await unit.AnyAsync<Voucher>(v => v.ReversesVoucherId == original.Id, cancellationToken))
+            throw new WorkspaceValidationException($"Voucher {original.Number} has already been reversed.");
+        var reversal = original.CreateReversal(Guid.NewGuid(), date, narration, clock.UtcNow, session.UserId);
+        unit.Add(reversal);
+        foreach (var line in reversal.Lines) unit.Add(line);
+        var number = await PostCoreAsync(unit, reversal, session, cancellationToken, system);
+        unit.Record(new AuditEvent("Reversed", nameof(Voucher), original.Id.ToString(), $"Reversed voucher {original.Number} with {number}"));
+        return (reversal.Id, number);
+    }
+
+    internal static Task<Voucher?> LoadForReversalAsync(IUnitOfWork unit, Guid voucherId, CancellationToken cancellationToken) =>
+        LoadWithLinesAsync(unit, voucherId, cancellationToken);
+
+    /// <summary>
+    /// Shared posting steps. <paramref name="system"/> is true only for vouchers created by other modules (stock documents):
+    /// manual vouchers may not touch Inventory accounts, so stock value and the ledger always agree.
+    /// </summary>
+    internal async Task<string> PostCoreAsync(IUnitOfWork unit, Voucher voucher, SessionInfo session, CancellationToken cancellationToken, bool system = false)
     {
         var company = await unit.FindAsync<Company>(session.CompanyId, cancellationToken) ?? throw NotFound();
         var year = FinancialYear.Containing(voucher.Date);
@@ -230,41 +245,20 @@ public sealed class VoucherService(
                 throw new WorkspaceValidationException($"Line {line.LineNumber}: the account no longer exists.");
             if (account.IsGroup) throw new WorkspaceValidationException($"Line {line.LineNumber}: {account.Name} is a group. Choose a ledger account inside it.");
             if (!account.IsActive) throw new WorkspaceValidationException($"Line {line.LineNumber}: {account.Name} is inactive.");
+            if (!system && account.Kind == AccountKind.Inventory)
+                throw new WorkspaceValidationException($"Line {line.LineNumber}: {account.Name} is kept by stock documents. Record stock changes under Stock so stock value and the ledger stay equal.");
         }
 
         VoucherRules.Check(voucher, accounts);
         voucher.EnsureBalanced();
 
-        var number = await AllocateNumberAsync(unit, voucher, year, session.CompanyId, cancellationToken);
+        var type = voucher.Type;
+        var number = await NumberAllocator.NextAsync(unit, session.CompanyId, type.DocumentType(), year,
+            candidate => unit.AnyAsync<Voucher>(v => v.Type == type && v.Number == candidate, cancellationToken), cancellationToken);
         foreach (var entry in voucher.Post(number, year.StartYear, clock.UtcNow, session.UserId)) unit.Add(entry);
         unit.Record(new AuditEvent("Posted", nameof(Voucher), voucher.Id.ToString(),
             $"Posted {voucher.Type.Label().ToLowerInvariant()} voucher {number} for {voucher.TotalDebit:N2}"));
         return number;
-    }
-
-    private static async Task<string> AllocateNumberAsync(IUnitOfWork unit, Voucher voucher, FinancialYear year, Guid companyId,
-        CancellationToken cancellationToken)
-    {
-        var documentType = voucher.Type.DocumentType();
-        var rule = (await unit.ListAsync<NumberingRule>(r => r.DocumentType == documentType, cancellationToken)).SingleOrDefault()
-            ?? throw new WorkspaceValidationException("Numbering for this voucher type is missing. Check Settings → Document numbering.");
-        var period = rule.PeriodFor(year);
-        var counter = (await unit.ListAsync<NumberCounter>(c => c.DocumentType == documentType && c.Period == period, cancellationToken)).SingleOrDefault();
-        if (counter is null)
-        {
-            counter = new NumberCounter(Guid.NewGuid(), companyId, documentType, period);
-            unit.Add(counter);
-        }
-
-        // Skip numbers already used, for example after the prefix was changed back to an earlier pattern.
-        var type = voucher.Type;
-        for (var attempt = 0; attempt < 10_000; attempt++)
-        {
-            var candidate = rule.Format(counter.Take(), year);
-            if (!await unit.AnyAsync<Voucher>(v => v.Type == type && v.Number == candidate, cancellationToken)) return candidate;
-        }
-
-        throw new WorkspaceValidationException("No free voucher number was found. Check the numbering settings.");
     }
 
     private static async Task<Voucher?> LoadWithLinesAsync(IUnitOfWork unit, Guid voucherId, CancellationToken cancellationToken)

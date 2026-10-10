@@ -5,6 +5,7 @@ using Nexora.Domain.Accounting;
 using Nexora.Domain.Audit;
 using Nexora.Domain.Common;
 using Nexora.Domain.Companies;
+using Nexora.Domain.Inventory;
 using Nexora.Domain.Numbering;
 using Nexora.Domain.Security;
 using Nexora.Domain.Settings;
@@ -67,6 +68,12 @@ public sealed class NexoraDbContext : DbContext
     public DbSet<VoucherLine> VoucherLines => Set<VoucherLine>();
 
     public DbSet<LedgerEntry> LedgerEntries => Set<LedgerEntry>();
+
+    public DbSet<Product> Products => Set<Product>();
+
+    public DbSet<StockDocument> StockDocuments => Set<StockDocument>();
+
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
 
     /// <summary>The company every query and write is limited to. Empty when nobody is signed in, which matches nothing.</summary>
     public Guid CurrentCompanyId => _session.Current?.CompanyId ?? Guid.Empty;
@@ -166,6 +173,8 @@ internal static class ImmutabilityRules
     {
         AuditEntry => true,
         LedgerEntry => true,
+        StockMovement => true,
+        StockDocument => true,
         // Original values decide: posting a draft (Draft -> Posted, unlocked -> locked) is allowed, anything after is not.
         Voucher => entry.OriginalValues.GetValue<VoucherStatus>(nameof(Voucher.Status)) == VoucherStatus.Posted,
         VoucherLine => entry.OriginalValues.GetValue<bool>(nameof(VoucherLine.IsLocked)),

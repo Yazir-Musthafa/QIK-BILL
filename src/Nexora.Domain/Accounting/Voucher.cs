@@ -114,6 +114,11 @@ public sealed class Voucher : ICompanyOwned, IAudited
     /// <summary>For a reversal voucher: the posted voucher whose effect it cancels.</summary>
     public Guid? ReversesVoucherId { get; private set; }
 
+    /// <summary>Set when another module created the voucher, for example "stock". Such vouchers are reversed from their source.</summary>
+    public string? SourceType { get; private set; }
+
+    public Guid? SourceId { get; private set; }
+
     public IReadOnlyList<VoucherLine> Lines => _lines;
 
     public bool IsPosted => Status == VoucherStatus.Posted;
@@ -134,6 +139,15 @@ public sealed class Voucher : ICompanyOwned, IAudited
             var input = lines[i];
             _lines.Add(new VoucherLine(Guid.NewGuid(), CompanyId, Id, i + 1, input.AccountId, input.Debit, input.Credit, input.Narration));
         }
+    }
+
+    /// <summary>Records which business document created this voucher. Only for drafts, before posting.</summary>
+    public void MarkSource(string sourceType, Guid sourceId)
+    {
+        EnsureDraft();
+        if (string.IsNullOrWhiteSpace(sourceType) || sourceType.Length > 20) throw new ArgumentException("Source type is required.", nameof(sourceType));
+        SourceType = sourceType;
+        SourceId = sourceId;
     }
 
     /// <summary>
@@ -189,6 +203,8 @@ public sealed class Voucher : ICompanyOwned, IAudited
             CreatedUtc = nowUtc,
             CreatedBy = createdBy,
             ReversesVoucherId = Id,
+            SourceType = SourceType,
+            SourceId = SourceId,
         };
         reversal.UpdateDraft(date, reversal.Narration,
             _lines.Select(l => new VoucherLineInput(l.AccountId, l.Credit, l.Debit, l.Narration)).ToList());

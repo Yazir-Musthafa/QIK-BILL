@@ -63,6 +63,7 @@ internal sealed class VoucherConfiguration : IEntityTypeConfiguration<Voucher>
         builder.Property(v => v.Status).HasConversion<string>().HasMaxLength(10);
         builder.Property(v => v.Number).HasMaxLength(40);
         builder.Property(v => v.Narration).HasMaxLength(500).IsRequired();
+        builder.Property(v => v.SourceType).HasMaxLength(20);
         builder.Property(v => v.CreatedUtc).HasConversion(UtcConverter.Instance);
         builder.Property(v => v.PostedUtc).HasConversion(UtcConverter.Nullable);
         builder.Ignore(v => v.IsPosted);

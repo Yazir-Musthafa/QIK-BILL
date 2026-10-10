@@ -183,6 +183,13 @@ namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
                     b.Property<Guid?>("ReversesVoucherId")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("SourceId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceType")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(10)
@@ -466,8 +473,6 @@ namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
 
                     b.HasKey("Id");
 
-                    b.HasAlternateKey("CompanyId", "Id");
-
                     b.HasIndex("CompanyId");
 
                     b.HasIndex("CompanyId", "BranchId");
@@ -476,6 +481,423 @@ namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
                         .IsUnique();
 
                     b.ToTable("Warehouses", (string)null);
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Inventory.Batch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly?>("ExpiresOn")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly?>("ManufacturedOn")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("CompanyId", "ProductId", "Number")
+                        .IsUnique();
+
+                    b.ToTable("Batches", (string)null);
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Inventory.InventorySettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("AllowNegativeStock")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CostingMethod")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId")
+                        .IsUnique();
+
+                    b.ToTable("InventorySettings", (string)null);
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Inventory.Product", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Barcode")
+                        .HasMaxLength(48)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Brand")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HsnCode")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("Mrp")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("MrpPaise");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ParentProductId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("PurchasePrice")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("PurchasePricePaise");
+
+                    b.Property<string>("QrCode")
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("ReorderLevel")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ReorderLevelMilli");
+
+                    b.Property<long>("SellingPrice")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("SellingPricePaise");
+
+                    b.Property<string>("Sku")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("TaxCategoryId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Tracking")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("TracksExpiry")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("UnitId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VariantColour")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VariantModel")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VariantSize")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("CompanyId", "Barcode")
+                        .IsUnique();
+
+                    b.HasIndex("CompanyId", "ParentProductId");
+
+                    b.HasIndex("CompanyId", "QrCode")
+                        .IsUnique();
+
+                    b.HasIndex("CompanyId", "Sku")
+                        .IsUnique();
+
+                    b.HasIndex("CompanyId", "TaxCategoryId");
+
+                    b.HasIndex("CompanyId", "UnitId");
+
+                    b.ToTable("Products", (string)null);
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Inventory.StockDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("CounterAccountId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Narration")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PostedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("PostedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ReversesDocumentId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ToWarehouseId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("VoucherId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("ReversesDocumentId")
+                        .IsUnique();
+
+                    b.HasIndex("CompanyId", "CounterAccountId");
+
+                    b.HasIndex("CompanyId", "Number")
+                        .IsUnique();
+
+                    b.HasIndex("CompanyId", "ReversesDocumentId");
+
+                    b.HasIndex("CompanyId", "ToWarehouseId");
+
+                    b.HasIndex("CompanyId", "VoucherId");
+
+                    b.HasIndex("CompanyId", "WarehouseId");
+
+                    b.ToTable("StockDocuments", (string)null);
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Inventory.StockMovement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("BatchId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("EnteredQuantity")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("EnteredQuantityMilli");
+
+                    b.Property<Guid?>("EnteredUnitId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsInternal")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("LineNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Quantity")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("QuantityMilli");
+
+                    b.Property<long>("Sequence")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SerialNumber")
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Value")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ValuePaise");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("CompanyId", "BatchId");
+
+                    b.HasIndex("CompanyId", "Date");
+
+                    b.HasIndex("CompanyId", "DocumentId");
+
+                    b.HasIndex("CompanyId", "EnteredUnitId");
+
+                    b.HasIndex("CompanyId", "Sequence")
+                        .IsUnique();
+
+                    b.HasIndex("CompanyId", "WarehouseId");
+
+                    b.HasIndex("CompanyId", "ProductId", "Sequence");
+
+                    b.ToTable("StockMovements", (string)null);
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Inventory.TaxCategory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("ReferenceRatePercent")
+                        .HasPrecision(6, 3)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("CompanyId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("TaxCategories", (string)null);
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Inventory.Unit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DecimalPlaces")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("CompanyId", "Code")
+                        .IsUnique();
+
+                    b.ToTable("Units", (string)null);
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Inventory.UnitConversion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Factor")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UnitId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("CompanyId", "UnitId");
+
+                    b.HasIndex("CompanyId", "ProductId", "UnitId")
+                        .IsUnique();
+
+                    b.ToTable("UnitConversions", (string)null);
                 });
 
             modelBuilder.Entity("Nexora.Domain.Numbering.NumberCounter", b =>
@@ -803,6 +1225,182 @@ namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
                         .HasForeignKey("CompanyId", "BranchId")
                         .HasPrincipalKey("CompanyId", "Id")
                         .OnDelete(DeleteBehavior.NoAction);
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Inventory.Batch", b =>
+                {
+                    b.HasOne("Nexora.Domain.Companies.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Inventory.Product", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "ProductId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Inventory.InventorySettings", b =>
+                {
+                    b.HasOne("Nexora.Domain.Companies.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Inventory.Product", b =>
+                {
+                    b.HasOne("Nexora.Domain.Companies.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Inventory.Product", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "ParentProductId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Nexora.Domain.Inventory.TaxCategory", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "TaxCategoryId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Nexora.Domain.Inventory.Unit", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "UnitId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Inventory.StockDocument", b =>
+                {
+                    b.HasOne("Nexora.Domain.Companies.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Accounting.Account", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "CounterAccountId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Nexora.Domain.Inventory.StockDocument", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "ReversesDocumentId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Nexora.Domain.Companies.Warehouse", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "ToWarehouseId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Nexora.Domain.Accounting.Voucher", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "VoucherId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Nexora.Domain.Companies.Warehouse", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "WarehouseId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Inventory.StockMovement", b =>
+                {
+                    b.HasOne("Nexora.Domain.Companies.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Inventory.Batch", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "BatchId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Nexora.Domain.Inventory.StockDocument", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "DocumentId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Inventory.Unit", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "EnteredUnitId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Nexora.Domain.Inventory.Product", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "ProductId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Companies.Warehouse", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "WarehouseId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Inventory.TaxCategory", b =>
+                {
+                    b.HasOne("Nexora.Domain.Companies.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Inventory.Unit", b =>
+                {
+                    b.HasOne("Nexora.Domain.Companies.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Inventory.UnitConversion", b =>
+                {
+                    b.HasOne("Nexora.Domain.Companies.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Inventory.Product", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "ProductId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Inventory.Unit", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "UnitId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Nexora.Domain.Numbering.NumberCounter", b =>

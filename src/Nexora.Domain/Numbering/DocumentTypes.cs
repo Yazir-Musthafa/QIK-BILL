@@ -44,5 +44,6 @@ public static class DocumentTypes
         new(PurchaseOrder, "Purchase order", "PO/{FY}/", 4),
     ];
 
-    public static DocumentTypeInfo? Find(string key) => All.FirstOrDefault(d => d.Key == key);
+    public static DocumentTypeInfo? Find(string key) =>
+        All.FirstOrDefault(d => d.Key == key) ?? Inventory.InventoryDocumentTypes.All.FirstOrDefault(d => d.Key == key);
 }

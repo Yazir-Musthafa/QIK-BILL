@@ -23,6 +23,9 @@ public static class DependencyInjection
         services.AddSingleton<RoleService>();
         services.AddSingleton<AuditService>();
         services.AddSingleton<Preferences.UserPreferenceService>();
+        services.AddSingleton<ICompanySeedContributor, Inventory.InventorySeedContributor>();
+        services.AddSingleton<Inventory.InventoryCatalogueService>();
+        services.AddSingleton<Inventory.StockService>();
         return services;
     }
 }
