@@ -223,7 +223,9 @@ public sealed class StockMovement : ICompanyOwned
 ///
 /// Weighted average (perpetual): a receipt adds its quantity and value; an issue takes the average value per unit,
 /// rounded to the paisa, and the last unit takes whatever value remains so no rounding residue is left behind.
-/// When there is no stock (negative stock allowed), issues use the last known unit cost.
+/// When there is no stock (negative stock allowed), issues use the last known unit cost. A later receipt first settles
+/// the missing units: their estimated value leaves the pool and the difference to their real cost is returned as a
+/// cost adjustment, so stock never keeps value without quantity (see <see cref="Receive"/>).
 ///
 /// FIFO: each receipt becomes a layer; issues consume the oldest layers first, a whole layer taking its exact
 /// remaining value. FIFO never goes negative.
@@ -259,7 +261,7 @@ public sealed class CostPool
         foreach (var movement in movements.OrderBy(m => m.Sequence))
         {
             if (movement.IsInternal || skippedDocuments.Contains(movement.DocumentId)) continue;
-            if (movement.Quantity > 0) pool.Receive(movement.Quantity, movement.Value);
+            if (movement.Quantity > 0) pool.Apply(movement.Quantity, movement.Value);
             else pool.Issue(-movement.Quantity, allowNegative: true);
             quantity += movement.Quantity;
             value += movement.Value;
@@ -271,15 +273,51 @@ public sealed class CostPool
         return pool;
     }
 
-    public void Receive(decimal quantity, decimal value)
+    /// <summary>
+    /// Adds stock that cost <paramref name="value"/> and returns the value that enters the pool (the stock value).
+    /// Normally both are equal. When weighted-average stock is negative, the received units first settle the missing
+    /// units: those were issued at an estimated cost, so the pool takes back that estimate and values any remaining
+    /// units at the receipt's own cost. The difference (<paramref name="value"/> minus the returned value) is a cost
+    /// adjustment the caller posts to Inventory Adjustments.
+    /// </summary>
+    public decimal Receive(decimal quantity, decimal value)
     {
         if (quantity <= 0) throw new ArgumentOutOfRangeException(nameof(quantity));
         Money.EnsureValid(value, "Stock value");
-        if (Method == CostingMethod.Fifo) _layers.Add(new Layer(quantity, value));
-        Quantity += quantity;
-        Value += value;
-        if (value > 0) LastUnitCost = value / quantity;
+        var stockValue = value;
+        if (Method == CostingMethod.WeightedAverage && Quantity < 0)
+        {
+            var settled = Math.Min(quantity, -Quantity);
+            var remainder = quantity - settled;
+            var remainderValue = remainder == 0 ? 0 : value - Money.Round(value * settled / quantity);
+            stockValue = SettledEstimate(settled) + remainderValue;
+        }
+
+        Apply(quantity, stockValue);
+        return stockValue;
     }
+
+    /// <summary>Adds stock at its recorded stock value (used when replaying the stock ledger).</summary>
+    private void Apply(decimal quantity, decimal stockValue)
+    {
+        if (quantity <= 0) throw new ArgumentOutOfRangeException(nameof(quantity));
+        if (Method == CostingMethod.WeightedAverage && Quantity < 0)
+        {
+            // Only units beyond the shortfall carry a cost of their own; settling alone leaves the last cost unchanged.
+            var settled = Math.Min(quantity, -Quantity);
+            var remainder = quantity - settled;
+            var remainderValue = stockValue - SettledEstimate(settled);
+            if (remainder > 0 && remainderValue > 0) LastUnitCost = remainderValue / remainder;
+        }
+        else if (stockValue > 0) LastUnitCost = stockValue / quantity;
+
+        if (Method == CostingMethod.Fifo) _layers.Add(new Layer(quantity, stockValue));
+        Quantity += quantity;
+        Value += stockValue;
+    }
+
+    /// <summary>The (positive) value at which <paramref name="settled"/> missing units were issued while stock was negative.</summary>
+    private decimal SettledEstimate(decimal settled) => settled == -Quantity ? -Value : Money.Round(Value * settled / Quantity);
 
     /// <summary>Removes <paramref name="quantity"/> and returns its value at cost (positive).</summary>
     public decimal Issue(decimal quantity, bool allowNegative)

@@ -84,7 +84,10 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
             warehouse.Id, destination?.Id, input.CounterAccountId, null, clock.UtcNow, session.UserId);
         unit.Add(document);
 
-        decimal increases = 0, decreases = 0;
+        // increases and decreases are stock values; entered is what incoming stock cost, which differs from its stock
+        // value only when a receipt settles negative stock (CostPool.Receive). The difference is a cost adjustment.
+        decimal increases = 0, decreases = 0, entered = 0;
+        var serials = new HashSet<(Guid, string)>();
         for (var i = 0; i < input.Lines.Count; i++)
         {
             var line = input.Lines[i];
@@ -96,6 +99,8 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
                 : context.BaseQuantity(product, line, lineNumber);
             var batch = await context.ResolveBatchAsync(unit, session.CompanyId, product, line, input.Type, lineNumber, cancellationToken);
             var serial = context.Serial(product, line, quantity, lineNumber);
+            if (serial is not null && !serials.Add((product.Id, serial)))
+                throw new WorkspaceValidationException($"Line {lineNumber}: serial {serial} of {product.Sku} is listed twice in this document.");
             var pool = context.Pool(product);
 
             switch (input.Type)
@@ -106,9 +111,10 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
                     var unitCost = line.UnitCost ?? throw new WorkspaceValidationException($"Line {lineNumber}: enter the unit cost.");
                     var value = EnteredCost(line, quantity, unitCost, lineNumber);
                     context.EnsureSerialNotInStock(product, serial, lineNumber);
-                    context.Add(document, lineNumber, product, warehouse.Id, StockState.Good, batch, serial, input.Date, quantity, value, false, line);
-                    pool.Receive(quantity, value);
-                    increases += value;
+                    var stockValue = pool.Receive(quantity, value);
+                    context.Add(document, lineNumber, product, warehouse.Id, StockState.Good, batch, serial, input.Date, quantity, stockValue, false, line);
+                    increases += stockValue;
+                    entered += value;
                     break;
                 }
 
@@ -116,9 +122,10 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
                 {
                     var value = line.UnitCost is { } typed ? EnteredCost(line, quantity, typed, lineNumber) : CostOf(quantity, decimal.Round(pool.CurrentUnitCost, 4), lineNumber);
                     context.EnsureSerialNotInStock(product, serial, lineNumber);
-                    context.Add(document, lineNumber, product, warehouse.Id, input.FromState, batch, serial, input.Date, quantity, value, false, line);
-                    pool.Receive(quantity, value);
-                    increases += value;
+                    var stockValue = pool.Receive(quantity, value);
+                    context.Add(document, lineNumber, product, warehouse.Id, input.FromState, batch, serial, input.Date, quantity, stockValue, false, line);
+                    increases += stockValue;
+                    entered += value;
                     break;
                 }
 
@@ -150,10 +157,12 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
                     var difference = quantity - book;
                     if (difference > 0)
                     {
+                        context.EnsureSerialNotInStock(product, serial, lineNumber);
                         var value = CostOf(difference, decimal.Round(pool.CurrentUnitCost, 4), lineNumber);
-                        context.Add(document, lineNumber, product, warehouse.Id, StockState.Good, batch, serial, input.Date, difference, value, false, line);
-                        pool.Receive(difference, value);
-                        increases += value;
+                        var stockValue = pool.Receive(difference, value);
+                        context.Add(document, lineNumber, product, warehouse.Id, StockState.Good, batch, serial, input.Date, difference, stockValue, false, line);
+                        increases += stockValue;
+                        entered += value;
                     }
                     else if (difference < 0)
                     {
@@ -171,7 +180,7 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
         }
 
         Guid? voucherId = null;
-        var lines = await AccountingLinesAsync(unit, input, increases, decreases, cancellationToken);
+        var lines = await AccountingLinesAsync(unit, input, increases, decreases, entered, cancellationToken);
         if (lines.Count > 0)
         {
             voucherId = await ledger.PostAsync(unit,
@@ -205,14 +214,16 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
 
         var movements = await unit.ListAsync<StockMovement>(m => m.DocumentId == documentId, cancellationToken);
         var productIds = movements.Select(m => m.ProductId).Distinct().ToList();
+        var context = await PostingContext.LoadAsync(unit, productIds, cancellationToken);
         if (movements.Count > 0)
         {
+            // Later documents that have themselves been reversed (with their reversals) no longer count, so a chain can
+            // be reversed newest first. Costing skips every reversed pair, which restores the pools exactly.
             var last = movements.Max(m => m.Sequence);
-            if (await unit.AnyAsync<StockMovement>(m => productIds.Contains(m.ProductId) && m.Sequence > last, cancellationToken))
+            if (context.HasLiveMovementsAfter(productIds, last))
                 throw new WorkspaceValidationException("Later stock movements exist for these products. Reverse the later documents first, or post an adjustment instead.");
         }
 
-        var context = await PostingContext.LoadAsync(unit, productIds, cancellationToken);
         var year = FinancialYear.Containing(date);
         var number = await NumberAllocator.NextAsync(unit, session.CompanyId, StockDocumentType.Reversal.NumberingKey(), year,
             candidate => unit.AnyAsync<StockDocument>(d => d.Number == candidate, cancellationToken), cancellationToken);
@@ -224,6 +235,7 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
         foreach (var movement in movements.OrderBy(m => m.Sequence))
         {
             var product = context.Product(movement.ProductId, movement.LineNumber);
+            context.EnsureDate(product, date);
             if (movement.Quantity > 0)
             {
                 var batch = movement.BatchId is { } b ? context.Batch(b) : null;
@@ -366,23 +378,30 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
     }
 
     private async Task<List<LedgerPostingLine>> AccountingLinesAsync(IUnitOfWork unit, StockDocumentInput input, decimal increases, decimal decreases,
-        CancellationToken cancellationToken)
+        decimal entered, CancellationToken cancellationToken)
     {
         var lines = new List<LedgerPostingLine>();
-        if (increases == 0 && decreases == 0) return lines;
+        if (increases == 0 && decreases == 0 && entered == 0) return lines;
         var inventory = await ledger.AccountAsync(unit, LedgerAccountRole.Inventory, cancellationToken);
 
         switch (input.Type)
         {
             case StockDocumentType.Opening:
-                var opening = await ledger.AccountAsync(unit, LedgerAccountRole.OpeningBalanceDifference, cancellationToken);
-                lines.Add(new(inventory, increases, 0));
-                lines.Add(new(opening, 0, increases));
-                break;
             case StockDocumentType.Receipt:
-                var credit = await CounterAccountAsync(unit, input.CounterAccountId, "credit", cancellationToken);
-                lines.Add(new(inventory, increases, 0));
-                lines.Add(new(credit, 0, increases));
+                var credit = input.Type == StockDocumentType.Opening
+                    ? await ledger.AccountAsync(unit, LedgerAccountRole.OpeningBalanceDifference, cancellationToken)
+                    : await CounterAccountAsync(unit, input.CounterAccountId, "credit", cancellationToken);
+                if (increases != 0) lines.Add(new(inventory, increases, 0));
+                var settlement = entered - increases;
+                if (settlement != 0)
+                {
+                    // Units issued earlier while stock was negative cost more (or less) than estimated.
+                    var settlementAccount = await ledger.AccountAsync(unit, LedgerAccountRole.InventoryAdjustment, cancellationToken);
+                    const string note = "Cost of units issued while stock was negative";
+                    lines.Add(settlement > 0 ? new(settlementAccount, settlement, 0, note) : new(settlementAccount, 0, -settlement, note));
+                }
+
+                if (entered != 0) lines.Add(new(credit, 0, entered));
                 break;
             case StockDocumentType.Issue:
                 var debit = input.CounterAccountId is null
@@ -508,6 +527,9 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
         }
 
         public Batch Batch(Guid id) => _batches[id];
+
+        public bool HasLiveMovementsAfter(IReadOnlyCollection<Guid> productIds, long sequence) =>
+            _movements.Any(m => productIds.Contains(m.ProductId) && m.Sequence > sequence && !_skipped.Contains(m.DocumentId));
 
         /// <summary>Stock dates follow posting order per product, so costing order and date order always agree.</summary>
         public void EnsureDate(Product product, DateOnly date)
