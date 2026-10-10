@@ -22,6 +22,14 @@ public sealed record SettlementRow(Guid Id, SettlementKind Kind, string Number, 
     public decimal Unapplied => IsReversed ? 0 : Amount - Allocated;
 }
 
+/// <summary>A settlement with what it was applied to, for viewing and printing.</summary>
+public sealed record SettlementView(Guid Id, SettlementKind Kind, string Number, DateOnly Date, Guid PartyId, string PartyName, string PartyGstin,
+    string Account, decimal Amount, PaymentMethod Method, string Reference, string Narration, bool IsReversed, string? ReversalReason,
+    IReadOnlyList<AllocationView> Allocations, decimal Unapplied)
+{
+    public string KindLabel => Kind.Label();
+}
+
 /// <summary>
 /// Customer receipts and refunds, supplier payments and refunds, and allocations between a party's open items.
 /// A settlement posts its voucher (cash or bank against the party ledger) and its allocations in one transaction.
@@ -141,6 +149,29 @@ public sealed class SettlementService(IUnitOfWorkFactory units, IAuthorizer auth
                 || r.Reference.Contains(text, StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(r => r.Date).ThenByDescending(r => r.Number, StringComparer.Ordinal)
             .ToList();
+    }
+
+    public async Task<SettlementView> GetAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await using var unit = await units.BeginAsync(readOnly: true, cancellationToken);
+        var s = await unit.FindAsync<Settlement>(id, cancellationToken) ?? throw new WorkspaceValidationException("That receipt or payment no longer exists.");
+        authorizer.Demand(PartyService.ViewPermission(s.Kind.PartyKind()));
+        var party = await unit.FindAsync<Party>(s.PartyId, cancellationToken);
+        var account = await unit.FindAsync<Account>(s.AccountId, cancellationToken);
+        var reversal = (await unit.ListAsync<SettlementReversal>(r => r.SettlementId == id, cancellationToken)).SingleOrDefault();
+        var items = (await OpenItems.LoadAsync(unit, s.PartyId, cancellationToken)).ToDictionary(i => i.Id);
+        var allocations = new List<AllocationView>();
+        if (reversal is null)
+        {
+            foreach (var a in await OpenItems.LiveAllocationsAsync(unit, s.PartyId, id, cancellationToken))
+            {
+                var other = items[a.ChargeId == id ? a.CreditId : a.ChargeId];
+                allocations.Add(new AllocationView(other.Id, other.Type, other.Number, a.Date, a.Amount));
+            }
+        }
+
+        return new SettlementView(s.Id, s.Kind, s.Number, s.Date, s.PartyId, party?.Name ?? "?", party?.Gstin ?? string.Empty, account?.Name ?? "?", s.Amount,
+            s.Method, s.Reference, s.Narration, reversal is not null, reversal?.Reason, allocations, reversal is null ? s.Amount - allocations.Sum(a => a.Amount) : 0);
     }
 
     /// <summary>Cash and bank ledgers that can receive or pay money.</summary>

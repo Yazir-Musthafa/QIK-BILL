@@ -1,4 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFramework>net10.0-windows</TargetFramework><UseWPF>true</UseWPF></PropertyGroup>
-  <ItemGroup><ProjectReference Include="../Nexora.Application/Nexora.Application.csproj" /></ItemGroup>
+  <!-- Platform-neutral on purpose: layout, barcodes, PDF and print services are tested on macOS. Windows printer calls live in Nexora.Desktop. -->
+  <ItemGroup>
+    <ProjectReference Include="../Nexora.Domain/Nexora.Domain.csproj" />
+    <ProjectReference Include="../Nexora.Application/Nexora.Application.csproj" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="PDFsharp" />
+    <PackageReference Include="ZXing.Net" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Noto Sans (SIL Open Font License 1.1): one font for layout measurement, PDF and on-screen preview. -->
+    <EmbeddedResource Include="Fonts/NotoSans-Regular.ttf" LogicalName="Nexora.Printing.Fonts.NotoSans-Regular.ttf" />
+    <EmbeddedResource Include="Fonts/NotoSans-Bold.ttf" LogicalName="Nexora.Printing.Fonts.NotoSans-Bold.ttf" />
+    <None Include="Fonts/OFL.txt" CopyToOutputDirectory="PreserveNewest" Link="licenses/NotoSans-OFL.txt" />
+  </ItemGroup>
 </Project>

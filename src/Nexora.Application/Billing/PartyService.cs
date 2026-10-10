@@ -27,6 +27,13 @@ public sealed record OpenItemRow(OpenItemSource Source, Guid Id, string Type, st
     public decimal Open => Amount - Allocated;
 }
 
+/// <summary>One posting on a party's ledger. <see cref="Balance"/> is in the party's usual direction (receivable or payable).</summary>
+public sealed record StatementLine(DateOnly Date, string Voucher, string Particulars, decimal Debit, decimal Credit, decimal Balance);
+
+/// <summary>A party's ledger for a period, with the balance brought forward and the documents still open.</summary>
+public sealed record PartyStatement(PartyRow Party, DateOnly From, DateOnly To, decimal Opening, IReadOnlyList<StatementLine> Lines, decimal Closing,
+    IReadOnlyList<OpenItemRow> OpenItems);
+
 /// <summary>Customers and suppliers. Creating a party creates its ledger under Sundry Debtors or Sundry Creditors.</summary>
 public sealed class PartyService(IUnitOfWorkFactory units, IAuthorizer authorizer, ILedgerPoster ledger)
 {
@@ -64,6 +71,38 @@ public sealed class PartyService(IUnitOfWorkFactory units, IAuthorizer authorize
             .OrderBy(i => i.Date).ThenBy(i => i.Number, StringComparer.Ordinal)
             .Select(i => new OpenItemRow(i.Source, i.Id, i.Type, i.Number, i.Date, i.IsCharge, i.Amount, i.Allocated, i.Reference))
             .ToList();
+    }
+
+    /// <summary>
+    /// The party's statement from its own ledger account, across financial years: opening balance, every posting in the
+    /// period with its voucher number and narration, and the closing balance. Needs the sales or purchases view permission,
+    /// not accounts access, because it shows only this party's ledger.
+    /// </summary>
+    public async Task<PartyStatement> StatementAsync(Guid partyId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
+    {
+        if (to < from) throw new WorkspaceValidationException("The end date must be on or after the start date.");
+        await using var unit = await units.BeginAsync(readOnly: true, cancellationToken);
+        var party = await unit.FindAsync<Party>(partyId, cancellationToken) ?? throw new WorkspaceValidationException("That party no longer exists.");
+        authorizer.Demand(ViewPermission(party.Kind));
+        var sign = party.Kind == PartyKind.Customer ? 1 : -1;
+        var entries = await unit.ListAsync<LedgerEntry>(e => e.AccountId == party.AccountId && e.Date <= to, cancellationToken);
+        var voucherIds = entries.Where(e => e.Date >= from).Select(e => e.VoucherId).Distinct().ToList();
+        var vouchers = (await unit.ListAsync<Voucher>(v => voucherIds.Contains(v.Id), cancellationToken)).ToDictionary(v => v.Id);
+        var opening = sign * entries.Where(e => e.Date < from).Sum(e => e.Debit - e.Credit);
+        var balance = opening;
+        var lines = new List<StatementLine>();
+        foreach (var entry in entries.Where(e => e.Date >= from).OrderBy(e => e.Date).ThenBy(e => vouchers.TryGetValue(e.VoucherId, out var v) ? v.PostedUtc : null).ThenBy(e => e.LineNumber))
+        {
+            balance += sign * (entry.Debit - entry.Credit);
+            var voucher = vouchers.GetValueOrDefault(entry.VoucherId);
+            lines.Add(new StatementLine(entry.Date, voucher?.Number ?? string.Empty, voucher?.Narration ?? string.Empty, entry.Debit, entry.Credit, balance));
+        }
+
+        var debitBalance = (await unit.ListAsync<LedgerEntry>(e => e.AccountId == party.AccountId, cancellationToken)).Sum(e => e.Debit - e.Credit);
+        var items = await OpenItems.LoadAsync(unit, partyId, cancellationToken);
+        var open = items.Where(i => i.Open != 0).OrderBy(i => i.Date).ThenBy(i => i.Number, StringComparer.Ordinal)
+            .Select(i => new OpenItemRow(i.Source, i.Id, i.Type, i.Number, i.Date, i.IsCharge, i.Amount, i.Allocated, i.Reference)).ToList();
+        return new PartyStatement(Row(party, debitBalance, items), from, to, opening, lines, balance, open);
     }
 
     public async Task<Guid> SaveAsync(PartyInput input, CancellationToken cancellationToken = default)

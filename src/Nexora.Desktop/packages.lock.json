@@ -211,7 +211,12 @@
       "nexora.printing": {
         "type": "Project",
         "dependencies": {
-          "Nexora.Application": "[0.1.0, )"
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.12, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )",
+          "Nexora.Application": "[0.1.0, )",
+          "Nexora.Domain": "[0.1.0, )",
+          "PDFsharp": "[6.2.4, )",
+          "ZXing.Net": "[0.16.11, )"
         }
       },
       "Microsoft.EntityFrameworkCore.Sqlite": {
@@ -243,6 +248,21 @@
         "dependencies": {
           "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12"
         }
+      },
+      "PDFsharp": {
+        "type": "CentralTransitive",
+        "requested": "[6.2.4, )",
+        "resolved": "6.2.4",
+        "contentHash": "GhTr9F1uOYXHCIEOB5PXIgqn5a8WLsJL2m0eewTA0IvY1j6N4HGXHKKmEyB90/N6vrjmYamf41V9zbmdW2HY3g==",
+        "dependencies": {
+          "Microsoft.Extensions.Logging.Abstractions": "8.0.3"
+        }
+      },
+      "ZXing.Net": {
+        "type": "CentralTransitive",
+        "requested": "[0.16.11, )",
+        "resolved": "0.16.11",
+        "contentHash": "OZfAVu88hl87BffQ+rlWCj/vLvAhhCK4QnFaoveeF/MY8SjHNSYBQ3qyUEWlPKNgBQGh1syXhCDg10vUnCsqkg=="
       }
     },
     "net10.0-windows7.0/win-x64": {

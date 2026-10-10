@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/Nexora.Infrastructure/Nexora.Infrastructure.csproj" />
     <ProjectReference Include="../../src/Nexora.Accounting/Nexora.Accounting.csproj" />
+    <ProjectReference Include="../../src/Nexora.Printing/Nexora.Printing.csproj" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />

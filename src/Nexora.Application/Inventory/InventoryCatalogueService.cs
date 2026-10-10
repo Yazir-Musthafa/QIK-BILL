@@ -52,6 +52,20 @@ public sealed class InventoryCatalogueService(IUnitOfWorkFactory units, IAuthori
             .ToList();
     }
 
+    /// <summary>
+    /// The active product a scanned or typed code belongs to: its barcode, QR identifier or SKU (in that order, ignoring
+    /// case for SKUs). Null when nothing matches. Codes are unique per company, so at most one product matches each kind.
+    /// </summary>
+    public async Task<ProductRow?> FindByCodeAsync(string code, CancellationToken cancellationToken = default)
+    {
+        var clean = (code ?? string.Empty).Trim();
+        if (clean.Length == 0) return null;
+        var products = await ListProductsAsync(cancellationToken: cancellationToken);
+        return products.FirstOrDefault(p => p.Barcode == clean)
+            ?? products.FirstOrDefault(p => p.QrCode == clean)
+            ?? products.FirstOrDefault(p => string.Equals(p.Sku, clean, StringComparison.OrdinalIgnoreCase));
+    }
+
     /// <summary>Creates or updates a product. Users without inventory.view-cost keep the stored purchase price unchanged.</summary>
     public async Task<Guid> SaveProductAsync(ProductInput input, CancellationToken cancellationToken = default)
     {
