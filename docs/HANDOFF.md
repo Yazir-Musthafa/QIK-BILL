@@ -5,7 +5,7 @@ Read this first, then `PROJECT_BRIEF.md` (the full spec; there is no `AGENTS.md`
 ## State
 
 - **Build:** clean, 0 warnings. `dotnet restore --locked-mode` passes, and a `win-x64` self-contained publish produces `QIKSuite.exe`.
-- **Tests:** **455 passing** (`dotnet test tests/Nexora.Tests`).
+- **Tests:** **502 passing** (`dotnet test tests/Nexora.Tests`), as of the working-guide audit (`docs/WORKING_GUIDE.md`). Of those, 228 are XAML design-rule checks, 30 are guide checks and 1 is the binding check; 243 test behaviour.
 - **Migrations:** `InitialWorkspace`, `CompaniesUsersRolesAudit`, `AccountingEngine`. The last contains SQLite immutability triggers.
 - **Not yet run:** the WPF UI, printing and the installer. Nothing has run on Windows.
 
@@ -24,6 +24,16 @@ Read this first, then `PROJECT_BRIEF.md` (the full spec; there is no `AGENTS.md`
 - **Domain** (`Domain/Accounting`): `Account`, `Voucher`, `VoucherLine`, `LedgerEntry`, `FinancialYearPeriod`, `Money`.
 - **Engine** (`Nexora.Accounting`): `ChartOfAccountsTemplate`, `SystemAccounts`, `AccountingSeedContributor`, `VoucherService` (posting engine), `LedgerService` (statements, trial balance, P&L, balance sheet, years), and `LedgerCalculator` (pure report logic).
 - Screens under Accounts in the sidebar, plus Settings → Financial years.
+
+## Rule: keep the working guide current
+
+After every phase, update `docs/WORKING_GUIDE.md` before stopping:
+
+- add the new screens to the status table;
+- add test cases for every new function, in the same format;
+- re-classify anything that changed.
+
+Never mark something FULLY FUNCTIONAL unless the code is wired to a real service and tests cover its logic. `Design/WorkingGuideTests` fails the build if a sidebar item (`NavCatalog`) or Settings section has no status-table row. The same rule is in `CLAUDE.md`.
 
 ## Design decisions to keep
 

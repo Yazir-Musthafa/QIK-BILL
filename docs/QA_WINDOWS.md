@@ -1,5 +1,7 @@
 # Windows QA checklist: Phases 1–3
 
+> The step-by-step test script with expected results is now in `WORKING_GUIDE.md` (section 3). Use it first; this checklist stays as a short summary.
+
 Phases 1–3 were built and tested on macOS. Nothing in this list has been performed yet. Run it on Windows 10 22H2 and Windows 11 before calling Phase 1 visually accepted. Record the date, machine, scaling and result for each item.
 
 ## Setup
@@ -59,7 +61,7 @@ Phases 1–3 were built and tested on macOS. Nothing in this list has been perfo
 - [ ] Settings shows General, Company profile, Branches and warehouses, Document numbering, Users, Roles and permissions, Financial years and Audit trail for an administrator.
 - [ ] Company profile: a valid GSTIN saves (example: `27AAPFU0939F1ZV` with state Maharashtra), a GSTIN for another state is refused with a clear message, the logo upload accepts PNG/JPEG up to 512 KB.
 - [ ] Branches and warehouses: create, edit, deactivate; a warehouse can be linked to a branch; duplicate codes are refused.
-- [ ] Numbering: change a prefix; the "next number looks like" column updates.
+- [ ] Numbering: change a prefix; the "Format (shown with number 1)" column updates, and the next posted voucher of that type uses the new prefix.
 - [ ] Users: create a Read-only user with a temporary password. Sign out and sign in as them; the change-password screen appears first. After changing it, the sidebar shows only what Read-only can see, and Save buttons are disabled.
 - [ ] As a Read-only user, Settings shows only the sections their role allows.
 - [ ] Roles: tick and untick permissions, save, sign in as a member, and confirm the change applies. The Administrator role cannot be edited. A custom role in use cannot be deleted.

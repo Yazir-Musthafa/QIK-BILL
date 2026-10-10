@@ -20,7 +20,7 @@
       <DataGrid.Columns>
         <DataGridTextColumn Header="Document" Binding="{Binding Name}" Width="*" />
         <DataGridTextColumn Header="Prefix" Binding="{Binding Prefix}" Width="120" />
-        <DataGridTextColumn Header="Next number looks like" Binding="{Binding Example}" Width="180" />
+        <DataGridTextColumn Header="Format (shown with number 1)" Binding="{Binding Example}" Width="200" />
       </DataGrid.Columns>
     </DataGrid>
   </DockPanel>

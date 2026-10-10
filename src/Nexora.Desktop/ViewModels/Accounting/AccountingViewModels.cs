@@ -249,12 +249,25 @@ public sealed partial class VouchersViewModel : PageViewModel, ILoadable
         if (await RunAsync(async () =>
             {
                 id = await _vouchers.SaveDraftAsync(BuildInput());
+                // Keep editing this draft: if posting fails, the next attempt updates it instead of creating another.
+                EditingId = id;
                 number = await _vouchers.PostAsync(id);
             }))
         {
             Toasts.Show($"Posted as {number}.", ToastKind.Success);
             await RefreshListAsync();
             await OpenAsync(id);
+        }
+        else if (EditingId is not null)
+        {
+            // The draft was saved before posting failed; show it in the list. Failure here must not hide the posting error.
+            try
+            {
+                await RefreshListAsync();
+            }
+            catch (Exception)
+            {
+            }
         }
     }
 

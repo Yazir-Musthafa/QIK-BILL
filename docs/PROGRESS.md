@@ -1,5 +1,9 @@
 # QIK Suite implementation progress
 
+## Working-guide audit (10 October 2026)
+
+`docs/WORKING_GUIDE.md` classifies every screen and contains a Windows test script. The audit added tests for service paths that had none (chart editing, warehouses, branch deactivation, numbering edits, logo, role change), plus `ViewBindingTests` (every page-level XAML binding exists on its view model) and `WorkingGuideTests` (the guide covers every sidebar item and Settings section). It also fixed a voucher-editor bug where a failed Post created a new draft on each retry, and relabelled a misleading numbering column. Tests: **502 passed, 0 failed** (228 design-rule, 30 guide, 1 binding, 243 behavioural).
+
 ## Rename: Nexora Business Suite → QIK Suite (10 October 2026)
 
 The product name users see is now QIK Suite, and the executable is `QIKSuite.exe`. The data folder is `%LocalAppData%\QIKSuite`, with a tested, staged copy from the old `Nexora\BusinessSuite` folder. Internal namespaces and project names stay `Nexora.*`; see `DECISIONS.md`. A test checks that every WPF `;component` resource URI matches the assembly name. Entries below dated before the rename refer to the old name where they describe what was built at the time.
