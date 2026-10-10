@@ -20,11 +20,11 @@ public static class NavCatalog
     public static IReadOnlyList<NavItem> Items { get; } =
     [
         new(Dashboard, "Dashboard", "", "Overview", null, "Business position at a glance."),
-        new("sales.invoices", "Sales invoices", "", "Sales", 5, "Tax invoices, cash bills and credit sales with GST.", Nexora.Domain.Security.Permissions.SalesView),
+        new("sales.invoices", "Sales invoices", "", "Sales", null, "Tax invoices, cash and credit sales, credit notes and customer receipts.", Nexora.Domain.Security.Permissions.SalesView),
         new("sales.quotations", "Quotations", "", "Sales", 5, "Enquiries, quotations, sales orders and delivery notes.", Nexora.Domain.Security.Permissions.SalesView),
-        new("sales.customers", "Customers", "", "Sales", 5, "Customer profiles, prices, credit limits and outstanding balances.", Nexora.Domain.Security.Permissions.SalesView),
-        new("purchases.invoices", "Purchase invoices", "", "Purchases", 5, "Purchase orders, goods receipts and supplier invoices.", Nexora.Domain.Security.Permissions.PurchasesView),
-        new("purchases.suppliers", "Suppliers", "", "Purchases", 5, "Supplier profiles, statements and advances.", Nexora.Domain.Security.Permissions.PurchasesView),
+        new("sales.customers", "Customers", "", "Sales", null, "Customer profiles, GST details, balances and open items.", Nexora.Domain.Security.Permissions.SalesView),
+        new("purchases.invoices", "Purchase bills", "", "Purchases", null, "Supplier bills with stock receipt, debit notes and supplier payments.", Nexora.Domain.Security.Permissions.PurchasesView),
+        new("purchases.suppliers", "Suppliers", "", "Purchases", null, "Supplier profiles, GST details, balances and open items.", Nexora.Domain.Security.Permissions.PurchasesView),
         new("inventory.products", "Products", "", "Inventory", null, "Products, variants, units, prices and barcodes.", Nexora.Domain.Security.Permissions.InventoryView),
         new("inventory.stock", "Stock", "", "Inventory", null, "Stock balances, receipts, issues, transfers, counts, valuation and reconciliation.", Nexora.Domain.Security.Permissions.InventoryView),
         new("accounts.chart", "Chart of accounts", "\uE8FD", "Accounts", null, "Groups and ledger accounts.", Nexora.Domain.Security.Permissions.AccountsView),

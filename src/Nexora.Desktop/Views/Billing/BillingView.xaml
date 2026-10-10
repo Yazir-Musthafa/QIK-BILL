@@ -1,0 +1,479 @@
+<UserControl x:Class="Nexora.Desktop.Views.Billing.BillingView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Nexora.Desktop.Controls">
+  <DockPanel Margin="24,20,24,24">
+    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+      <Button DockPanel.Dock="Right" Content="Refresh" Style="{StaticResource Button.Subtle}" Command="{Binding RefreshCommand}" />
+      <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Title}" />
+    </DockPanel>
+    <ListBox DockPanel.Dock="Top" ItemsSource="{Binding Sections}" SelectedItem="{Binding Section}" DisplayMemberPath="Label" Margin="0,0,0,16"
+             AutomationProperties.Name="Sections">
+      <ListBox.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Orientation="Horizontal" />
+        </ItemsPanelTemplate>
+      </ListBox.ItemsPanel>
+    </ListBox>
+    <TextBlock DockPanel.Dock="Bottom" Text="{Binding Error}" Style="{StaticResource Text.Error}" Visibility="{Binding Error, Converter={StaticResource VisibleWhen}}" />
+
+    <!-- Document preview: the stored document as calculated by the application (printing comes in Phase 6). -->
+    <Border DockPanel.Dock="Right" Width="440" Margin="16,0,0,0" Style="{StaticResource Panel}" Visibility="{Binding ShowPreview, Converter={StaticResource VisibleWhen}}">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+          <WrapPanel Visibility="{Binding PreviewIsDraft, Converter={StaticResource VisibleWhen}}" IsEnabled="{Binding CanCreate}">
+            <Button Content="Post draft" Style="{StaticResource Button.Primary}" Command="{Binding PostSelectedCommand}" Margin="0,0,8,8" />
+            <Button Content="Edit draft" Command="{Binding EditSelectedCommand}" Margin="0,0,8,8" />
+            <Button Content="Delete draft" Style="{StaticResource Button.Danger}" Command="{Binding DeleteSelectedCommand}" Margin="0,0,8,8" />
+          </WrapPanel>
+          <Button Content="Return goods (credit or debit note)" HorizontalAlignment="Left" Command="{Binding ReturnSelectedCommand}" Margin="0,0,0,8"
+                  Visibility="{Binding PreviewCanReturn, Converter={StaticResource VisibleWhen}}" />
+          <StackPanel Visibility="{Binding PreviewCanCancel, Converter={StaticResource VisibleWhen}}">
+            <TextBlock Text="Cancel: reason and date" Style="{StaticResource Text.Label}" />
+            <DockPanel>
+              <TextBox DockPanel.Dock="Right" Text="{Binding ActionDate, UpdateSourceTrigger=PropertyChanged}" Width="100" MaxLength="10" Margin="8,0,0,0"
+                       AutomationProperties.Name="Cancellation date (dd-mm-yyyy)" />
+              <TextBox Text="{Binding CancelReason, UpdateSourceTrigger=PropertyChanged}" MaxLength="300" AutomationProperties.Name="Reason for cancelling" />
+            </DockPanel>
+            <Button Content="Cancel document" Style="{StaticResource Button.Danger}" HorizontalAlignment="Left" Command="{Binding CancelSelectedCommand}" Margin="0,8,0,0" />
+          </StackPanel>
+        </StackPanel>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+          <StackPanel DataContext="{Binding Preview}">
+            <DockPanel>
+              <Border DockPanel.Dock="Right" Style="{StaticResource Badge.Danger}" Visibility="{Binding IsCancelled, Converter={StaticResource VisibleWhen}}"><TextBlock Text="Cancelled" /></Border>
+              <TextBlock Style="{StaticResource Text.Section}">
+                <Run Text="{Binding Number, Mode=OneWay, TargetNullValue=Draft}" />
+              </TextBlock>
+            </DockPanel>
+            <TextBlock Style="{StaticResource Text.Caption}">
+              <Run Text="{Binding Date, StringFormat=dd-MM-yyyy, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Mode, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Status, Mode=OneWay}" />
+            </TextBlock>
+            <TextBlock Text="{Binding CompanyName}" Style="{StaticResource Text.Body}" Margin="0,12,0,0" />
+            <TextBlock Style="{StaticResource Text.Caption}">
+              <Run Text="GSTIN " /><Run Text="{Binding CompanyGstin, Mode=OneWay}" /><Run Text=" · State " /><Run Text="{Binding CompanyStateCode, Mode=OneWay}" />
+            </TextBlock>
+            <TextBlock Text="{Binding PartyName}" Style="{StaticResource Text.Body}" Margin="0,8,0,0" />
+            <TextBlock Style="{StaticResource Text.Caption}">
+              <Run Text="GSTIN " /><Run Text="{Binding PartyGstin, Mode=OneWay}" /><Run Text=" · Place of supply " /><Run Text="{Binding PlaceOfSupplyName, Mode=OneWay}" />
+            </TextBlock>
+            <TextBlock Style="{StaticResource Text.Caption}" Visibility="{Binding OriginalNumber, Converter={StaticResource VisibleWhen}}">
+              <Run Text="Against " /><Run Text="{Binding OriginalNumber, Mode=OneWay}" />
+            </TextBlock>
+            <TextBlock Style="{StaticResource Text.Caption}" Visibility="{Binding Reference, Converter={StaticResource VisibleWhen}}">
+              <Run Text="Reference " /><Run Text="{Binding Reference, Mode=OneWay}" />
+            </TextBlock>
+            <TextBlock Style="{StaticResource Text.Caption}" Visibility="{Binding CancellationReason, Converter={StaticResource VisibleWhen}}" TextWrapping="Wrap">
+              <Run Text="Cancelled: " /><Run Text="{Binding CancellationReason, Mode=OneWay}" />
+            </TextBlock>
+
+            <ItemsControl ItemsSource="{Binding Lines}" Margin="0,12,0,0" Focusable="False">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition />
+                      <ColumnDefinition Width="100" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                      <TextBlock Text="{Binding Description}" Style="{StaticResource Text.Body}" TextWrapping="Wrap" />
+                      <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap">
+                        <Run Text="{Binding Quantity, Mode=OneWay}" /><Run Text=" " /><Run Text="{Binding Unit, Mode=OneWay}" /><Run Text=" × " /><Run Text="{Binding Rate, Mode=OneWay}" />
+                        <Run Text=" · HSN " /><Run Text="{Binding HsnCode, Mode=OneWay}" /><Run Text=" · GST " /><Run Text="{Binding TaxRatePercent, Mode=OneWay}" /><Run Text="%" />
+                        <Run Text=" · less " /><Run Text="{Binding Discount, Mode=OneWay}" />
+                        <Run Text="{Binding SerialNumber, Mode=OneWay}" /><Run Text=" " /><Run Text="{Binding Batch, Mode=OneWay}" />
+                      </TextBlock>
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" Text="{Binding Taxable, Converter={StaticResource Amount}}" Style="{StaticResource Text.Amount}" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Grid Margin="0,8,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition Width="120" />
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+              <TextBlock Text="Taxable value" Style="{StaticResource Text.Secondary}" />
+              <TextBlock Grid.Column="1" Text="{Binding Taxable, Converter={StaticResource Amount}}" Style="{StaticResource Text.Amount}" />
+              <TextBlock Grid.Row="1" Text="CGST" Style="{StaticResource Text.Secondary}" />
+              <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Cgst, Converter={StaticResource Amount}}" Style="{StaticResource Text.Amount}" />
+              <TextBlock Grid.Row="2" Text="SGST" Style="{StaticResource Text.Secondary}" />
+              <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Sgst, Converter={StaticResource Amount}}" Style="{StaticResource Text.Amount}" />
+              <TextBlock Grid.Row="3" Text="IGST" Style="{StaticResource Text.Secondary}" />
+              <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Igst, Converter={StaticResource Amount}}" Style="{StaticResource Text.Amount}" />
+              <TextBlock Grid.Row="4" Text="Round off" Style="{StaticResource Text.Secondary}" />
+              <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding RoundOff, Converter={StaticResource Amount}}" Style="{StaticResource Text.Amount}" />
+              <TextBlock Grid.Row="5" Text="Total" Style="{StaticResource Text.Section}" />
+              <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Total, Converter={StaticResource Amount}}" Style="{StaticResource Text.Amount}" />
+              <TextBlock Grid.Row="6" Text="Outstanding" Style="{StaticResource Text.Secondary}" />
+              <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding Outstanding, Converter={StaticResource Amount}, ConverterParameter=blank}" Style="{StaticResource Text.Amount}" />
+              <TextBlock Grid.Row="7" Text="Cost of goods" Style="{StaticResource Text.Secondary}" Visibility="{Binding CostOfGoods, Converter={StaticResource VisibleWhen}}" />
+              <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding CostOfGoods, Converter={StaticResource Amount}}" Style="{StaticResource Text.Amount}"
+                         Visibility="{Binding CostOfGoods, Converter={StaticResource VisibleWhen}}" />
+            </Grid>
+
+            <TextBlock Text="Allocations" Style="{StaticResource Text.Label}" Margin="0,12,0,4" Visibility="{Binding Allocations.Count, Converter={StaticResource VisibleWhen}}" />
+            <ItemsControl ItemsSource="{Binding Allocations}" Focusable="False">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition />
+                      <ColumnDefinition Width="100" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource Text.Caption}">
+                      <Run Text="{Binding OtherType, Mode=OneWay}" /><Run Text=" " /><Run Text="{Binding OtherNumber, Mode=OneWay}" />
+                    </TextBlock>
+                    <TextBlock Grid.Column="1" Text="{Binding Amount, Converter={StaticResource Amount}}" Style="{StaticResource Text.Amount}" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ScrollViewer>
+      </DockPanel>
+    </Border>
+
+    <Grid>
+      <!-- Invoices or bills -->
+      <DockPanel Visibility="{Binding ShowDocuments, Converter={StaticResource VisibleWhen}}">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
+          <TextBlock Text="Status" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" Margin="0,0,8,0" />
+          <ComboBox ItemsSource="{Binding StatusFilters}" SelectedItem="{Binding StatusFilter}" Width="130" AutomationProperties.Name="Status filter" />
+        </StackPanel>
+        <controls:QikDataGrid LayoutKey="billing-documents" ItemsSource="{Binding Documents}" SelectedItem="{Binding SelectedDocument}" SelectionMode="Single"
+                              AutomationProperties.Name="Documents">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Date" Binding="{Binding Date, StringFormat=dd-MM-yyyy}" SortMemberPath="Date" Width="90" />
+            <DataGridTextColumn Header="Number" Binding="{Binding Number}" Width="140" />
+            <DataGridTextColumn Header="Party" Binding="{Binding PartyName}" Width="*" MinWidth="140" />
+            <DataGridTextColumn Header="Reference" Binding="{Binding Reference}" Width="100" />
+            <DataGridTextColumn Header="Mode" Binding="{Binding Mode}" Width="64" />
+            <DataGridTextColumn Header="Taxable" Binding="{Binding Taxable, Converter={StaticResource Amount}}" SortMemberPath="Taxable" Width="110"
+                                controls:Table.Total="True" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+            <DataGridTextColumn Header="Tax" Binding="{Binding Tax, Converter={StaticResource Amount}}" SortMemberPath="Tax" Width="100"
+                                controls:Table.Total="True" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+            <DataGridTextColumn Header="Total" Binding="{Binding Total, Converter={StaticResource Amount}}" SortMemberPath="Total" Width="110"
+                                controls:Table.Total="True" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+            <DataGridTextColumn Header="Outstanding" Binding="{Binding Outstanding, Converter={StaticResource Amount}, ConverterParameter=blank}" SortMemberPath="Outstanding" Width="110"
+                                controls:Table.Total="True" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+            <DataGridTextColumn Header="Status" Binding="{Binding StatusLabel}" Width="100" />
+          </DataGrid.Columns>
+        </controls:QikDataGrid>
+      </DockPanel>
+
+      <!-- Credit or debit notes -->
+      <DockPanel Visibility="{Binding ShowReturns, Converter={StaticResource VisibleWhen}}">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
+          <TextBlock Text="Status" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" Margin="0,0,8,0" />
+          <ComboBox ItemsSource="{Binding StatusFilters}" SelectedItem="{Binding StatusFilter}" Width="130" AutomationProperties.Name="Status filter" />
+          <TextBlock Style="{StaticResource Text.Caption}" VerticalAlignment="Center" Margin="16,0,0,0"
+                     Text="Returns are made from an invoice or bill: select it under the first section and choose Return goods." />
+        </StackPanel>
+        <controls:QikDataGrid LayoutKey="billing-returns" ItemsSource="{Binding Returns}" SelectedItem="{Binding SelectedDocument}" SelectionMode="Single"
+                              AutomationProperties.Name="Returns">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Date" Binding="{Binding Date, StringFormat=dd-MM-yyyy}" SortMemberPath="Date" Width="90" />
+            <DataGridTextColumn Header="Number" Binding="{Binding Number}" Width="140" />
+            <DataGridTextColumn Header="Against" Binding="{Binding OriginalNumber}" Width="140" />
+            <DataGridTextColumn Header="Party" Binding="{Binding PartyName}" Width="*" MinWidth="140" />
+            <DataGridTextColumn Header="Mode" Binding="{Binding Mode}" Width="64" />
+            <DataGridTextColumn Header="Total" Binding="{Binding Total, Converter={StaticResource Amount}}" SortMemberPath="Total" Width="110"
+                                controls:Table.Total="True" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+            <DataGridTextColumn Header="Unapplied" Binding="{Binding Outstanding, Converter={StaticResource Amount}, ConverterParameter=blank}" SortMemberPath="Outstanding" Width="110"
+                                controls:Table.Total="True" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+            <DataGridTextColumn Header="Status" Binding="{Binding StatusLabel}" Width="110" />
+          </DataGrid.Columns>
+        </controls:QikDataGrid>
+      </DockPanel>
+
+      <!-- Editor -->
+      <Border Style="{StaticResource Panel}" Visibility="{Binding ShowEditor, Converter={StaticResource VisibleWhen}}" IsEnabled="{Binding CanCreate}">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" Text="{Binding EditorHeading}" Style="{StaticResource Text.Section}" Margin="0,0,0,12" />
+          <WrapPanel DockPanel.Dock="Top">
+            <StackPanel Width="260" Margin="0,0,12,8" IsEnabled="{Binding CanEditHeader}">
+              <TextBlock Text="{Binding PartyLabel}" Style="{StaticResource Text.Label}" />
+              <ComboBox ItemsSource="{Binding Parties}" SelectedItem="{Binding Party}" DisplayMemberPath="Name" IsTextSearchEnabled="True" TextSearch.TextPath="Name"
+                        MaxDropDownHeight="360" AutomationProperties.Name="Party" />
+            </StackPanel>
+            <StackPanel Width="100" Margin="0,0,12,8" IsEnabled="{Binding CanEditHeader}">
+              <TextBlock Text="Payment" Style="{StaticResource Text.Label}" />
+              <ComboBox ItemsSource="{Binding Modes}" SelectedItem="{Binding Mode}" AutomationProperties.Name="Cash or credit" />
+            </StackPanel>
+            <StackPanel Width="180" Margin="0,0,12,8" Visibility="{Binding IsCash, Converter={StaticResource VisibleWhen}}">
+              <TextBlock Text="Cash or bank account" Style="{StaticResource Text.Label}" />
+              <ComboBox ItemsSource="{Binding CashAccounts}" SelectedItem="{Binding CashAccount}" DisplayMemberPath="Name" AutomationProperties.Name="Cash or bank account" />
+            </StackPanel>
+            <StackPanel Width="180" Margin="0,0,12,8" Visibility="{Binding ShowWalkIn, Converter={StaticResource VisibleWhen}}">
+              <TextBlock Text="Customer name (optional)" Style="{StaticResource Text.Label}" />
+              <TextBox Text="{Binding WalkInName, UpdateSourceTrigger=PropertyChanged}" MaxLength="120" AutomationProperties.Name="Walk-in customer name" />
+            </StackPanel>
+            <StackPanel Width="110" Margin="0,0,12,8">
+              <TextBlock Text="Date" Style="{StaticResource Text.Label}" />
+              <TextBox Text="{Binding Date, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" AutomationProperties.Name="Date (dd-mm-yyyy)" />
+            </StackPanel>
+            <StackPanel Width="160" Margin="0,0,12,8">
+              <TextBlock Text="Warehouse" Style="{StaticResource Text.Label}" />
+              <ComboBox ItemsSource="{Binding Warehouses}" SelectedItem="{Binding Warehouse}" DisplayMemberPath="Name" AutomationProperties.Name="Warehouse" />
+            </StackPanel>
+            <StackPanel Width="150" Margin="0,0,12,8">
+              <TextBlock Text="Reference (supplier bill no.)" Style="{StaticResource Text.Label}" />
+              <TextBox Text="{Binding Reference, UpdateSourceTrigger=PropertyChanged}" MaxLength="40" AutomationProperties.Name="Reference" />
+            </StackPanel>
+            <StackPanel Width="260" Margin="0,0,12,8">
+              <TextBlock Text="Narration" Style="{StaticResource Text.Label}" />
+              <TextBox Text="{Binding Narration, UpdateSourceTrigger=PropertyChanged}" MaxLength="300" AutomationProperties.Name="Narration" />
+            </StackPanel>
+            <StackPanel Margin="0,16,12,8" IsEnabled="{Binding CanEditHeader}">
+              <CheckBox Content="Rates include tax" IsChecked="{Binding PricesIncludeTax}" Visibility="{Binding IsSales, Converter={StaticResource VisibleWhen}}" />
+              <CheckBox Content="Round total to rupees" IsChecked="{Binding RoundToRupee}" />
+            </StackPanel>
+          </WrapPanel>
+
+          <DockPanel DockPanel.Dock="Bottom" Margin="0,16,0,0">
+            <Grid DockPanel.Dock="Right" Width="300" Visibility="{Binding DraftTotals, Converter={StaticResource VisibleWhen}}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition Width="120" />
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+              <TextBlock Text="Taxable value" Style="{StaticResource Text.Secondary}" />
+              <TextBlock Grid.Column="1" Text="{Binding DraftTotals.Taxable, Converter={StaticResource Amount}}" Style="{StaticResource Text.Amount}" />
+              <TextBlock Grid.Row="1" Text="GST" Style="{StaticResource Text.Secondary}" />
+              <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding DraftTotals.Tax, Converter={StaticResource Amount}}" Style="{StaticResource Text.Amount}" />
+              <TextBlock Grid.Row="2" Text="Round off" Style="{StaticResource Text.Secondary}" />
+              <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding DraftTotals.RoundOff, Converter={StaticResource Amount}}" Style="{StaticResource Text.Amount}" />
+              <TextBlock Grid.Row="3" Text="Total (saved draft)" Style="{StaticResource Text.Section}" />
+              <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding DraftTotals.Total, Converter={StaticResource Amount}}" Style="{StaticResource Text.Amount}" />
+            </Grid>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <Button Content="Save draft and calculate" Command="{Binding SaveDraftCommand}" Margin="0,0,8,0" />
+                <Button Content="Save and post" Style="{StaticResource Button.Primary}" Command="{Binding SaveAndPostCommand}" Margin="0,0,8,0" />
+                <Button Content="Clear" Style="{StaticResource Button.Subtle}" Command="{Binding StartDocumentCommand}" />
+              </StackPanel>
+              <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
+                         Text="Totals are calculated by the application when the draft is saved. A blank rate uses the product's price; tax comes from the product's tax category." />
+            </StackPanel>
+          </DockPanel>
+
+          <DockPanel Margin="0,8,0,0">
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,4">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition Width="80" />
+                <ColumnDefinition Width="76" />
+                <ColumnDefinition Width="96" />
+                <ColumnDefinition Width="70" />
+                <ColumnDefinition Width="84" />
+                <ColumnDefinition Width="90" />
+                <ColumnDefinition Width="96" />
+                <ColumnDefinition Width="110" />
+                <ColumnDefinition Width="36" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="Product" Style="{StaticResource Text.Label}" />
+              <TextBlock Grid.Column="1" Text="Quantity" Style="{StaticResource Text.Label}" />
+              <TextBlock Grid.Column="2" Text="Unit" Style="{StaticResource Text.Label}" />
+              <TextBlock Grid.Column="3" Text="Rate" Style="{StaticResource Text.Label}" />
+              <TextBlock Grid.Column="4" Text="Disc %" Style="{StaticResource Text.Label}" />
+              <TextBlock Grid.Column="5" Text="Discount" Style="{StaticResource Text.Label}" />
+              <TextBlock Grid.Column="6" Text="Batch" Style="{StaticResource Text.Label}" />
+              <TextBlock Grid.Column="7" Text="Expiry" Style="{StaticResource Text.Label}" />
+              <TextBlock Grid.Column="8" Text="Serial" Style="{StaticResource Text.Label}" />
+            </Grid>
+            <Button DockPanel.Dock="Bottom" Content="Add line" Style="{StaticResource Button.Subtle}" HorizontalAlignment="Left" Margin="0,4,0,0" Command="{Binding AddLineCommand}"
+                    Visibility="{Binding CanEditHeader, Converter={StaticResource VisibleWhen}}" />
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+              <ItemsControl ItemsSource="{Binding Lines}" Focusable="False">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <StackPanel Margin="0,0,0,4">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition />
+                          <ColumnDefinition Width="80" />
+                          <ColumnDefinition Width="76" />
+                          <ColumnDefinition Width="96" />
+                          <ColumnDefinition Width="70" />
+                          <ColumnDefinition Width="84" />
+                          <ColumnDefinition Width="90" />
+                          <ColumnDefinition Width="96" />
+                          <ColumnDefinition Width="110" />
+                          <ColumnDefinition Width="36" />
+                        </Grid.ColumnDefinitions>
+                        <ComboBox ItemsSource="{Binding DataContext.Products, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Product}"
+                                  DisplayMemberPath="DisplayName" IsTextSearchEnabled="True" TextSearch.TextPath="Sku" MaxDropDownHeight="360" Margin="0,0,8,0"
+                                  IsEnabled="{Binding IsReturnLine, Converter={StaticResource Inverse}}" AutomationProperties.Name="Product" />
+                        <TextBox Grid.Column="1" Text="{Binding Quantity, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" Margin="0,0,8,0" AutomationProperties.Name="Quantity" />
+                        <ComboBox Grid.Column="2" ItemsSource="{Binding DataContext.Units, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Unit}"
+                                  DisplayMemberPath="Code" Margin="0,0,8,0" IsEnabled="{Binding IsReturnLine, Converter={StaticResource Inverse}}"
+                                  AutomationProperties.Name="Unit (blank: base unit)" />
+                        <TextBox Grid.Column="3" Text="{Binding Rate, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" Margin="0,0,8,0"
+                                 IsEnabled="{Binding IsReturnLine, Converter={StaticResource Inverse}}" AutomationProperties.Name="Rate (blank: product price)" />
+                        <TextBox Grid.Column="4" Text="{Binding DiscountPercent, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" Margin="0,0,8,0"
+                                 IsEnabled="{Binding IsReturnLine, Converter={StaticResource Inverse}}" AutomationProperties.Name="Discount percent" />
+                        <TextBox Grid.Column="5" Text="{Binding DiscountAmount, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" Margin="0,0,8,0"
+                                 IsEnabled="{Binding IsReturnLine, Converter={StaticResource Inverse}}" AutomationProperties.Name="Discount amount" />
+                        <TextBox Grid.Column="6" Text="{Binding Batch, UpdateSourceTrigger=PropertyChanged}" MaxLength="40" CharacterCasing="Upper" Margin="0,0,8,0"
+                                 IsEnabled="{Binding IsReturnLine, Converter={StaticResource Inverse}}" AutomationProperties.Name="Batch number" />
+                        <TextBox Grid.Column="7" Text="{Binding Expires, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" Margin="0,0,8,0"
+                                 IsEnabled="{Binding IsReturnLine, Converter={StaticResource Inverse}}" AutomationProperties.Name="Expiry date (dd-mm-yyyy)" />
+                        <TextBox Grid.Column="8" Text="{Binding Serial, UpdateSourceTrigger=PropertyChanged}" MaxLength="60" CharacterCasing="Upper" Margin="0,0,8,0"
+                                 IsEnabled="{Binding IsReturnLine, Converter={StaticResource Inverse}}" AutomationProperties.Name="Serial number" />
+                        <Button Grid.Column="9" Style="{StaticResource Button.Icon}" Content="&#xE711;" FontSize="{StaticResource IconSizeSmall}" AutomationProperties.Name="Remove line"
+                                ToolTip="Remove line" Command="{Binding DataContext.RemoveLineCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                      </Grid>
+                      <TextBlock Text="{Binding ReturnDescription}" Style="{StaticResource Text.Caption}" Visibility="{Binding IsReturnLine, Converter={StaticResource VisibleWhen}}" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </DockPanel>
+        </DockPanel>
+      </Border>
+
+      <!-- Receipts or payments -->
+      <Grid Visibility="{Binding ShowSettlements, Converter={StaticResource VisibleWhen}}">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="16" />
+          <ColumnDefinition Width="460" />
+        </Grid.ColumnDefinitions>
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,12,0,0" Visibility="{Binding CanCancel, Converter={StaticResource VisibleWhen}}">
+            <TextBox Text="{Binding CancelReason, UpdateSourceTrigger=PropertyChanged}" Width="220" MaxLength="300" Margin="0,0,8,0" AutomationProperties.Name="Reason for reversing" />
+            <TextBox Text="{Binding ActionDate, UpdateSourceTrigger=PropertyChanged}" Width="100" MaxLength="10" Margin="0,0,8,0" AutomationProperties.Name="Reversal date (dd-mm-yyyy)" />
+            <Button Content="Reverse selected" Style="{StaticResource Button.Danger}" Command="{Binding ReverseSettlementCommand}" />
+          </StackPanel>
+          <controls:QikDataGrid LayoutKey="billing-settlements" ItemsSource="{Binding SettlementRows}" SelectedItem="{Binding SelectedSettlement}" SelectionMode="Single"
+                                AutomationProperties.Name="Receipts and payments">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Date" Binding="{Binding Date, StringFormat=dd-MM-yyyy}" SortMemberPath="Date" Width="90" />
+              <DataGridTextColumn Header="Number" Binding="{Binding Number}" Width="130" />
+              <DataGridTextColumn Header="Type" Binding="{Binding KindLabel}" Width="130" />
+              <DataGridTextColumn Header="Party" Binding="{Binding PartyName}" Width="*" MinWidth="120" />
+              <DataGridTextColumn Header="Account" Binding="{Binding Account}" Width="110" />
+              <DataGridTextColumn Header="Method" Binding="{Binding Method}" Width="90" />
+              <DataGridTextColumn Header="Reference" Binding="{Binding Reference}" Width="110" />
+              <DataGridTextColumn Header="Amount" Binding="{Binding Amount, Converter={StaticResource Amount}}" SortMemberPath="Amount" Width="110"
+                                  controls:Table.Total="True" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+              <DataGridTextColumn Header="Unapplied" Binding="{Binding Unapplied, Converter={StaticResource Amount}, ConverterParameter=blank}" SortMemberPath="Unapplied" Width="100"
+                                  controls:Table.Total="True" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+              <DataGridTemplateColumn Header="Status" Width="90" SortMemberPath="IsReversed">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <Border Style="{StaticResource Badge.Warning}" Visibility="{Binding IsReversed, Converter={StaticResource VisibleWhen}}"><TextBlock Text="Reversed" /></Border>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+            </DataGrid.Columns>
+          </controls:QikDataGrid>
+        </DockPanel>
+
+        <Border Grid.Column="2" Style="{StaticResource Panel}" IsEnabled="{Binding CanCreate}">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Top" Text="New receipt, payment or refund" Style="{StaticResource Text.Section}" Margin="0,0,0,12" />
+            <Grid DockPanel.Dock="Top">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition />
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+              <StackPanel>
+                <TextBlock Text="Type" Style="{StaticResource Text.Label}" />
+                <ComboBox ItemsSource="{Binding SettlementKinds}" SelectedItem="{Binding SettlementKind}" AutomationProperties.Name="Settlement type" />
+              </StackPanel>
+              <StackPanel Grid.Column="2">
+                <TextBlock Text="{Binding PartyLabel}" Style="{StaticResource Text.Label}" />
+                <ComboBox ItemsSource="{Binding Parties}" SelectedItem="{Binding SettlementParty}" DisplayMemberPath="Name" IsTextSearchEnabled="True"
+                          TextSearch.TextPath="Name" MaxDropDownHeight="360" AutomationProperties.Name="Party" />
+              </StackPanel>
+              <StackPanel Grid.Row="1" Margin="0,12,0,0">
+                <TextBlock Text="Cash or bank account" Style="{StaticResource Text.Label}" />
+                <ComboBox ItemsSource="{Binding CashAccounts}" SelectedItem="{Binding SettlementAccount}" DisplayMemberPath="Name" AutomationProperties.Name="Cash or bank account" />
+              </StackPanel>
+              <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,12,0,0">
+                <TextBlock Text="Method" Style="{StaticResource Text.Label}" />
+                <ComboBox ItemsSource="{Binding Methods}" SelectedItem="{Binding SettlementMethod}" AutomationProperties.Name="Payment method" />
+              </StackPanel>
+              <StackPanel Grid.Row="2" Margin="0,12,0,0">
+                <TextBlock Text="Amount" Style="{StaticResource Text.Label}" />
+                <TextBox Text="{Binding SettlementAmount, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Amount" />
+              </StackPanel>
+              <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,12,0,0">
+                <TextBlock Text="Date" Style="{StaticResource Text.Label}" />
+                <TextBox Text="{Binding SettlementDate, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" AutomationProperties.Name="Date (dd-mm-yyyy)" />
+              </StackPanel>
+            </Grid>
+            <StackPanel DockPanel.Dock="Top" Margin="0,12,0,0">
+              <TextBlock Text="Reference (cheque, UPI or bank reference)" Style="{StaticResource Text.Label}" />
+              <TextBox Text="{Binding SettlementReference, UpdateSourceTrigger=PropertyChanged}" MaxLength="60" AutomationProperties.Name="Reference" />
+              <TextBlock Text="Narration" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
+              <TextBox Text="{Binding SettlementNarration, UpdateSourceTrigger=PropertyChanged}" MaxLength="300" AutomationProperties.Name="Narration" />
+            </StackPanel>
+            <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+              <TextBlock Style="{StaticResource Text.Caption}">
+                <Run Text="Allocated: " /><Run Text="{Binding AllocationTotal, Mode=OneWay}" /><Run Text=" (the rest stays as an advance)" />
+              </TextBlock>
+              <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                <Button Content="Allocate oldest first" Command="{Binding AllocateOldestFirstCommand}" Margin="0,0,8,0" />
+                <Button Content="Post" Style="{StaticResource Button.Primary}" Command="{Binding PostSettlementCommand}" />
+              </StackPanel>
+            </StackPanel>
+            <DockPanel Margin="0,12,0,0">
+              <TextBlock DockPanel.Dock="Top" Text="Open documents (enter the amount to apply)" Style="{StaticResource Text.Label}" />
+              <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+                <ItemsControl ItemsSource="{Binding OpenItems}" Focusable="False">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Grid Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition />
+                          <ColumnDefinition Width="100" />
+                          <ColumnDefinition Width="100" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                          <TextBlock Text="{Binding Item.Number}" Style="{StaticResource Text.Body}" />
+                          <TextBlock Style="{StaticResource Text.Caption}">
+                            <Run Text="{Binding Item.Type, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Item.Date, StringFormat=dd-MM-yyyy, Mode=OneWay}" />
+                          </TextBlock>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="{Binding Item.Open, Converter={StaticResource Amount}}" Style="{StaticResource Text.Amount}" Margin="0,0,8,0" ToolTip="Open" />
+                        <TextBox Grid.Column="2" Text="{Binding Amount, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Amount to apply" />
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </DockPanel>
+          </DockPanel>
+        </Border>
+      </Grid>
+    </Grid>
+  </DockPanel>
+</UserControl>

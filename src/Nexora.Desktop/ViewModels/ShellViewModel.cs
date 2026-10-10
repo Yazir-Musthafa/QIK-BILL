@@ -264,6 +264,10 @@ public sealed partial class ShellViewModel : ObservableObject
         ["accounts.opening"] = typeof(Accounting.OpeningBalancesViewModel),
         ["inventory.products"] = typeof(Inventory.ProductsViewModel),
         ["inventory.stock"] = typeof(Inventory.StockViewModel),
+        ["sales.invoices"] = typeof(Billing.SalesBillingViewModel),
+        ["sales.customers"] = typeof(Billing.CustomersViewModel),
+        ["purchases.invoices"] = typeof(Billing.PurchaseBillingViewModel),
+        ["purchases.suppliers"] = typeof(Billing.SuppliersViewModel),
     };
 
     private void RefreshPalette()
