@@ -1,12 +1,13 @@
 # QIK Suite
 
-A Windows desktop application (WPF, .NET 10) for billing, inventory, accounting, CRM and service management for Indian businesses. **Status: Phases 1–3 of 9.** Built so far:
+A Windows desktop application (WPF, .NET 10) for billing, inventory, accounting, CRM and service management for Indian businesses. **Status: Phases 1–4 of 9.** Built so far:
 
 - the shell, design system and themes;
 - companies, users, roles and permissions, the audit trail and company data isolation;
-- a double-entry accounting engine: chart of accounts, vouchers, ledgers, trial balance, profit and loss, balance sheet and financial years.
+- a double-entry accounting engine: chart of accounts, vouchers, ledgers, trial balance, profit and loss, balance sheet and financial years;
+- products and inventory: an append-only stock ledger, FIFO or weighted average costing, batches, serials and expiry, and automatic accounting that reconciles to the ledger.
 
-There is no sales, purchase, inventory or GST workflow yet, and the WPF UI has not been run on Windows. Do not use it for real accounts or GST.
+There is no sales, purchase or GST workflow yet. On Windows the app has been seen to open; its screens have not yet been tested there. Do not use it for real accounts or GST.
 
 The full specification is in `docs/PROJECT_BRIEF.md`, and status is in `docs/PROGRESS.md`.
 

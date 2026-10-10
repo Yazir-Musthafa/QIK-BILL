@@ -1,5 +1,43 @@
 # QIK Suite implementation progress
 
+## Phase 4: products and inventory, complete on macOS (11 October 2026)
+
+**Windows:** the owner reports the app **opens** on Windows. No other screen has been confirmed there, so the WPF UI, printing and installer remain **unverified at runtime**. No runtime problems were reported, so none were fixed before this phase. (The report template's "what I saw" field was left unfilled.)
+
+### Verified by build or test on macOS
+
+| Area | Evidence |
+|---|---|
+| Build | Clean build: 0 warnings, 0 errors. Migration `Inventory` (8 tables, voucher source columns, 4 triggers). The model has no unmigrated changes. |
+| Tests | **605 passed, 0 failed**: 327 behavioural, 246 XAML design-rule, 31 guide-coverage, 1 binding check. |
+| Data table logic | Saved layouts merge onto changed columns (drops removed, appends new, keeps one visible, clamps widths). The quick filter needs every word. Totals ignore non-numbers. Layouts are stored per user. (`TableLayoutTests`, 18 tests.) |
+| Products | Create and edit; SKU, barcode and QR identifier are unique. EAN-13/EAN-8 check digits (published examples), MRP ≥ selling, HSN 4/6/8 digits. Variants hold stock and their parent cannot. Archiving requires zero stock. Unit and tracking are fixed after creation. Alternate units convert to the base unit. |
+| Costing | Weighted average (running average, no rounding residue, last-cost negative issues) and FIFO (oldest layers first, never negative). Replaying the ledger reproduces it exactly and skips reversed pairs. The costing method is fixed once stock moves; negative stock with FIFO is refused. |
+| Stock documents | Opening, receipt, issue, adjustment in/out, transfer (no value, no voucher), physical count (gains and losses against the book), and state change (damaged stock is unavailable; write-off posts to Inventory Adjustments). Batches need a number and expiry, and can't go negative. Serials are one per line and unique in stock. Dates can't precede a product's last movement. |
+| Negative stock | Blocked by default with a clear message; allowed only when enabled (weighted average). |
+| Reversal | Restores quantity, value and ledger. Allowed only for a product's latest document, and only once. Stock vouchers can't be reversed from Vouchers. |
+| Reconciliation | One test posts every document type (opening, receipts, batch receipt, issue, transfer, state change, write-off, adjustment in, physical count, reversal). Stock valuation = stock ledger = Inventory in the trial balance = Inventory on the balance sheet, and both balance. Every stock test also asserts reconciliation. |
+| Manual Inventory blocked | Manual vouchers and opening balances can't post to Inventory, which keeps reconciliation exact. |
+| Concurrency | 8 parallel issues of 2 against 10 in stock: exactly 5 succeed, stock ends at 0, and it still reconciles. |
+| Permissions | Billing operators get no cost figures (purchase price, movement and document values are null; valuation and reconciliation are refused). Read-only can't change products or stock. Inventory managers post but can't change costing policy. Accountants view but can't post. Editing a product without view-cost keeps the stored purchase price. |
+| Isolation | Another company's products, stock and documents are invisible and unusable. SQLite rejects a movement referencing another company's product. The isolation test automatically covers all 8 new tables. |
+| Immutability | The data context refuses changes to stock movements and documents; SQLite triggers block UPDATE and DELETE (4 cases). A demonstration company with stock can still be deleted. |
+| Upgrade | A Phase 1 database receives inventory settings and 10 units on startup. |
+| Bugs found by tests | A typed unit cost for an alternate unit (per BOX) was applied per base unit, giving 28,800 instead of 2,400; fixed. The default cost for adjustments and count gains could have more than 4 decimals and would have been rejected; fixed. |
+| Mutation checks | Disabling each of these failed 1–11 tests: the negative-stock check, stock voucher posting, FIFO layer order, the manual-Inventory block, cost withholding, latest-only reversal. |
+
+### Built but unverified (needs Windows)
+
+The Products, Stock and Settings → Inventory screens, and the shared data table control (filter box, column menu, totals row alignment, saved layouts restored on reopen). They compile, pass the design-rule tests, and every page-level binding resolves.
+
+### Known gaps (Phase 4)
+
+- **Deferred to Phase 5:** reservations and available-to-promise, and COGS posting from sales.
+- **Deferred to Phase 8:** CSV/Excel import/export.
+- **Not built:** product images; editing or deactivating units and tax categories in the UI; per-column filters.
+- **Tax rates:** tax category rates are reference values only; current GST rates were not verified.
+- **Cost and value tracking:** cost is pooled per product across warehouses; value is tracked per product, quantity per warehouse, state and batch.
+
 ## Working-guide audit (10 October 2026)
 
 `docs/WORKING_GUIDE.md` classifies every screen and contains a Windows test script. The audit added tests for service paths that had none (chart editing, warehouses, branch deactivation, numbering edits, logo, role change), plus `ViewBindingTests` (every page-level XAML binding exists on its view model) and `WorkingGuideTests` (the guide covers every sidebar item and Settings section). It also fixed a voucher-editor bug where a failed Post created a new draft on each retry, and relabelled a misleading numbering column. Tests: **502 passed, 0 failed** (228 design-rule, 30 guide, 1 binding, 243 behavioural).

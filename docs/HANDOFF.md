@@ -1,12 +1,19 @@
-# Handoff: end of Phase 3 (10 October 2026)
+# Handoff: end of Phase 4 (11 October 2026)
 
-Read this first, then `PROJECT_BRIEF.md` (the full spec; there is no `AGENTS.md`), `PROGRESS.md` (evidence for each claim) and `ACCOUNTING_MAP.md`. **Phase 4 (products and inventory) is next.** The owner plans to test Phases 1–3 on Windows before then; see `QA_WINDOWS.md`.
+Read this first, then:
+
+- `PROJECT_BRIEF.md`: the full spec; there is no `AGENTS.md`;
+- `PROGRESS.md`: the evidence for each claim;
+- `ACCOUNTING_MAP.md`;
+- `WORKING_GUIDE.md`: screen status and the Windows test script.
+
+**Phase 5 (sales and purchases with GST) is next.** The owner has confirmed only that the app opens on Windows.
 
 ## State
 
 - **Build:** clean, 0 warnings. `dotnet restore --locked-mode` passes, and a `win-x64` self-contained publish produces `QIKSuite.exe`.
-- **Tests:** **502 passing** (`dotnet test tests/Nexora.Tests`), as of the working-guide audit (`docs/WORKING_GUIDE.md`). Of those, 228 are XAML design-rule checks, 30 are guide checks and 1 is the binding check; 243 test behaviour.
-- **Migrations:** `InitialWorkspace`, `CompaniesUsersRolesAudit`, `AccountingEngine`. The last contains SQLite immutability triggers.
+- **Tests:** **605 passing** (`dotnet test tests/Nexora.Tests`): 327 behavioural, 246 XAML design-rule, 31 guide checks and 1 binding check.
+- **Migrations:** `InitialWorkspace`, `CompaniesUsersRolesAudit`, `AccountingEngine`, `Inventory`. The last two contain SQLite immutability triggers.
 - **Not yet run:** the WPF UI, printing and the installer. Nothing has run on Windows.
 
 ## What was done in Phases 2 and 3
@@ -61,15 +68,26 @@ Never mark something FULLY FUNCTIONAL unless the code is wired to a real service
 - **The audit chain** reveals tampering but cannot stop someone from rewriting the whole file. External anchoring belongs in Phase 9.
 - **The one-reversal unique index** relies on SQLite treating NULLs as distinct (see `VoucherConfiguration`).
 
+## Phase 4 in brief
+
+- **Shared data table:** `Controls/QikDataGrid.cs`, styled in `Themes/Controls.xaml`. Its logic lives in `Application/Preferences/TableLayout.cs`: layout merge, filter, totals and per-user storage through `UserPreferenceService`. Use `<controls:QikDataGrid LayoutKey="…">` for new lists, and mark summable columns with `controls:Table.Total="True"`.
+- **Inventory domain** (`Domain/Inventory`): units, tax categories, products and variants, unit conversions, batches, settings, stock documents, `StockMovement` (append-only) and `CostPool` (FIFO and weighted average).
+- **Services:**
+  - `InventoryCatalogueService`: products, units, tax categories, settings.
+  - `StockService`: documents, balances, valuation, reconciliation, alerts.
+  - `InventorySeedContributor`: upgrades existing companies.
+- **Accounting link:** `Application/Abstractions/ILedgerPoster`, implemented by `Accounting/LedgerPoster.cs` on top of `VoucherService.PostCoreAsync` and `ReverseCoreAsync`, under one shared posting lock. Business documents post vouchers in their own transaction this way. Phase 5 sales and purchases should use the same path.
+- **Numbering:** `NumberAllocator` is shared by vouchers and stock documents. Use it for invoice numbers in Phase 5.
+- **The reconciliation invariant:** stock value = Inventory ledger balance. Keep it by never posting to Inventory except through `ILedgerPoster` from stock-affecting documents. Phase 5 sales must post COGS from `CostPool` in the same transaction as the stock issue.
+
 ## Next steps
 
-1. **Test on Windows** with `QA_WINDOWS.md`, and fix runtime issues before adding features.
-2. **Build the shared data-table control** (column hide, filter, saved layouts, totals row) before Phase 4 list screens.
-3. **Phase 4, inventory:**
-   - products, units, variants, warehouses and stock movement ledger;
-   - FIFO and weighted-average costing chosen per company;
-   - stock balances derived from movements;
-   - no negative stock unless the company allows it.
-   - Post inventory effects through `VoucherService` using `ACCOUNTING_MAP.md`.
-4. **Phase 5, sales and purchases:** use `SystemAccounts` for posting, `Money.Round` for tax, and `NumberingRule` for invoice numbers. Recalculate all totals in the Application layer.
-5. **Before Phase 6,** pick the PDF and barcode libraries after checking their licences (`THIRD_PARTY_LICENSES.md`).
+1. **Test Phase 4 on Windows** with `WORKING_GUIDE.md` sections 3.1–3.7, and report anything that fails.
+2. **Phase 5, sales and purchases with GST:**
+   - parties as sub-ledgers under Sundry Debtors and Creditors;
+   - invoices that issue or receive stock through `StockService` and post the accounting (including COGS) in one transaction;
+   - dated GST rates by place of supply;
+   - reservations from sales orders;
+   - totals recalculated in the Application layer, with idempotent posting.
+3. **Data-table follow-ups:** per-column filters, and editing or deactivating units and tax categories.
+4. **Before Phase 6,** choose the PDF and barcode libraries after a licence check.

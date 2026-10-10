@@ -71,7 +71,7 @@ All motion is off when Windows "Animation effects" is off (`SystemParameters.Cli
 
 ## Data tables
 
-The implicit `DataGrid` style gives compact 30px rows, a sticky header, horizontal hairlines and no zebra striping. Sorting (with a glyph), column resize and reorder, and keyboard row navigation come from the native grid. A totals row is shown in the gallery as a pattern. **Not built yet:** column hiding, filtering, saved column layouts, and a reusable totals-row control. These are needed by the list views from Phase 4 onward.
+The implicit `DataGrid` style gives compact 30px rows, a sticky header, horizontal hairlines and no zebra striping. Sorting (with a glyph), column resize and reorder, and keyboard row navigation come from the native grid. **`QikDataGrid`** (Phase 4) adds a toolbar with a quick filter (every word must match) and a row count; a **Columns** menu to show and hide columns; a totals row for columns marked `Table.Total`, aligned with the columns and following horizontal scroll; and a per-user layout (order, width, visibility, sort) saved under `LayoutKey`. Use it for every list. **Not built yet:** per-column filters.
 
 ## Accessibility
 
