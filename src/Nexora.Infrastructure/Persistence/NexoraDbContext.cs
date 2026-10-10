@@ -1,6 +1,7 @@
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Nexora.Application.Abstractions;
+using Nexora.Domain.Accounting;
 using Nexora.Domain.Audit;
 using Nexora.Domain.Common;
 using Nexora.Domain.Companies;
@@ -56,6 +57,16 @@ public sealed class NexoraDbContext : DbContext
     public DbSet<NumberCounter> NumberCounters => Set<NumberCounter>();
 
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
+
+    public DbSet<Account> Accounts => Set<Account>();
+
+    public DbSet<FinancialYearPeriod> FinancialYears => Set<FinancialYearPeriod>();
+
+    public DbSet<Voucher> Vouchers => Set<Voucher>();
+
+    public DbSet<VoucherLine> VoucherLines => Set<VoucherLine>();
+
+    public DbSet<LedgerEntry> LedgerEntries => Set<LedgerEntry>();
 
     /// <summary>The company every query and write is limited to. Empty when nobody is signed in, which matches nothing.</summary>
     public Guid CurrentCompanyId => _session.Current?.CompanyId ?? Guid.Empty;
@@ -154,6 +165,10 @@ internal static class ImmutabilityRules
     public static bool IsProtected(Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry) => entry.Entity switch
     {
         AuditEntry => true,
+        LedgerEntry => true,
+        // Original values decide: posting a draft (Draft -> Posted, unlocked -> locked) is allowed, anything after is not.
+        Voucher => entry.OriginalValues.GetValue<VoucherStatus>(nameof(Voucher.Status)) == VoucherStatus.Posted,
+        VoucherLine => entry.OriginalValues.GetValue<bool>(nameof(VoucherLine.IsLocked)),
         _ => false,
     };
 }

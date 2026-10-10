@@ -198,12 +198,27 @@ public sealed class WorkspaceServiceTests : IAsyncLifetime
     {
         await Workspace.CompleteSetupAsync(ValidRequest());
 
-        var bytes = await File.ReadAllBytesAsync(_db.DatabasePath);
+        // Closing every pooled connection checkpoints the write-ahead log into the main file, so all stored
+        // data is in one place. (Reading the -wal file directly raced with background checkpoints.)
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        var bytes = await ReadSharedAsync(_db.DatabasePath);
         var walPath = _db.DatabasePath + "-wal";
-        var wal = File.Exists(walPath) ? await ReadSharedAsync(walPath) : [];
+        var wal = File.Exists(walPath) ? await TryReadSharedAsync(walPath) : [];
         var text = System.Text.Encoding.UTF8.GetString([.. bytes, .. wal]);
         Assert.DoesNotContain(Password, text, StringComparison.Ordinal);
         Assert.Contains("PBKDF2-SHA256$", text, StringComparison.Ordinal);
+    }
+
+    private static async Task<byte[]> TryReadSharedAsync(string path)
+    {
+        try
+        {
+            return await ReadSharedAsync(path);
+        }
+        catch (FileNotFoundException)
+        {
+            return [];
+        }
     }
 
     private static async Task<byte[]> ReadSharedAsync(string path)

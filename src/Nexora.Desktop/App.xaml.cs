@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Nexora.Accounting;
 using Nexora.Application;
 using Nexora.Desktop.Services;
 using Nexora.Desktop.ViewModels;
@@ -84,6 +85,7 @@ public partial class App : System.Windows.Application
         var services = new ServiceCollection();
         services.AddLogging(builder => builder.AddSerilog(dispose: false));
         services.AddNexoraApplication();
+        services.AddNexoraAccounting();
         services.AddNexoraInfrastructure(new SqliteDatabaseProvider(databasePath));
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<DialogService>();
