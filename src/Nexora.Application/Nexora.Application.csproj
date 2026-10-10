@@ -1,3 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <ItemGroup><ProjectReference Include="../Nexora.Domain/Nexora.Domain.csproj" /></ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Nexora.Domain/Nexora.Domain.csproj" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
 </Project>
