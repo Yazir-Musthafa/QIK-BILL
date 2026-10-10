@@ -64,7 +64,7 @@ public sealed partial class DashboardViewModel(
         catch (Exception exception)
         {
             logger.LogError("Dashboard failed to load; error type {ErrorType}", exception.GetType().FullName);
-            Error = "The dashboard could not be loaded. Select Retry; if it keeps failing, restart Nexora.";
+            Error = "The dashboard could not be loaded. Select Retry; if it keeps failing, restart QIK Suite.";
         }
         finally
         {

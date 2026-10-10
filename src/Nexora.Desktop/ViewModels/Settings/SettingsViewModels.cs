@@ -557,7 +557,7 @@ public sealed partial class AuditViewModel(
         IsIntact = result.IsIntact;
         Verification = result.IsIntact
             ? $"Audit trail intact: {result.EntriesChecked} entries checked, none changed or removed."
-            : $"Audit trail broken at entry {result.FirstBrokenId}. An entry was changed or removed outside Nexora. Keep a copy of the database file and contact your administrator.";
+            : $"Audit trail broken at entry {result.FirstBrokenId}. An entry was changed or removed outside QIK Suite. Keep a copy of the database file and contact your administrator.";
     });
 }
 

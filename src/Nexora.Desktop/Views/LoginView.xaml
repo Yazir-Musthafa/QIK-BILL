@@ -4,7 +4,7 @@
              xmlns:controls="clr-namespace:Nexora.Desktop.Controls">
   <Grid Margin="16">
     <StackPanel Width="360" HorizontalAlignment="Center" VerticalAlignment="Center">
-      <TextBlock Text="Nexora" Style="{StaticResource Text.Section}" Foreground="{DynamicResource AccentBrush}" />
+      <TextBlock Text="QIK Suite" Style="{StaticResource Text.Section}" Foreground="{DynamicResource AccentBrush}" />
       <TextBlock Text="Sign in" Style="{StaticResource Text.Title}" Margin="0,16,0,24" />
 
       <Border Style="{StaticResource Panel}" Padding="24">

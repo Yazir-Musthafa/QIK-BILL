@@ -25,7 +25,7 @@ public sealed class ThemeService : IThemeService
     {
         theme = theme == Dark ? Dark : Light;
         var dictionaries = System.Windows.Application.Current.Resources.MergedDictionaries;
-        var tokens = new ResourceDictionary { Source = new Uri($"pack://application:,,,/Nexora;component/Themes/{theme}.xaml", UriKind.Absolute) };
+        var tokens = new ResourceDictionary { Source = new Uri($"pack://application:,,,/QIKSuite;component/Themes/{theme}.xaml", UriKind.Absolute) };
         if (dictionaries.Count == 0) dictionaries.Add(tokens);
         else dictionaries[0] = tokens;
 

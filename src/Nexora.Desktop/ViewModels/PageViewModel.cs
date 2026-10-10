@@ -41,7 +41,7 @@ public abstract partial class PageViewModel(ILogger logger, ToastService toasts)
         catch (Exception exception)
         {
             logger.LogError("Page operation failed; page {Page}; error type {ErrorType}", GetType().Name, exception.GetType().FullName);
-            Error = "Something went wrong and nothing was saved. Try again; if it keeps happening, restart Nexora.";
+            Error = "Something went wrong and nothing was saved. Try again; if it keeps happening, restart QIK Suite.";
         }
         finally
         {

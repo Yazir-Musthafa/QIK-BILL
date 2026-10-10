@@ -228,6 +228,33 @@ public sealed partial class DesignRuleTests
         }
     }
 
+    /// <summary>
+    /// WPF resolves "/Assembly;component/..." URIs by assembly name at runtime only. If the AssemblyName changes and a
+    /// URI does not, the build still succeeds but the app fails at startup. Every such URI must use the real name.
+    /// </summary>
+    [Fact]
+    public void Pack_uris_use_the_desktop_assembly_name()
+    {
+        var project = XDocument.Load(Path.Combine(DesktopRoot, "Nexora.Desktop.csproj"));
+        var assemblyName = project.Descendants("AssemblyName").Single().Value;
+        Assert.Equal("QIKSuite", assemblyName);
+
+        var sources = Directory.EnumerateFiles(DesktopRoot, "*.*", SearchOption.AllDirectories)
+            .Where(f => (f.EndsWith(".xaml") || f.EndsWith(".cs")) && !IsBuildOutput(f));
+        var found = 0;
+        foreach (var file in sources)
+        {
+            foreach (Match match in ComponentUri().Matches(File.ReadAllText(file)))
+            {
+                found++;
+                Assert.True(match.Groups["assembly"].Value == assemblyName,
+                    $"{Path.GetFileName(file)} uses \"/{match.Groups["assembly"].Value};component\" but the assembly is {assemblyName}.");
+            }
+        }
+
+        Assert.True(found >= 6, "Expected the theme and view dictionaries to be referenced by component URIs.");
+    }
+
     [Fact]
     public void No_emoji_in_desktop_sources()
     {
@@ -331,6 +358,9 @@ public sealed partial class DesignRuleTests
 
     [GeneratedRegex(@"(?<![&\w])#[0-9A-Fa-f]{3,8}\b")]
     private static partial Regex HexColour();
+
+    [GeneratedRegex(@"/(?<assembly>[A-Za-z0-9_.]+);component/")]
+    private static partial Regex ComponentUri();
 
     [GeneratedRegex(@"\{(?<kind>StaticResource|DynamicResource)\s+(?<key>[^}\s]+)")]
     private static partial Regex ResourceReference();

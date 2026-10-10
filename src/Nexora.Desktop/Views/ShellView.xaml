@@ -24,7 +24,7 @@
           <Button Style="{StaticResource Button.Icon}" Content="&#xE700;" HorizontalAlignment="Left" Margin="12,0,0,0"
                   Command="{Binding ToggleSidebarCommand}" AutomationProperties.Name="Collapse or expand sidebar"
                   ToolTip="Collapse or expand sidebar (Ctrl+B)" />
-          <TextBlock Text="Nexora" Style="{StaticResource Text.Section}" Margin="52,0,0,0" VerticalAlignment="Center"
+          <TextBlock Text="QIK Suite" Style="{StaticResource Text.Section}" Margin="52,0,0,0" VerticalAlignment="Center"
                      Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource VisibleWhen}, ConverterParameter=invert}" />
         </Grid>
 

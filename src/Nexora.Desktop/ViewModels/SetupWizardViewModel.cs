@@ -138,7 +138,7 @@ public sealed partial class SetupWizardViewModel : ObservableObject
         catch (Exception exception)
         {
             _logger.LogError("Setup failed; error type {ErrorType}", exception.GetType().FullName);
-            FormError = "Setup could not be saved. Check that Windows allows Nexora to write to your local application-data folder, then try again.";
+            FormError = "Setup could not be saved. Check that Windows allows QIK Suite to write to your local application-data folder, then try again.";
         }
         finally
         {
