@@ -1,5 +1,37 @@
 # Nexora implementation progress
 
+## Phase 2: complete on macOS, Windows runtime unverified (10 October 2026)
+
+**Scope:** company profiles, branches and warehouses, company-specific numbering, users, roles and per-action permissions, audit trail, data isolation between companies. **WPF UI, printing and installer remain unverified** (no Windows machine).
+
+### Verified by build or test on macOS
+
+| Area | Evidence |
+|---|---|
+| Build | `dotnet build Nexora.sln`: 0 warnings, 0 errors. Migration `CompaniesUsersRolesAudit` added; a test confirms the model has no unmigrated changes. |
+| Tests | **341 passed, 0 failed.** |
+| Data isolation | Each company's data is tagged with `CompanyId` and keyed to Companies with cascade delete. Every query is filtered to the signed-in company; companies and users are filtered too. Tests show a company cannot see another's branches, roles, numbering, memberships, users, company record or audit entries. That holds through the services, through the unit of work directly, even when looking rows up by id, and with no session. |
+| Write isolation | Saving a row for another company, or moving a row to another company, is refused. |
+| Database-level isolation | Composite `(CompanyId, Id)` foreign keys. Raw SQL that links a warehouse to another company's branch, or a membership to another company's role, is rejected by SQLite. |
+| No accidental bypass | A model test checks that every company-owned table has the filter in its SQL and a key to Companies. A source scan checks that only `EfWorkspaceStore` (and the audit recorder) can bypass the filter. |
+| Permissions | Every protected service call checks the session's permission in the Application layer. Tests cover: read-only users can view but not change anything; accountants cannot manage users; nobody can grant or assign permissions they don't hold; every company keeps an active administrator; deactivated users cannot sign in; role edits take effect; a password reset is refused when the user also works in a company the caller doesn't manage; usernames are unique across companies. |
+| Passwords | Temporary passwords must be changed before anything else; the old password stops working after a change. |
+| Audit trail | Setup, changes (who, what, when, old and new values), password changes (hash masked), sign-ins and resets are all recorded. Entries are hash-chained (SHA-256) and numbered per company. Editing or deleting a stored row is detected by Verify. Entries cannot be changed through the application, and a failed save leaves no audit entries. |
+| Upgrade | A Phase 1 database (companies and users, no roles) gets roles and numbering on startup, and existing users stay administrators. Running it twice changes nothing. |
+| Domain rules | GSTIN check character (verified against 6 public GSTINs), PAN format, GSTIN must match the company state and PAN, PIN code, email, logo type and size (512 KB), six built-in roles, discount limit, numbering format with `{FY}`. |
+| Mutation checks | Removing the company filter failed 12 tests. Disabling the write guard failed 2. Removing one permission check failed 2. Removing the escalation check failed 1. |
+
+### Built but unverified (needs Windows)
+
+The Settings screens (general, company profile with logo upload, branches and warehouses, numbering, users, roles and permissions, audit trail with integrity check), the forced password change, change password from the user menu, and sidebar items hidden by permission. They compile, and the XAML passes the design-rule tests.
+
+### Known gaps (Phase 2)
+
+- Branch-level GSTINs, company preferences such as costing method and negative stock (Phase 4/5), and logo use on printed documents (Phase 6) are not done.
+- The audit chain shows tampering but cannot stop someone with file access from rewriting the whole chain. External anchoring (for example a hash in backups) is a Phase 9 item.
+- Import/export and backup/restore are Phase 8, per the phase plan.
+- Session timeout and auto-lock: Phase 9.
+
 ## Phase 1: complete on macOS, Windows runtime unverified (10 October 2026)
 
 **Scope:** solution structure, application shell, design system, light and dark themes, dependency injection, logging, database setup and migrations, login, and the first-run wizard. Phases 2–9 have not started.
