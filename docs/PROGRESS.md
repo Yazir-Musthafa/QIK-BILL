@@ -1,5 +1,41 @@
 # Nexora implementation progress
 
+## Phase 3: complete on macOS, Windows runtime unverified (10 October 2026)
+
+**Scope:** chart of accounts, vouchers, ledgers, double-entry posting and financial-year handling, with unit tests. **WPF UI, printing and installer remain unverified** (no Windows machine). Phases 4–9 have not started.
+
+### Verified by build or test on macOS
+
+| Area | Evidence |
+|---|---|
+| Build | Clean build: 0 warnings, 0 errors. `dotnet restore --locked-mode` passes before and after a `win-x64` publish. Migration `AccountingEngine` added; the model has no unmigrated changes. |
+| Tests | **455 passed, 0 failed**, on 3 consecutive runs after a clean build. Earlier, 15 consecutive runs passed after I fixed a timing race in a Phase 1 test. |
+| Double entry | `Voucher.EnsureBalanced` (domain) refuses unbalanced vouchers, single-line vouchers, zero totals, one-account vouchers, lines with both or neither side, negative amounts and more than 2 decimals. Tested in unit and integration tests. |
+| Money | `decimal` throughout, stored as whole paise. Rounding policy (half away from zero to the paisa) is tested; paise round-trips exactly. |
+| Posting | One transaction covers checks, number allocation, freezing the voucher, ledger entries and the audit event. Numbers follow the numbering rules (`RV/2026-27/0001`) and continue per type. |
+| Idempotency and concurrency | Posting twice is refused. 8 concurrent posts of the same draft post it once. 20 concurrent posts of different drafts get unique, gapless numbers 1–20. |
+| Immutability | Posted vouchers, their lines and ledger entries cannot be changed. The service refuses (reverse instead), the data context throws, and SQLite triggers abort direct `UPDATE`/`DELETE` (6 raw-SQL cases tested). Deleting a demonstration company with posted vouchers still works. |
+| Reversal | Posts a swapped voucher (`RJ/...`) and leaves the original unchanged. The net effect is zero, a second reversal is refused, and it is audited. |
+| Rules | Payment must credit cash/bank; receipt must debit cash/bank; contra is cash/bank only; journal must not use cash/bank. Posting is refused for groups, inactive accounts, dates before the books start, years not yet opened, and closed years. |
+| Financial years | Open next year, close (refused while drafts are dated in it), reopen. Carry-forward: asset/liability/equity balances continue, income and expense restart, prior profit appears in Retained Earnings. Tested in pure-calculation tests and against the database. |
+| Opening balances | Posted as an Opening voucher; any difference goes to Opening Balance Difference; refused for income and expense accounts. |
+| Reconciliation | After a mixed set of vouchers (openings, receipts, payments, contra, a GST journal, and a reversal), the checks agree: the trial balance balances; every ledger statement's closing balance equals its trial-balance figure; the balance sheet balances; P&L net profit equals the balance sheet's current-year profit; and trial-balance income and expense totals equal the P&L totals. |
+| Chart of accounts | Default Indian chart with 28 system keys. Template tests check codes and names are unique, parents are earlier groups of the same nature, every key exists once, and mapped natures are right. Existing companies get the chart on upgrade. |
+| Permissions and isolation | Read-only users can view but not post or change; billing operators cannot see vouchers or ledgers; accountants can post and reverse. Another company's vouchers are invisible and cannot be reversed. Its accounts cannot be used, and SQLite rejects a voucher line pointing to another company's account. |
+| Mutation checks | Breaking any one of these failed 1–2 tests each: the balance check, the ledger immutability rule (the trigger still blocked the change), the carry-forward, the double-post check, the closed-year check. |
+
+### Built but unverified (needs Windows)
+
+These screens compile and their XAML passes the design-rule tests: chart of accounts, vouchers (editor with live totals, post, reverse), ledger statement, trial balance, profit and loss with balance sheet, opening balances, and Settings → Financial years.
+
+### Known gaps (Phase 3)
+
+- **Phase 8 items in the brief:** cash flow statement, bank reconciliation, cost and profit centres, ageing, bill-wise allocation.
+- **Report performance:** reports aggregate in memory, which is fine at desktop scale. Amounts are integer paise, so SQL aggregation can be added later.
+- **Ledger statements** must stay within one financial year (by design).
+- **Voucher editor:** dates are typed as dd-mm-yyyy (no date picker yet). There's no keyboard shortcut for adding a line and no voucher printing (Phase 6).
+- **Unique index for at most one reversal** relies on SQLite treating NULLs as distinct. SQL Server would need a filtered index.
+
 ## Phase 2: complete on macOS, Windows runtime unverified (10 October 2026)
 
 **Scope:** company profiles, branches and warehouses, company-specific numbering, users, roles and per-action permissions, audit trail, data isolation between companies. **WPF UI, printing and installer remain unverified** (no Windows machine).

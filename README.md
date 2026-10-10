@@ -1,6 +1,12 @@
 # Nexora Business Suite
 
-A Windows desktop application (WPF, .NET 10) for billing, inventory, accounting, CRM and service management for Indian businesses. **Status: Phase 1 of 9.** Only the foundation exists: the shell, design system, themes, database, sign-in and first-run setup. It records no business transactions yet. Do not use it for real accounts or GST.
+A Windows desktop application (WPF, .NET 10) for billing, inventory, accounting, CRM and service management for Indian businesses. **Status: Phases 1–3 of 9.** Built so far:
+
+- the shell, design system and themes;
+- companies, users, roles and permissions, the audit trail and company data isolation;
+- a double-entry accounting engine: chart of accounts, vouchers, ledgers, trial balance, profit and loss, balance sheet and financial years.
+
+There is no sales, purchase, inventory or GST workflow yet, and the WPF UI has not been run on Windows. Do not use it for real accounts or GST.
 
 The full specification is in `docs/PROJECT_BRIEF.md`, and status is in `docs/PROGRESS.md`.
 
@@ -9,12 +15,12 @@ The full specification is in `docs/PROJECT_BRIEF.md`, and status is in `docs/PRO
 | Project | Role |
 |---|---|
 | `src/Nexora.Domain` | Entities and business rules. No framework dependencies. |
-| `src/Nexora.Application` | Use cases (`IWorkspaceService`), validation, password hashing, persistence interfaces. |
-| `src/Nexora.Infrastructure` | EF Core `NexoraDbContext`, SQLite provider behind `IDatabaseProvider`, migrations. |
-| `src/Nexora.Accounting` | Reserved for Phase 3. |
+| `src/Nexora.Application` | Use cases (workspace, companies, users, roles, audit), permission checks, password hashing, and the persistence interfaces (`IUnitOfWork`, `IWorkspaceStore`). |
+| `src/Nexora.Infrastructure` | EF Core `NexoraDbContext` (company filters, write guard, audit capture, immutability), SQLite provider behind `IDatabaseProvider`, and migrations. |
+| `src/Nexora.Accounting` | Posting engine, chart-of-accounts template, ledgers and financial statements. See `docs/ACCOUNTING_MAP.md`. |
 | `src/Nexora.Printing` | Reserved for Phase 6. |
 | `src/Nexora.Desktop` | WPF app: views, view models, design system (`Themes/`). Builds `Nexora.exe`. |
-| `tests/Nexora.Tests` | xUnit tests: domain, security, SQLite integration, XAML design rules. |
+| `tests/Nexora.Tests` | xUnit tests: domain, security, permissions, company isolation, audit, accounting and reconciliation, SQLite integration, XAML design rules. |
 
 ## Build
 

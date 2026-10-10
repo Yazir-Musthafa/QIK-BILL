@@ -1,35 +1,65 @@
-# Handoff: end of Phase 2 (10 October 2026)
+# Handoff: end of Phase 3 (10 October 2026)
 
-Read this first. Then read `PROJECT_BRIEF.md` (the full spec; there is no `AGENTS.md`) and `PROGRESS.md` (evidence for each claim). Phase 3 (accounting engine) starts next.
+Read this first, then `PROJECT_BRIEF.md` (the full spec; there is no `AGENTS.md`), `PROGRESS.md` (evidence for each claim) and `ACCOUNTING_MAP.md`. **Phase 4 (products and inventory) is next.** The owner plans to test Phases 1–3 on Windows before then; see `QA_WINDOWS.md`.
 
 ## State
 
-- **Build and tests:** the solution builds with 0 warnings. **341 tests pass** (`dotnet test tests/Nexora.Tests`).
-- **Migrations:** `InitialWorkspace` and `CompaniesUsersRolesAudit`.
-- **Not yet run:** the WPF UI, printing and the installer. Windows testing is planned after Phase 3.
+- **Build:** clean, 0 warnings. `dotnet restore --locked-mode` passes, and a `win-x64` self-contained publish produces `Nexora.exe`.
+- **Tests:** **455 passing** (`dotnet test tests/Nexora.Tests`).
+- **Migrations:** `InitialWorkspace`, `CompaniesUsersRolesAudit`, `AccountingEngine`. The last contains SQLite immutability triggers.
+- **Not yet run:** the WPF UI, printing and the installer. Nothing has run on Windows.
 
-## How Phase 2 is built
+## What was done in Phases 2 and 3
 
-- **Isolation.** Company-owned entities implement `ICompanyOwned`. `NexoraDbContext` gives each one a query filter, a Companies foreign key and an index. A write guard refuses any write that targets another company. Companies and Users have their own filters. References between company-owned rows use composite keys `(CompanyId, Id)`, so the database rejects cross-company links. Only `EfWorkspaceStore` may call `IgnoreQueryFilters` or set `SystemScope`; a test scans the source to enforce this.
-- **Persistence for services.** Services use `IUnitOfWork` from Application. It's provider-neutral: plain LINQ expressions plus Add, Remove, Record and Commit. A writable unit begins a transaction (`BEGIN IMMEDIATE` on SQLite) and tracks entities, so the audit trail sees real old values. Installation-level work (setup, sign-in, provisioning, upgrades) goes through `IWorkspaceStore`.
-- **Permissions.** Permission keys live in `Domain/Security/Permissions.cs`. The session (`ISessionContext`) holds the role's permissions. `IAuthorizer.Demand` is called first in every protected service method. Two rules prevent escalation: you can't grant or assign permissions you don't hold, and every company keeps at least one administrator.
-- **Audit.** `AuditRecorder` runs inside `SaveChangesAsync`. It records changes to `IAudited` entities and explicit `AuditEvent`s, and seals each entry with a sequence number and a SHA-256 hash chain per company. `AuditService.VerifyAsync` re-checks the chain.
-- **Provisioning and upgrade.** `CompanyProvisioner` seeds roles, the creator's admin membership, numbering rules, and data from any `ICompanySeedContributor`. On startup, `UpgradeAsync` adds missing seed data to existing companies. Phase 3 should register its chart of accounts as a contributor so existing companies get one.
+**Phase 2: companies, users, roles, audit, isolation.**
+- Company profile with PAN and GSTIN validation, branches, warehouses, and company numbering.
+- Six built-in roles and a permission catalogue; permissions are enforced by `IAuthorizer.Demand` in every service, with no escalation and a last-administrator guard.
+- Temporary passwords that must be changed.
+- An audit trail with old and new values, hash-chained and numbered per company, with a Verify function.
+- Company isolation via query filters, a write guard, composite `(CompanyId, Id)` foreign keys, and a source scan limiting filter bypasses to `EfWorkspaceStore`.
+- Upgrade of Phase 1 databases.
+- Settings screens.
 
-## Files added or changed in Phase 2
+**Phase 3: accounting engine.**
+- **Domain** (`Domain/Accounting`): `Account`, `Voucher`, `VoucherLine`, `LedgerEntry`, `FinancialYearPeriod`, `Money`.
+- **Engine** (`Nexora.Accounting`): `ChartOfAccountsTemplate`, `SystemAccounts`, `AccountingSeedContributor`, `VoucherService` (posting engine), `LedgerService` (statements, trial balance, P&L, balance sheet, years), and `LedgerCalculator` (pure report logic).
+- Screens under Accounts in the sidebar, plus Settings → Financial years.
 
-- **Domain:** `Common/ICompanyOwned.cs`, `Companies/{Company,Locations,TaxIdentifiers}.cs`, `Numbering/*`, `Security/{Permissions,Role}.cs`, `Audit/AuditEntry.cs`, `Users/User.cs`.
-- **Application:** `Abstractions/{ISessionContext,IUnitOfWork,IWorkspaceStore}.cs`, `Security/Authorizer.cs`, `Workspace/{WorkspaceService,CompanyProvisioner,WorkspaceContracts}.cs`, `Companies/CompanyService.cs`, `Users/{UserService,RoleService}.cs`, `Audit/AuditService.cs`, `DependencyInjection.cs`.
-- **Infrastructure:** `Persistence/{NexoraDbContext,AuditRecorder,EfUnitOfWork,EfWorkspaceStore}.cs`, `Configurations/EntityConfigurations.cs`, the new migration.
-- **Desktop:** `ViewModels/{PageViewModel,ShellViewModel,MainViewModel,Navigation}.cs`, `ViewModels/Settings/*`, `Views/SettingsView.xaml`, `Views/Settings/*`, `Views/ShellView.xaml`, `Controls/Converters.cs`, `App.xaml(.cs)`.
-- **Tests:** `Domain/Phase2DomainTests.cs`, `Companies/{CompanyIsolationTests,AuditTrailTests}.cs`, `Security/PermissionTests.cs`.
+## Design decisions to keep
+
+- **Posting is all-or-nothing.** Everything happens in one writable `IUnitOfWork` (`BEGIN IMMEDIATE` on SQLite) plus an in-process gate, so numbers are gapless and a voucher cannot be posted twice.
+- **Ledger entries are the only report source.** New reports must read `LedgerEntry` through `LedgerCalculator`-style functions so everything keeps reconciling. Add a reconciliation test for each new report.
+- **Carry-forward is computed, not posted.** Don't add year-end closing entries; closing a year only locks it.
+- **Immutability is enforced in three places:** the domain, `ImmutabilityRules` in `NexoraDbContext`, and the SQLite triggers. A new append-only table needs all three, plus a test.
+- **New business tables must:** implement `ICompanyOwned` (and `IAudited` where changes matter), use composite foreign keys for references between company-owned rows, and have a migration. The isolation tests then cover them automatically.
+- **Seeding:** register seed data through `ICompanySeedContributor`, so existing companies receive it on upgrade.
+
+## Files changed in Phase 3
+
+- **Domain:** `Domain/Accounting/{Money,Account,Voucher}.cs`.
+- **Engine:** `src/Nexora.Accounting/*` (Phase 1's placeholder README removed).
+- **Infrastructure:** `Persistence/Configurations/AccountingConfigurations.cs`, `NexoraDbContext.cs`, and the `AccountingEngine` migration.
+- **Desktop:** `ViewModels/Accounting/*`, `Views/Accounting/*`, `ViewModels/{Navigation,ShellViewModel}.cs`, `ViewModels/Settings/SettingsViewModels.cs`, `Controls/Converters.cs`, `App.xaml(.cs)`, `Views/ViewTemplates.xaml`.
+- **Tests:** `tests/Nexora.Tests/Accounting/*`, a timing fix in `Workspace/WorkspaceServiceTests.cs`, and accounting registration in `Infrastructure/SqliteTestDatabase.cs`.
+- **Docs:** `ACCOUNTING_MAP.md`, `PROGRESS.md`, `HANDOFF.md`, `QA_WINDOWS.md`, `README.md`.
 
 ## Known problems
 
-- **The UI has never been run.** All WPF screens are unverified.
-- **Roles take effect at the next session.** Session permissions are cached until sign-in, company switch or refresh. That's fine for a single-user desktop app, but a role edit only applies to the editor's own session immediately.
-- **Users can be listed by username.** User accounts are installation-wide, so `AddExisting` can tell you a username exists in another company. That's intended, since usernames are global.
+- **The UI has never been run.** Expect XAML runtime fixes on Windows, especially in the voucher editor's inline combo boxes, the settings section host and popups.
+- **Reports aggregate in memory**, and ledger statements are limited to one financial year.
+- **Roles take effect at the next session.** Session permissions are cached until sign-in, company switch or refresh.
+- **The audit chain** reveals tampering but cannot stop someone from rewriting the whole file. External anchoring belongs in Phase 9.
+- **The one-reversal unique index** relies on SQLite treating NULLs as distinct (see `VoucherConfiguration`).
 
 ## Next steps
 
-1. Phase 3, the accounting engine (in progress next).
+1. **Test on Windows** with `QA_WINDOWS.md`, and fix runtime issues before adding features.
+2. **Build the shared data-table control** (column hide, filter, saved layouts, totals row) before Phase 4 list screens.
+3. **Phase 4, inventory:**
+   - products, units, variants, warehouses and stock movement ledger;
+   - FIFO and weighted-average costing chosen per company;
+   - stock balances derived from movements;
+   - no negative stock unless the company allows it.
+   - Post inventory effects through `VoucherService` using `ACCOUNTING_MAP.md`.
+4. **Phase 5, sales and purchases:** use `SystemAccounts` for posting, `Money.Round` for tax, and `NumberingRule` for invoice numbers. Recalculate all totals in the Application layer.
+5. **Before Phase 6,** pick the PDF and barcode libraries after checking their licences (`THIRD_PARTY_LICENSES.md`).
