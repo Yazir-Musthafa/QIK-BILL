@@ -3,9 +3,14 @@
   <ItemGroup>
     <ProjectReference Include="../../src/Nexora.Infrastructure/Nexora.Infrastructure.csproj" />
     <ProjectReference Include="../../src/Nexora.Accounting/Nexora.Accounting.csproj" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio"><PrivateAssets>all</PrivateAssets></PackageReference>
     <PackageReference Include="coverlet.collector"><PrivateAssets>all</PrivateAssets></PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
   </ItemGroup>
 </Project>
