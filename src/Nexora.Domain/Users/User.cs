@@ -3,10 +3,10 @@ using Nexora.Domain.Common;
 namespace Nexora.Domain.Users;
 
 /// <summary>
-/// An installation-wide user account. Roles, permissions and per-company access arrive in Phase 2;
-/// in Phase 1 every active user is an administrator of all companies.
+/// An installation-wide sign-in account. Access to each company, and the role used there,
+/// comes from <see cref="Security.CompanyMembership"/>.
 /// </summary>
-public sealed class User
+public sealed class User : IAudited
 {
     public const int DisplayNameMaxLength = 80;
     public const int MaxFailedAttempts = 5;
@@ -31,6 +31,7 @@ public sealed class User
         PasswordHash = passwordHash;
         IsActive = true;
         CreatedUtc = DateTime.SpecifyKind(createdUtc, DateTimeKind.Utc);
+        PasswordChangedUtc = CreatedUtc;
     }
 
     public Guid Id { get; private set; }
@@ -78,6 +79,23 @@ public sealed class User
         LockoutEndUtc = null;
         LastSignInUtc = nowUtc;
     }
+
+    /// <summary>When set, the user must choose a new password before doing anything else.</summary>
+    public bool MustChangePassword { get; private set; }
+
+    public DateTime PasswordChangedUtc { get; private set; }
+
+    /// <summary>Sets a new password chosen by the user, or a temporary one set by an administrator.</summary>
+    public void ChangePassword(string passwordHash, DateTime nowUtc, bool mustChangeOnNextSignIn)
+    {
+        ReplacePasswordHash(passwordHash);
+        PasswordChangedUtc = nowUtc;
+        MustChangePassword = mustChangeOnNextSignIn;
+        FailedSignInCount = 0;
+        LockoutEndUtc = null;
+    }
+
+    public void Rename(string displayName) => DisplayName = ValidateDisplayName(displayName);
 
     /// <summary>Replaces the hash, for example when the stored hash used weaker parameters.</summary>
     public void ReplacePasswordHash(string passwordHash)

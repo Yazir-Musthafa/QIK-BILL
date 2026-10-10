@@ -2,9 +2,14 @@ namespace Nexora.Application;
 
 public sealed record SetupRequest(string CompanyName, string DisplayName, string Username,
     string Password, string StateCode, int FinancialYearStartYear, bool CreateDemoCompany);
+/// <summary>The signed-in user, the open company, and the user's role and permissions in that company.</summary>
 public sealed record SessionInfo(Guid UserId, string Username, string DisplayName, Guid CompanyId,
-    string CompanyName, bool IsDemo, int FinancialYearStartYear);
-public sealed record CompanySummary(Guid Id, string Name, bool IsDemo, int FinancialYearStartYear);
+    string CompanyName, bool IsDemo, int FinancialYearStartYear, Guid RoleId, string RoleName,
+    IReadOnlySet<string> Permissions, decimal MaxDiscountPercent, bool MustChangePassword)
+{
+    public bool Has(string permission) => Permissions.Contains(permission);
+}
+public sealed record CompanySummary(Guid Id, string Name, bool IsDemo, int FinancialYearStartYear, string RoleName);
 public sealed record LoginResult(bool Succeeded, string? Error, SessionInfo? Session);
 public sealed record WorkspacePreferences(string Theme = "Light", bool SidebarCollapsed = false);
 public sealed record DashboardMetric(string Label, decimal Value, string Note);
@@ -33,6 +38,13 @@ public interface IWorkspaceService
     Task<WorkspacePreferences> GetPreferencesAsync(CancellationToken cancellationToken = default);
     Task SavePreferencesAsync(WorkspacePreferences preferences, CancellationToken cancellationToken = default);
     Task DeleteDemonstrationCompanyAsync(Guid companyId, CancellationToken cancellationToken = default);
+
+    /// <summary>Changes the signed-in user's own password after checking the current one.</summary>
+    Task ChangePasswordAsync(string currentPassword, string newPassword, CancellationToken cancellationToken = default);
+
+    /// <summary>Reloads the role and permissions of the current session, for example after a role was edited.</summary>
+    Task RefreshSessionAsync(CancellationToken cancellationToken = default);
 }
 
-public sealed class WorkspaceValidationException(string message) : Exception(message);
+/// <summary>A user-facing rule violation. The message is safe to show and tells the user what to do.</summary>
+public class WorkspaceValidationException(string message) : Exception(message);

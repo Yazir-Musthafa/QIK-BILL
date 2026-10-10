@@ -37,6 +37,16 @@ public sealed class SqliteTestDatabase : IAsyncDisposable
 
     public IWorkspaceService Workspace => Services.GetRequiredService<IWorkspaceService>();
 
+    public T Get<T>() where T : notnull => Services.GetRequiredService<T>();
+
+    /// <summary>Opens a raw connection for database-level assertions that bypass the application.</summary>
+    public SqliteConnection OpenRawConnection()
+    {
+        var connection = new SqliteConnection($"Data Source={DatabasePath};Foreign Keys=True");
+        connection.Open();
+        return connection;
+    }
+
     public async ValueTask DisposeAsync()
     {
         await Services.DisposeAsync();

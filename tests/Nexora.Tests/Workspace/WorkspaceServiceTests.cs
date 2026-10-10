@@ -1,4 +1,5 @@
 using Nexora.Application;
+using Nexora.Application.Security;
 using Nexora.Domain.Users;
 using Nexora.Tests.Infrastructure;
 
@@ -188,8 +189,8 @@ public sealed class WorkspaceServiceTests : IAsyncLifetime
         await Workspace.CompleteSetupAsync(ValidRequest());
         Workspace.SignOut();
 
-        await Assert.ThrowsAsync<WorkspaceValidationException>(() => Workspace.GetCompaniesAsync());
-        await Assert.ThrowsAsync<WorkspaceValidationException>(() => Workspace.GetDashboardAsync());
+        await Assert.ThrowsAsync<AccessDeniedException>(() => Workspace.GetCompaniesAsync());
+        await Assert.ThrowsAsync<AccessDeniedException>(() => Workspace.GetDashboardAsync());
     }
 
     [Fact]

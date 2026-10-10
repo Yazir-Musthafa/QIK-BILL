@@ -15,6 +15,7 @@ public static class DependencyInjection
         services.AddSingleton(provider);
         services.AddDbContextFactory<NexoraDbContext>(provider.Configure);
         services.AddSingleton<IWorkspaceStore, EfWorkspaceStore>();
+        services.AddSingleton<IUnitOfWorkFactory, EfUnitOfWorkFactory>();
         return services;
     }
 }

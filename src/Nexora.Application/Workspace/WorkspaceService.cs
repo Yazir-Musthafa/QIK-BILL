@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Security;
-using Nexora.Domain.Common;
+using Nexora.Domain.Audit;
 using Nexora.Domain.Companies;
 using Nexora.Domain.Users;
 
@@ -9,12 +9,16 @@ namespace Nexora.Application;
 
 public sealed class WorkspaceService(
     IWorkspaceStore store,
+    IUnitOfWorkFactory units,
+    ISessionContext sessionContext,
+    CompanyProvisioner provisioner,
     IPasswordHasher passwordHasher,
     IClock clock,
     ILogger<WorkspaceService> logger) : IWorkspaceService
 {
     public const string DemoCompanyName = "Demonstration Company (sample data)";
     public const string GenericSignInError = "The username or password is incorrect.";
+    public const string NoAccessError = "Your account does not have access to any company. Ask an administrator to add you.";
     private const string ThemeKey = "ui.theme";
     private const string SidebarKey = "ui.sidebarCollapsed";
     private const string LastCompanyKey = "session.lastCompanyId";
@@ -22,9 +26,13 @@ public sealed class WorkspaceService(
     // Verified against when the username is unknown so both paths cost the same.
     private readonly Lazy<string> _dummyHash = new(() => passwordHasher.Hash(Guid.NewGuid().ToString("N")));
 
-    public SessionInfo? CurrentSession { get; private set; }
+    public SessionInfo? CurrentSession => sessionContext.Current;
 
-    public Task InitializeAsync(CancellationToken cancellationToken = default) => store.MigrateAsync(cancellationToken);
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    {
+        await store.MigrateAsync(cancellationToken);
+        await provisioner.UpgradeAsync(store, clock.UtcNow, cancellationToken);
+    }
 
     public async Task<bool> NeedsSetupAsync(CancellationToken cancellationToken = default) =>
         !await store.HasAnyUserAsync(cancellationToken);
@@ -39,19 +47,20 @@ public sealed class WorkspaceService(
 
         var now = clock.UtcNow;
         var financialYear = new FinancialYear(request.FinancialYearStartYear);
-        var company = new Company(Guid.NewGuid(), request.CompanyName, request.StateCode, financialYear, isDemo: false, now);
-        var companies = new List<Company> { company };
-        if (request.CreateDemoCompany)
-        {
-            companies.Add(new Company(Guid.NewGuid(), DemoCompanyName, request.StateCode, financialYear, isDemo: true, now));
-        }
-
         var administrator = new User(Guid.NewGuid(), request.Username, request.DisplayName, passwordHasher.Hash(request.Password), now);
         administrator.RecordSuccessfulSignIn(now);
 
+        var company = new Company(Guid.NewGuid(), request.CompanyName, request.StateCode, financialYear, isDemo: false, now);
+        var provisioning = new List<CompanyProvisioning> { provisioner.Create(company, administrator.Id, now) };
+        if (request.CreateDemoCompany)
+        {
+            var demo = new Company(Guid.NewGuid(), DemoCompanyName, request.StateCode, financialYear, isDemo: true, now);
+            provisioning.Add(provisioner.Create(demo, administrator.Id, now));
+        }
+
         try
         {
-            await store.CreateInitialWorkspaceAsync(companies, administrator, cancellationToken);
+            await store.CreateInitialWorkspaceAsync(provisioning, administrator, cancellationToken);
         }
         catch (WorkspaceAlreadyInitializedException exception)
         {
@@ -59,9 +68,10 @@ public sealed class WorkspaceService(
         }
 
         logger.LogInformation("First-run setup completed; companies {CompanyCount}; demonstration {Demo}",
-            companies.Count, request.CreateDemoCompany);
+            provisioning.Count, request.CreateDemoCompany);
+        var access = (await store.GetAccessAsync(administrator.Id, cancellationToken)).Single(a => a.Company.Id == company.Id);
         await RememberCompanyAsync(company.Id, cancellationToken);
-        return CurrentSession = CreateSession(administrator, company);
+        return Open(administrator, access);
     }
 
     public async Task<LoginResult> SignInAsync(string username, string password, CancellationToken cancellationToken = default)
@@ -96,6 +106,13 @@ public sealed class WorkspaceService(
                 : new LoginResult(false, GenericSignInError, null);
         }
 
+        var accessible = await store.GetAccessAsync(user.Id, cancellationToken);
+        if (accessible.Count == 0)
+        {
+            logger.LogWarning("Sign-in rejected; reason {Reason}; user {UserId}", "no company access", user.Id);
+            return new LoginResult(false, NoAccessError, null);
+        }
+
         if (verification == PasswordVerification.SucceededRehashNeeded)
         {
             user.ReplacePasswordHash(passwordHasher.Hash(password));
@@ -104,49 +121,59 @@ public sealed class WorkspaceService(
         user.RecordSuccessfulSignIn(now);
         await store.UpdateUserAsync(user, cancellationToken);
 
-        var company = await ResolveStartupCompanyAsync(cancellationToken);
-        if (company is null)
-        {
-            logger.LogError("Sign-in succeeded but no company exists; user {UserId}", user.Id);
-            return new LoginResult(false, "No company is available. Restore a backup or contact your administrator.", null);
-        }
+        var lastId = Guid.TryParse(await store.GetSettingAsync(LastCompanyKey, cancellationToken), out var parsed) ? parsed : Guid.Empty;
+        var access = accessible.FirstOrDefault(a => a.Company.Id == lastId)
+            ?? accessible.OrderBy(a => a.Company.IsDemo).ThenBy(a => a.Company.CreatedUtc).First();
 
+        var session = Open(user, access);
+        await RecordAsync(new AuditEvent("SignedIn", nameof(User), user.Id.ToString(), $"{user.Username} signed in"), cancellationToken);
         logger.LogInformation("Sign-in succeeded; user {UserId}", user.Id);
-        CurrentSession = CreateSession(user, company);
-        return new LoginResult(true, null, CurrentSession);
+        return new LoginResult(true, null, session);
     }
 
     public void SignOut()
     {
         if (CurrentSession is { } session) logger.LogInformation("Signed out; user {UserId}", session.UserId);
-        CurrentSession = null;
+        sessionContext.Set(null);
     }
 
     public async Task<IReadOnlyList<CompanySummary>> GetCompaniesAsync(CancellationToken cancellationToken = default)
     {
-        RequireSession();
-        var companies = await store.GetCompaniesAsync(cancellationToken);
-        return companies
-            .OrderBy(c => c.IsDemo)
-            .ThenBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase)
-            .Select(c => new CompanySummary(c.Id, c.Name, c.IsDemo, c.FinancialYearStartYear))
+        var session = RequireSession();
+        var accessible = await store.GetAccessAsync(session.UserId, cancellationToken);
+        return accessible
+            .OrderBy(a => a.Company.IsDemo)
+            .ThenBy(a => a.Company.Name, StringComparer.CurrentCultureIgnoreCase)
+            .Select(a => new CompanySummary(a.Company.Id, a.Company.Name, a.Company.IsDemo, a.Company.FinancialYearStartYear, a.Role.Name))
             .ToList();
     }
 
     public async Task<SessionInfo> SwitchCompanyAsync(Guid companyId, CancellationToken cancellationToken = default)
     {
         var session = RequireSession();
-        var company = await store.FindCompanyAsync(companyId, cancellationToken)
-            ?? throw new WorkspaceValidationException("That company no longer exists. Choose another company.");
-        await RememberCompanyAsync(company.Id, cancellationToken);
-        logger.LogInformation("Company switched; user {UserId}; company {CompanyId}", session.UserId, company.Id);
-        return CurrentSession = session with
+        var access = (await store.GetAccessAsync(session.UserId, cancellationToken)).FirstOrDefault(a => a.Company.Id == companyId)
+            ?? throw new AccessDeniedException("You no longer have access to that company. Choose another company.");
+        var user = await store.FindUserAsync(session.UserId, cancellationToken)
+            ?? throw new AccessDeniedException("Your session has ended. Sign in again.");
+        await RememberCompanyAsync(access.Company.Id, cancellationToken);
+        var opened = Open(user, access);
+        logger.LogInformation("Company switched; user {UserId}; company {CompanyId}", session.UserId, access.Company.Id);
+        return opened;
+    }
+
+    public async Task RefreshSessionAsync(CancellationToken cancellationToken = default)
+    {
+        var session = sessionContext.Current ?? throw new AccessDeniedException("Your session has ended. Sign in again.");
+        var user = await store.FindUserAsync(session.UserId, cancellationToken);
+        var access = user is null ? null
+            : (await store.GetAccessAsync(session.UserId, cancellationToken)).FirstOrDefault(a => a.Company.Id == session.CompanyId);
+        if (user is null || access is null)
         {
-            CompanyId = company.Id,
-            CompanyName = company.Name,
-            IsDemo = company.IsDemo,
-            FinancialYearStartYear = company.FinancialYearStartYear,
-        };
+            sessionContext.Set(null);
+            throw new AccessDeniedException("Your access to this company was removed. Sign in again.");
+        }
+
+        Open(user, access);
     }
 
     public Task<DashboardSnapshot> GetDashboardAsync(CancellationToken cancellationToken = default)
@@ -181,37 +208,61 @@ public sealed class WorkspaceService(
     public async Task DeleteDemonstrationCompanyAsync(Guid companyId, CancellationToken cancellationToken = default)
     {
         var session = RequireSession();
-        var company = await store.FindCompanyAsync(companyId, cancellationToken)
+        if (!session.Has(Domain.Security.Permissions.CompanyManage))
+            throw new AccessDeniedException("Only users who can manage the company can delete the demonstration company.");
+        var access = (await store.GetAccessAsync(session.UserId, cancellationToken)).FirstOrDefault(a => a.Company.Id == companyId)
             ?? throw new WorkspaceValidationException("That company no longer exists.");
-        if (!company.IsDemo)
+        if (!access.Company.IsDemo)
             throw new WorkspaceValidationException("Only the demonstration company can be deleted here.");
         if (session.CompanyId == companyId)
             throw new WorkspaceValidationException("Switch to another company before deleting the demonstration company.");
 
         await store.DeleteCompanyAsync(companyId, cancellationToken);
+        await RecordAsync(new AuditEvent("Deleted", nameof(Company), companyId.ToString(), $"Deleted demonstration company \"{access.Company.Name}\""),
+            cancellationToken);
         logger.LogInformation("Demonstration company deleted; user {UserId}; company {CompanyId}", session.UserId, companyId);
     }
 
-    private SessionInfo RequireSession() =>
-        CurrentSession ?? throw new WorkspaceValidationException("Your session has ended. Sign in again.");
-
-    private async Task<Company?> ResolveStartupCompanyAsync(CancellationToken cancellationToken)
+    public async Task ChangePasswordAsync(string currentPassword, string newPassword, CancellationToken cancellationToken = default)
     {
-        if (Guid.TryParse(await store.GetSettingAsync(LastCompanyKey, cancellationToken), out var lastId)
-            && await store.FindCompanyAsync(lastId, cancellationToken) is { } last)
-        {
-            return last;
-        }
+        // A pending forced change is exactly what this method resolves, so it does not use RequireSession.
+        var session = sessionContext.Current ?? throw new AccessDeniedException("Your session has ended. Sign in again.");
+        var user = await store.FindUserAsync(session.UserId, cancellationToken)
+            ?? throw new AccessDeniedException("Your session has ended. Sign in again.");
+        if (passwordHasher.Verify(currentPassword ?? string.Empty, user.PasswordHash) == PasswordVerification.Failed)
+            throw new WorkspaceValidationException("The current password is incorrect.");
+        if (PasswordPolicy.Check(newPassword, user.Username) is { } problem) throw new WorkspaceValidationException(problem);
+        if (newPassword == currentPassword) throw new WorkspaceValidationException("Choose a password different from the current one.");
 
-        var companies = await store.GetCompaniesAsync(cancellationToken);
-        return companies.OrderBy(c => c.IsDemo).ThenBy(c => c.CreatedUtc).FirstOrDefault();
+        user.ChangePassword(passwordHasher.Hash(newPassword), clock.UtcNow, mustChangeOnNextSignIn: false);
+        await store.UpdateUserAsync(user, cancellationToken);
+        sessionContext.Set(session with { MustChangePassword = false });
+        await RecordAsync(new AuditEvent("PasswordChanged", nameof(User), user.Id.ToString(), $"{user.Username} changed their password"),
+            cancellationToken);
+        logger.LogInformation("Password changed; user {UserId}", user.Id);
+    }
+
+    private SessionInfo RequireSession() =>
+        CurrentSession ?? throw new AccessDeniedException("Your session has ended. Sign in again.");
+
+    private SessionInfo Open(User user, CompanyAccess access)
+    {
+        var session = new SessionInfo(user.Id, user.Username, user.DisplayName, access.Company.Id, access.Company.Name,
+            access.Company.IsDemo, access.Company.FinancialYearStartYear, access.Role.Id, access.Role.Name,
+            access.Role.Permissions, access.Role.MaxDiscountPercent, user.MustChangePassword);
+        sessionContext.Set(session);
+        return session;
+    }
+
+    private async Task RecordAsync(AuditEvent auditEvent, CancellationToken cancellationToken)
+    {
+        await using var unit = await units.BeginAsync(cancellationToken: cancellationToken);
+        unit.Record(auditEvent);
+        await unit.CommitAsync(cancellationToken);
     }
 
     private Task RememberCompanyAsync(Guid companyId, CancellationToken cancellationToken) =>
         store.SetSettingsAsync(new Dictionary<string, string> { [LastCompanyKey] = companyId.ToString() }, cancellationToken);
-
-    private static SessionInfo CreateSession(User user, Company company) =>
-        new(user.Id, user.Username, user.DisplayName, company.Id, company.Name, company.IsDemo, company.FinancialYearStartYear);
 
     private static string LockoutMessage(DateTime lockoutEndUtc, DateTime nowUtc)
     {

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Nexora.Application.Abstractions;
 using Nexora.Infrastructure.Persistence.Providers;
 
 namespace Nexora.Infrastructure.Persistence;
@@ -11,6 +12,6 @@ internal sealed class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<N
     {
         var builder = new DbContextOptionsBuilder<NexoraDbContext>();
         new SqliteDatabaseProvider("design-time.db").Configure(builder);
-        return new NexoraDbContext(builder.Options);
+        return new NexoraDbContext(builder.Options, new SessionContext(), new SystemClock());
     }
 }
