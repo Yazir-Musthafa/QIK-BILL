@@ -1,0 +1,235 @@
+<UserControl x:Class="Nexora.Desktop.Views.GalleryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Nexora.Desktop.Controls">
+  <UserControl.Resources>
+    <Style x:Key="GalleryHeading" TargetType="TextBlock" BasedOn="{StaticResource Text.Section}">
+      <Setter Property="Margin" Value="0,24,0,8" />
+    </Style>
+    <Style x:Key="Swatch" TargetType="Border">
+      <Setter Property="Width" Value="120" />
+      <Setter Property="Height" Value="32" />
+      <Setter Property="Margin" Value="0,0,8,4" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{StaticResource ControlRadius}" />
+    </Style>
+    <Style x:Key="SwatchLabel" TargetType="TextBlock" BasedOn="{StaticResource Text.Caption}">
+      <Setter Property="Margin" Value="0,0,8,12" />
+    </Style>
+  </UserControl.Resources>
+
+  <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+    <StackPanel Margin="24,20" MaxWidth="1040" HorizontalAlignment="Left">
+      <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Title}" />
+      <TextBlock Style="{StaticResource Text.Secondary}" Margin="0,4,0,0"
+                 Text="Hidden reference screen (Ctrl+Shift+G). Every control and state used in Nexora, in the current theme." />
+
+      <!-- Typography -->
+      <TextBlock Text="Typography" Style="{StaticResource GalleryHeading}" />
+      <Border Style="{StaticResource Panel}">
+        <StackPanel>
+          <TextBlock Text="Page title · 20" Style="{StaticResource Text.Title}" />
+          <TextBlock Text="Section heading · 15" Style="{StaticResource Text.Section}" Margin="0,8,0,0" />
+          <TextBlock Text="Body text · 13. Used for forms, descriptions and messages." Style="{StaticResource Text.Body}" Margin="0,8,0,0" />
+          <TextBlock Text="Secondary text · 13. Supporting information." Style="{StaticResource Text.Secondary}" Margin="0,4,0,0" />
+          <TextBlock Text="Caption and table text · 12" Style="{StaticResource Text.Caption}" Margin="0,4,0,0" />
+          <StackPanel Width="200" HorizontalAlignment="Left" Margin="0,8,0,0">
+            <TextBlock Text="₹1,20,000.00" Style="{StaticResource Text.Amount}" />
+            <TextBlock Text="₹9,875.25" Style="{StaticResource Text.Amount}" />
+            <TextBlock Text="₹18,42,350.50" Style="{StaticResource Text.Amount}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Colour tokens -->
+      <TextBlock Text="Colour tokens" Style="{StaticResource GalleryHeading}" />
+      <Border Style="{StaticResource Panel}">
+        <WrapPanel>
+          <StackPanel><Border Style="{StaticResource Swatch}" Background="{DynamicResource BackgroundBrush}" /><TextBlock Text="Background" Style="{StaticResource SwatchLabel}" /></StackPanel>
+          <StackPanel><Border Style="{StaticResource Swatch}" Background="{DynamicResource SurfaceBrush}" /><TextBlock Text="Surface" Style="{StaticResource SwatchLabel}" /></StackPanel>
+          <StackPanel><Border Style="{StaticResource Swatch}" Background="{DynamicResource SurfaceSubtleBrush}" /><TextBlock Text="Surface subtle" Style="{StaticResource SwatchLabel}" /></StackPanel>
+          <StackPanel><Border Style="{StaticResource Swatch}" Background="{DynamicResource HoverBrush}" /><TextBlock Text="Hover" Style="{StaticResource SwatchLabel}" /></StackPanel>
+          <StackPanel><Border Style="{StaticResource Swatch}" Background="{DynamicResource BorderBrush}" /><TextBlock Text="Border" Style="{StaticResource SwatchLabel}" /></StackPanel>
+          <StackPanel><Border Style="{StaticResource Swatch}" Background="{DynamicResource BorderStrongBrush}" /><TextBlock Text="Border strong" Style="{StaticResource SwatchLabel}" /></StackPanel>
+          <StackPanel><Border Style="{StaticResource Swatch}" Background="{DynamicResource TextBrush}" /><TextBlock Text="Text" Style="{StaticResource SwatchLabel}" /></StackPanel>
+          <StackPanel><Border Style="{StaticResource Swatch}" Background="{DynamicResource TextSecondaryBrush}" /><TextBlock Text="Text secondary" Style="{StaticResource SwatchLabel}" /></StackPanel>
+          <StackPanel><Border Style="{StaticResource Swatch}" Background="{DynamicResource AccentBrush}" /><TextBlock Text="Accent" Style="{StaticResource SwatchLabel}" /></StackPanel>
+          <StackPanel><Border Style="{StaticResource Swatch}" Background="{DynamicResource AccentSubtleBrush}" /><TextBlock Text="Accent subtle" Style="{StaticResource SwatchLabel}" /></StackPanel>
+          <StackPanel><Border Style="{StaticResource Swatch}" Background="{DynamicResource SuccessBrush}" /><TextBlock Text="Success" Style="{StaticResource SwatchLabel}" /></StackPanel>
+          <StackPanel><Border Style="{StaticResource Swatch}" Background="{DynamicResource WarningBrush}" /><TextBlock Text="Warning" Style="{StaticResource SwatchLabel}" /></StackPanel>
+          <StackPanel><Border Style="{StaticResource Swatch}" Background="{DynamicResource DangerBrush}" /><TextBlock Text="Danger" Style="{StaticResource SwatchLabel}" /></StackPanel>
+          <StackPanel><Border Style="{StaticResource Swatch}" Background="{DynamicResource ChartNeutralBrush}" /><TextBlock Text="Chart neutral" Style="{StaticResource SwatchLabel}" /></StackPanel>
+        </WrapPanel>
+      </Border>
+
+      <!-- Buttons -->
+      <TextBlock Text="Buttons" Style="{StaticResource GalleryHeading}" />
+      <Border Style="{StaticResource Panel}">
+        <StackPanel>
+          <WrapPanel>
+            <Button Content="Primary" Style="{StaticResource Button.Primary}" Margin="0,0,8,8" />
+            <Button Content="Secondary" Margin="0,0,8,8" />
+            <Button Content="Subtle" Style="{StaticResource Button.Subtle}" Margin="0,0,8,8" />
+            <Button Content="Destructive" Style="{StaticResource Button.Danger}" Margin="0,0,8,8" />
+            <Button Content="&#xE710;" Style="{StaticResource Button.Icon}" Margin="0,0,8,8" AutomationProperties.Name="Add" ToolTip="Icon button" />
+            <Button Content="Link action" Style="{StaticResource Button.Link}" Margin="8,6,8,8" VerticalAlignment="Top" />
+          </WrapPanel>
+          <WrapPanel>
+            <Button Content="Primary" Style="{StaticResource Button.Primary}" IsEnabled="False" Margin="0,0,8,0" />
+            <Button Content="Secondary" IsEnabled="False" Margin="0,0,8,0" />
+            <Button Content="Destructive" Style="{StaticResource Button.Danger}" IsEnabled="False" Margin="0,0,8,0" />
+            <TextBlock Text="Disabled" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" />
+          </WrapPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Inputs -->
+      <TextBlock Text="Inputs" Style="{StaticResource GalleryHeading}" />
+      <Border Style="{StaticResource Panel}">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition />
+            <ColumnDefinition Width="24" />
+            <ColumnDefinition />
+            <ColumnDefinition Width="24" />
+            <ColumnDefinition />
+          </Grid.ColumnDefinitions>
+          <StackPanel>
+            <TextBlock Text="Text field" Style="{StaticResource Text.Label}" />
+            <TextBox Text="{Binding SampleText}" />
+            <TextBlock Text="Password" Style="{StaticResource Text.Label}" Margin="0,16,0,4" />
+            <PasswordBox />
+          </StackPanel>
+          <StackPanel Grid.Column="2">
+            <TextBlock Text="With error" Style="{StaticResource Text.Label}" />
+            <TextBox Text="{Binding InvalidText}" controls:FieldAssist.HasError="True" />
+            <TextBlock Text="{Binding InvalidMessage}" Style="{StaticResource Text.Error}" />
+            <TextBlock Text="Disabled" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
+            <TextBox Text="Read-only value" IsEnabled="False" />
+          </StackPanel>
+          <StackPanel Grid.Column="4">
+            <TextBlock Text="Selection" Style="{StaticResource Text.Label}" />
+            <ComboBox ItemsSource="{Binding Options}" SelectedIndex="0" />
+            <CheckBox Content="Checked" IsChecked="{Binding IsChecked}" Margin="0,16,0,0" />
+            <CheckBox Content="Unchecked" Margin="0,8,0,0" />
+            <CheckBox Content="Disabled" IsEnabled="False" Margin="0,8,0,0" />
+            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+              <RadioButton Content="Option A" GroupName="GalleryRadio" IsChecked="True" Margin="0,0,16,0" />
+              <RadioButton Content="Option B" GroupName="GalleryRadio" />
+            </StackPanel>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- Badges -->
+      <TextBlock Text="Badges" Style="{StaticResource GalleryHeading}" />
+      <Border Style="{StaticResource Panel}">
+        <WrapPanel>
+          <Border Style="{StaticResource Badge}" Margin="0,0,8,0"><TextBlock Text="Draft" /></Border>
+          <Border Style="{StaticResource Badge.Accent}" Margin="0,0,8,0"><TextBlock Text="Selected" /></Border>
+          <Border Style="{StaticResource Badge.Success}" Margin="0,0,8,0"><TextBlock Text="Posted" /></Border>
+          <Border Style="{StaticResource Badge.Warning}" Margin="0,0,8,0"><TextBlock Text="Overdue" /></Border>
+          <Border Style="{StaticResource Badge.Danger}"><TextBlock Text="Cancelled" /></Border>
+        </WrapPanel>
+      </Border>
+
+      <!-- Data table -->
+      <TextBlock Text="Data table" Style="{StaticResource GalleryHeading}" />
+      <StackPanel>
+        <DataGrid ItemsSource="{Binding Rows}" AutomationProperties.Name="Sample invoices">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Number" Binding="{Binding Number}" Width="110" />
+            <DataGridTextColumn Header="Party" Binding="{Binding Party}" Width="*" />
+            <DataGridTextColumn Header="Date" Binding="{Binding DateText}" SortMemberPath="Date" Width="110" />
+            <DataGridTemplateColumn Header="Status" SortMemberPath="Status" Width="110">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <Border>
+                    <Border.Style>
+                      <Style TargetType="Border" BasedOn="{StaticResource Badge}">
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding Status}" Value="Posted"><Setter Property="Background" Value="{DynamicResource SuccessSubtleBrush}" /><Setter Property="TextElement.Foreground" Value="{DynamicResource SuccessBrush}" /></DataTrigger>
+                          <DataTrigger Binding="{Binding Status}" Value="Overdue"><Setter Property="Background" Value="{DynamicResource WarningSubtleBrush}" /><Setter Property="TextElement.Foreground" Value="{DynamicResource WarningBrush}" /></DataTrigger>
+                          <DataTrigger Binding="{Binding Status}" Value="Cancelled"><Setter Property="Background" Value="{DynamicResource DangerSubtleBrush}" /><Setter Property="TextElement.Foreground" Value="{DynamicResource DangerBrush}" /></DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Border.Style>
+                    <TextBlock Text="{Binding Status}" />
+                  </Border>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTextColumn Header="Amount" Binding="{Binding AmountText}" SortMemberPath="Amount" Width="140"
+                                HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+          </DataGrid.Columns>
+        </DataGrid>
+        <!-- Totals row -->
+        <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1,0,1,1" Background="{DynamicResource SurfaceSubtleBrush}"
+                Height="{StaticResource RowHeight}" CornerRadius="0,0,6,6" Margin="0,-6,0,0" Padding="9,6,9,0">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Right" Text="{Binding TotalText}" Style="{StaticResource Text.Amount}" FontWeight="SemiBold"
+                       VerticalAlignment="Center" />
+            <TextBlock Text="Total" FontWeight="SemiBold" FontSize="{StaticResource FontSizeTable}" VerticalAlignment="Center" />
+          </DockPanel>
+        </Border>
+        <TextBlock Style="{StaticResource Text.Caption}" Margin="0,8,0,0"
+                   Text="Click headers to sort, drag edges to resize, drag headers to reorder. Arrow keys move between rows." />
+      </StackPanel>
+
+      <!-- States -->
+      <TextBlock Text="States" Style="{StaticResource GalleryHeading}" />
+      <UniformGrid Columns="2">
+        <Border Style="{StaticResource Panel}" Margin="0,0,8,8">
+          <StackPanel>
+            <TextBlock Text="Loading" Style="{StaticResource Text.Label}" />
+            <Border Style="{StaticResource Skeleton}" Width="180" Margin="0,8,0,0" />
+            <Border Style="{StaticResource Skeleton}" Width="260" Margin="0,8,0,0" />
+            <Border Style="{StaticResource Skeleton}" Width="220" Margin="0,8,0,0" />
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource Panel}" Margin="8,0,0,8">
+          <StackPanel>
+            <TextBlock Text="Empty" Style="{StaticResource Text.Label}" />
+            <TextBlock Text="No customers yet. Customers you add appear here." Style="{StaticResource Text.Secondary}" Margin="0,4,0,8" />
+            <Button Content="Add customer" Style="{StaticResource Button.Primary}" HorizontalAlignment="Left" />
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource Panel}" Margin="0,8,8,0">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Left" Style="{StaticResource Text.Icon}" Text="&#xEA39;" Foreground="{DynamicResource DangerBrush}"
+                       VerticalAlignment="Top" Margin="0,1,12,0" />
+            <StackPanel>
+              <TextBlock Text="Error" Style="{StaticResource Text.Label}" />
+              <TextBlock Text="The report could not be generated." FontWeight="SemiBold" />
+              <TextBlock Text="The database is in use by another program. Close it and select Retry." Style="{StaticResource Text.Secondary}" Margin="0,2,0,8" />
+              <Button Content="Retry" HorizontalAlignment="Left" />
+            </StackPanel>
+          </DockPanel>
+        </Border>
+        <Border Style="{StaticResource Panel}" Margin="8,8,0,0">
+          <StackPanel>
+            <TextBlock Text="Confirmation" Style="{StaticResource Text.Label}" />
+            <WrapPanel Margin="0,4,0,0">
+              <Button Content="Open confirmation" Margin="0,0,8,0" Command="{Binding ConfirmCommand}" CommandParameter="normal" />
+              <Button Content="Open destructive confirmation" Command="{Binding ConfirmCommand}" CommandParameter="destructive" />
+            </WrapPanel>
+            <TextBlock Text="{Binding ConfirmationResult, StringFormat=Last result: {0}}" Style="{StaticResource Text.Caption}" Margin="0,8,0,0"
+                       Visibility="{Binding ConfirmationResult, Converter={StaticResource VisibleWhen}}" />
+          </StackPanel>
+        </Border>
+      </UniformGrid>
+
+      <!-- Toasts -->
+      <TextBlock Text="Toast notifications" Style="{StaticResource GalleryHeading}" />
+      <Border Style="{StaticResource Panel}">
+        <WrapPanel>
+          <Button Content="Information" Margin="0,0,8,0" Command="{Binding ToastCommand}" CommandParameter="info" />
+          <Button Content="Success" Margin="0,0,8,0" Command="{Binding ToastCommand}" CommandParameter="success" />
+          <Button Content="Warning" Margin="0,0,8,0" Command="{Binding ToastCommand}" CommandParameter="warning" />
+          <Button Content="Error" Command="{Binding ToastCommand}" CommandParameter="error" />
+        </WrapPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

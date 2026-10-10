@@ -1,9 +1,14 @@
 using System.IO;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Nexora.Application;
+using Nexora.Desktop.Services;
+using Nexora.Desktop.ViewModels;
 using Nexora.Infrastructure;
+using Nexora.Infrastructure.Persistence.Providers;
 using Serilog;
 using Serilog.Formatting.Json;
 
@@ -44,23 +49,21 @@ public partial class App : System.Windows.Application
             TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
             AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
 
-            var services = new ServiceCollection();
-            services.AddSingleton<IWorkspaceService>(_ => new SqliteWorkspaceService(Path.Combine(dataDirectory, "nexora.db")));
-            services.AddSingleton<MainWindow>();
-            _services = services.BuildServiceProvider(new ServiceProviderOptions
+            _services = ConfigureServices(Path.Combine(dataDirectory, "nexora.db")).BuildServiceProvider(new ServiceProviderOptions
             {
                 ValidateOnBuild = true,
                 ValidateScopes = true
             });
 
-            Log.Information("Application starting; version {Version}; runtime {Runtime}", "0.1.0", Environment.Version.ToString());
+            var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "unknown";
+            Log.Information("Application starting; version {Version}; runtime {Runtime}", version, Environment.Version.ToString());
             var workspace = _services.GetRequiredService<IWorkspaceService>();
             await workspace.InitializeAsync();
             var window = _services.GetRequiredService<MainWindow>();
             MainWindow = window;
+            await window.InitializeAsync();
             window.Show();
             ShutdownMode = ShutdownMode.OnMainWindowClose;
-            await window.InitializeAsync();
             Log.Information("Workspace initialization completed");
         }
         catch (Exception exception)
@@ -73,6 +76,23 @@ public partial class App : System.Windows.Application
                 "Nexora could not start", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
         }
+    }
+
+    /// <summary>Composition root. Public so the registration can be verified without starting WPF.</summary>
+    public static IServiceCollection ConfigureServices(string databasePath)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging(builder => builder.AddSerilog(dispose: false));
+        services.AddNexoraApplication();
+        services.AddNexoraInfrastructure(new SqliteDatabaseProvider(databasePath));
+        services.AddSingleton<IThemeService, ThemeService>();
+        services.AddSingleton<DialogService>();
+        services.AddSingleton<ToastService>();
+        services.AddSingleton<MainViewModel>();
+        services.AddTransient<SetupWizardViewModel>();
+        services.AddTransient<LoginViewModel>();
+        services.AddSingleton<MainWindow>();
+        return services;
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)

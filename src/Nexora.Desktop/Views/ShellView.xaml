@@ -1,0 +1,221 @@
+<UserControl x:Class="Nexora.Desktop.Views.ShellView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Nexora.Desktop.Controls">
+  <UserControl.Resources>
+    <CollectionViewSource x:Key="NavSource" Source="{Binding NavItems}">
+      <CollectionViewSource.GroupDescriptions>
+        <PropertyGroupDescription PropertyName="Group" />
+      </CollectionViewSource.GroupDescriptions>
+    </CollectionViewSource>
+  </UserControl.Resources>
+
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="Auto" />
+      <ColumnDefinition Width="*" />
+    </Grid.ColumnDefinitions>
+
+    <!-- ===== Sidebar ===== -->
+    <Border x:Name="Sidebar" Grid.Column="0" Width="232" Background="{DynamicResource SurfaceSubtleBrush}"
+            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0" ClipToBounds="True">
+      <DockPanel>
+        <Grid DockPanel.Dock="Top" Height="48">
+          <Button Style="{StaticResource Button.Icon}" Content="&#xE700;" HorizontalAlignment="Left" Margin="12,0,0,0"
+                  Command="{Binding ToggleSidebarCommand}" AutomationProperties.Name="Collapse or expand sidebar"
+                  ToolTip="Collapse or expand sidebar (Ctrl+B)" />
+          <TextBlock Text="Nexora" Style="{StaticResource Text.Section}" Margin="52,0,0,0" VerticalAlignment="Center"
+                     Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource VisibleWhen}, ConverterParameter=invert}" />
+        </Grid>
+
+        <ListBox ItemsSource="{Binding Source={StaticResource NavSource}}" SelectedItem="{Binding SelectedNavItem}"
+                 ItemContainerStyle="{StaticResource NavItem}" KeyboardNavigation.TabNavigation="Once"
+                 AutomationProperties.Name="Navigation" Padding="0,0,0,8">
+          <ListBox.GroupStyle>
+            <GroupStyle>
+              <GroupStyle.HeaderTemplate>
+                <DataTemplate>
+                  <Grid Margin="20,12,0,4">
+                    <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Label}" Margin="0"
+                               Visibility="{Binding DataContext.IsSidebarCollapsed, RelativeSource={RelativeSource AncestorType=UserControl},
+                                            Converter={StaticResource VisibleWhen}, ConverterParameter=invert}" />
+                    <Border Height="1" Background="{DynamicResource BorderBrush}" Width="24" HorizontalAlignment="Left" Margin="0,4"
+                            Visibility="{Binding DataContext.IsSidebarCollapsed, RelativeSource={RelativeSource AncestorType=UserControl},
+                                         Converter={StaticResource VisibleWhen}}" />
+                  </Grid>
+                </DataTemplate>
+              </GroupStyle.HeaderTemplate>
+            </GroupStyle>
+          </ListBox.GroupStyle>
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <Grid ToolTip="{Binding Label}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="40" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Style="{StaticResource Text.Icon}" Text="{Binding Glyph}" />
+                <TextBlock x:Name="Label" Grid.Column="1" Text="{Binding Label}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <TextBlock x:Name="Soon" Grid.Column="2" Text="Soon" Style="{StaticResource Text.Caption}" Margin="0,0,10,0" VerticalAlignment="Center"
+                           Visibility="{Binding IsAvailable, Converter={StaticResource VisibleWhen}, ConverterParameter=invert}" />
+              </Grid>
+              <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsAvailable}" Value="False">
+                  <Setter TargetName="Label" Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding DataContext.IsSidebarCollapsed, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True">
+                  <Setter TargetName="Label" Property="Visibility" Value="Collapsed" />
+                  <Setter TargetName="Soon" Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+              </DataTemplate.Triggers>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+    </Border>
+
+    <!-- ===== Main column ===== -->
+    <DockPanel Grid.Column="1">
+      <!-- Top bar -->
+      <Border DockPanel.Dock="Top" Height="48" Background="{DynamicResource SurfaceBrush}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+        <DockPanel Margin="16,0" LastChildFill="False">
+          <!-- Search: opens the command palette -->
+          <Button DockPanel.Dock="Left" Width="320" HorizontalContentAlignment="Stretch" Padding="8,0"
+                  Command="{Binding OpenPaletteCommand}" AutomationProperties.Name="Search (Ctrl+K)">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Left" Style="{StaticResource Text.Icon}" FontSize="{StaticResource IconSizeSmall}" Text="&#xE721;"
+                         Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,8,0" />
+              <Border DockPanel.Dock="Right" Style="{StaticResource Badge}" Padding="4,0">
+                <TextBlock Text="Ctrl+K" />
+              </Border>
+              <TextBlock Text="Search or jump to…" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+            </DockPanel>
+          </Button>
+
+          <!-- User menu -->
+          <Grid DockPanel.Dock="Right" Margin="8,0,0,0">
+            <Button x:Name="UserButton" Style="{StaticResource Button.Subtle}" Padding="4,0" Command="{Binding ToggleUserMenuCommand}"
+                    IsHitTestVisible="{Binding IsOpen, ElementName=UserPopup, Converter={StaticResource Inverse}}"
+                    AutomationProperties.Name="User menu">
+              <StackPanel Orientation="Horizontal">
+                <Border Width="24" Height="24" CornerRadius="{StaticResource ControlRadius}" Background="{DynamicResource AccentSubtleBrush}">
+                  <TextBlock Text="{Binding UserInitials}" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold"
+                             FontSize="{StaticResource FontSizeTable}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <TextBlock Style="{StaticResource Text.Icon}" FontSize="{StaticResource IconSizeSmall}" Text="&#xE70D;" Margin="6,0,0,0"
+                           Foreground="{DynamicResource TextSecondaryBrush}" />
+              </StackPanel>
+            </Button>
+            <Popup x:Name="UserPopup" PlacementTarget="{Binding ElementName=UserButton}" Placement="Bottom" HorizontalOffset="-180"
+                   StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade" IsOpen="{Binding IsUserMenuOpen, Mode=TwoWay}">
+              <Border Style="{StaticResource Popup.Surface}" Width="240" Margin="8,4,8,12" Padding="4">
+                <StackPanel>
+                  <StackPanel Margin="8,8,8,4">
+                    <TextBlock Text="{Binding Session.DisplayName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Session.Username}" Style="{StaticResource Text.Caption}" />
+                  </StackPanel>
+                  <Separator />
+                  <Button Style="{StaticResource Button.Subtle}" HorizontalContentAlignment="Left" Content="Sign out"
+                          Command="{Binding SignOutCommand}" />
+                </StackPanel>
+              </Border>
+            </Popup>
+          </Grid>
+
+          <Button DockPanel.Dock="Right" Command="{Binding ToggleThemeCommand}" Margin="4,0,0,0"
+                  AutomationProperties.Name="Switch theme" ToolTip="Switch theme (Ctrl+Shift+L)">
+            <Button.Style>
+              <Style TargetType="Button" BasedOn="{StaticResource Button.Icon}">
+                <Setter Property="Content" Value="&#xE708;" />
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding IsDarkTheme}" Value="True">
+                    <Setter Property="Content" Value="&#xE706;" />
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </Button.Style>
+          </Button>
+
+          <!-- Notifications -->
+          <Grid DockPanel.Dock="Right" Margin="4,0,0,0">
+            <Button x:Name="NotificationsButton" Style="{StaticResource Button.Icon}" Content="&#xEA8F;"
+                    Command="{Binding ToggleNotificationsCommand}" AutomationProperties.Name="Notifications" ToolTip="Notifications"
+                    IsHitTestVisible="{Binding IsOpen, ElementName=NotificationsPopup, Converter={StaticResource Inverse}}" />
+            <Popup x:Name="NotificationsPopup" PlacementTarget="{Binding ElementName=NotificationsButton}" Placement="Bottom"
+                   HorizontalOffset="-260" StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade"
+                   IsOpen="{Binding IsNotificationsOpen, Mode=TwoWay}">
+              <Border Style="{StaticResource Popup.Surface}" Width="300" Margin="8,4,8,12" Padding="16">
+                <StackPanel>
+                  <TextBlock Text="Notifications" Style="{StaticResource Text.Section}" />
+                  <TextBlock Text="You're all caught up. Low-stock, payment and backup alerts will appear here." Style="{StaticResource Text.Secondary}"
+                             Margin="0,8,0,0" />
+                </StackPanel>
+              </Border>
+            </Popup>
+          </Grid>
+
+          <!-- Company switcher -->
+          <TextBlock DockPanel.Dock="Right" Text="{Binding FinancialYearLabel}" Style="{StaticResource Text.Caption}"
+                     VerticalAlignment="Center" Margin="12,0,8,0" />
+          <ComboBox DockPanel.Dock="Right" Width="240" VerticalAlignment="Center" ItemsSource="{Binding Companies}"
+                    SelectedItem="{Binding SelectedCompany}" AutomationProperties.Name="Company">
+            <ComboBox.ItemTemplate>
+              <DataTemplate>
+                <DockPanel>
+                  <Border DockPanel.Dock="Right" Style="{StaticResource Badge}" Margin="8,0,0,0" Padding="4,0"
+                          Visibility="{Binding IsDemo, Converter={StaticResource VisibleWhen}}">
+                    <TextBlock Text="Demo" />
+                  </Border>
+                  <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                </DockPanel>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+        </DockPanel>
+      </Border>
+
+      <!-- Page content -->
+      <controls:TransitionPresenter Content="{Binding CurrentPage}" Focusable="False" />
+    </DockPanel>
+
+    <!-- ===== Command palette ===== -->
+    <Grid Grid.ColumnSpan="2" Visibility="{Binding IsPaletteOpen, Converter={StaticResource VisibleWhen}}">
+      <Border Background="{DynamicResource ScrimBrush}" MouseLeftButtonDown="OnPaletteScrimClicked" />
+      <Border Style="{StaticResource Popup.Surface}" Width="560" VerticalAlignment="Top" Margin="0,80,0,0" Padding="8"
+              controls:Behaviors.AnimateIn="True" AutomationProperties.Name="Command palette">
+        <StackPanel>
+          <DockPanel Margin="4,0,4,8">
+            <TextBlock DockPanel.Dock="Left" Style="{StaticResource Text.Icon}" Text="&#xE721;" Foreground="{DynamicResource TextSecondaryBrush}" Margin="4,0,8,0" />
+            <TextBox Text="{Binding PaletteQuery, UpdateSourceTrigger=PropertyChanged}" BorderThickness="0"
+                     controls:Behaviors.FocusOnVisible="True" AutomationProperties.Name="Search pages and actions">
+              <TextBox.InputBindings>
+                <KeyBinding Key="Up" Command="{Binding MovePaletteSelectionCommand}" CommandParameter="up" />
+                <KeyBinding Key="Down" Command="{Binding MovePaletteSelectionCommand}" CommandParameter="down" />
+                <KeyBinding Key="Enter" Command="{Binding ExecutePaletteEntryCommand}" />
+                <KeyBinding Key="Escape" Command="{Binding ClosePaletteCommand}" />
+              </TextBox.InputBindings>
+            </TextBox>
+          </DockPanel>
+          <Separator Margin="0,0,0,4" />
+          <ListBox x:Name="PaletteList" ItemsSource="{Binding PaletteResults}" SelectedItem="{Binding SelectedPaletteEntry}"
+                   MaxHeight="360" Focusable="False" PreviewMouseLeftButtonUp="OnPaletteItemClicked">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <DockPanel>
+                  <TextBlock DockPanel.Dock="Left" Style="{StaticResource Text.Icon}" Text="{Binding Glyph}" Width="24"
+                             Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,8,0" />
+                  <TextBlock DockPanel.Dock="Right" Text="{Binding Hint}" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding Label}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                </DockPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <TextBlock Text="No matching pages or actions." Style="{StaticResource Text.Secondary}" Margin="8"
+                     Visibility="{Binding PaletteResults.Count, Converter={StaticResource VisibleWhen}, ConverterParameter=invert}" />
+        </StackPanel>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>
