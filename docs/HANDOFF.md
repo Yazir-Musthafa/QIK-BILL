@@ -1,4 +1,4 @@
-# Handoff: end of Phase 4 (11 October 2026)
+# Handoff: end of Phase 5 (11 October 2026)
 
 Read this first, then:
 
@@ -7,13 +7,16 @@ Read this first, then:
 - `ACCOUNTING_MAP.md`;
 - `WORKING_GUIDE.md`: screen status and the Windows test script.
 
-**Phase 5 (sales and purchases with GST) is next.** The owner has confirmed only that the app opens on Windows.
+**Phase 5 (sales, purchases and payments) is complete on macOS. Phase 6 (printing) is next; it was not started.** The owner has confirmed only that the app opens on Windows.
+
+**About "GPT-6 Astra":** the Phase 5 request said an agent called GPT-6 Astra had already worked on Phase 5. The repository had no trace of it: no commits, branches, stashes, worktrees or uncommitted files after the Phase 4 commit `926a72e`. Phase 5 was therefore built from that commit. The three inventory edge cases named in the request were investigated and fixed (see `PROGRESS.md`).
 
 ## State
 
 - **Build:** clean, 0 warnings. `dotnet restore --locked-mode` passes, and a `win-x64` self-contained publish produces `QIKSuite.exe`.
-- **Tests:** **605 passing** (`dotnet test tests/Nexora.Tests`): 327 behavioural, 246 XAML design-rule, 31 guide checks and 1 binding check.
-- **Migrations:** `InitialWorkspace`, `CompaniesUsersRolesAudit`, `AccountingEngine`, `Inventory`. The last two contain SQLite immutability triggers.
+- **Tests:** **700 passing** (`dotnet test tests/Nexora.Tests`): 410 behavioural, 258 XAML design-rule, 31 guide checks and 1 binding check.
+- **Migrations:** `InitialWorkspace`, `CompaniesUsersRolesAudit`, `AccountingEngine`, `Inventory`, `Billing`. The last three contain SQLite immutability triggers.
+- **Commits** in Phase 5 use the prefix `cla:` (the owner's request).
 - **Not yet run:** the WPF UI, printing and the installer. Nothing has run on Windows.
 
 ## What was done in Phases 2 and 3
@@ -80,14 +83,55 @@ Never mark something FULLY FUNCTIONAL unless the code is wired to a real service
 - **Numbering:** `NumberAllocator` is shared by vouchers and stock documents. Use it for invoice numbers in Phase 5.
 - **The reconciliation invariant:** stock value = Inventory ledger balance. Keep it by never posting to Inventory except through `ILedgerPoster` from stock-affecting documents. Phase 5 sales must post COGS from `CostPool` in the same transaction as the stock issue.
 
+## Phase 5 in brief
+
+- **Inventory edge cases fixed first:**
+  - `CostPool.Receive` settles negative weighted-average stock and returns the stock value; the difference is posted to Inventory Adjustments.
+  - Physical counts check serials.
+  - Reversal ignores reversed documents and checks the date.
+  - Tests: `Inventory/InventoryEdgeCaseTests`.
+- **Stock core:** `StockService.PostCoreAsync` and `ReverseCoreAsync` (internal) add stock documents to the caller's unit of work, with no voucher, and return each line's value.
+  - The public `PostAsync` and `ReverseAsync` wrap them.
+  - Billing uses the stock types Sale, SalesReturn, Purchase and PurchaseReturn, and refuses manual posting or reversal of those types.
+- **Domain** (`Domain/Billing`):
+  - `Party` with its own ledger;
+  - `BillingDocument` and `BillingLine` (draft → posted; the posted state is immutable);
+  - `BillingCancellation`, `Settlement`, `SettlementReversal`, `Allocation` (append-only);
+  - `BillingSettings` (also the seed marker);
+  - `BillingCalculator`, the single rounding and tax policy.
+- **Services** (`Application/Billing`): `PartyService` (with the internal `OpenItems`), `BillingService` and `SettlementService`.
+  - One writable unit of work under the posting lock per post, cancel or settlement.
+  - Numbers come from `NumberAllocator`. The numbering keys are `invoice.tax`, `sales.credit-note`, `purchase.bill`, `purchase.debit-note`, `sales.receipt`, `sales.refund`, `purchase.payment` and `purchase.refund`.
+  - Vouchers go through `ILedgerPoster` with an explicit voucher type; `LedgerPosting.Type` is new and optional.
+- **Permissions:** `sales.*` and `purchases.*` are enforced in services:
+  - create covers drafts, posting, parties and settlements;
+  - cancel covers cancellation and reversal;
+  - price override and the discount limit are checked on save and again at posting, as the user who posts;
+  - cost figures need `inventory.view-cost`.
+- **Desktop:**
+  - `Views/Billing/BillingView.xaml` and `PartiesView.xaml`, each shared by a Sales/Purchase or Customers/Suppliers subclass. The templates are keyed on the abstract base view models.
+  - The view-model files avoid the words "class", "record", "enum" and "interface" in comments, because `ViewBindingTests` splits class bodies on them.
+- **Invariants to keep:**
+  - stock value = Inventory ledger;
+  - party ledger balance = open charges − open credits (tested);
+  - posted billing documents never change.
+
+## Known problems (Phase 5)
+
+- **Not verified on Windows:** the four new screens have not been run.
+- **Possible double counting of stock purchases:** recording bought goods both as a Stock receipt and as a Purchase bill counts them twice. The guide tells users to choose one.
+- **Rounded returns:** when totals are rounded to rupees, returning a document in several parts can leave a few paise of round-off difference against the original.
+- **Cancellation** needs the document to be the latest stock activity of its products. Otherwise users must make a return.
+- **Prefix clashes:** numbering prefixes are not checked against other document types. Posting refuses a number already used by a stock document, but two billing types given the same prefix would share a number format.
+- **Opening balances:** party opening balances entered by voucher are not open items.
+
 ## Next steps
 
-1. **Test Phase 4 on Windows** with `WORKING_GUIDE.md` sections 3.1–3.7, and report anything that fails.
-2. **Phase 5, sales and purchases with GST:**
-   - parties as sub-ledgers under Sundry Debtors and Creditors;
-   - invoices that issue or receive stock through `StockService` and post the accounting (including COGS) in one transaction;
-   - dated GST rates by place of supply;
-   - reservations from sales orders;
-   - totals recalculated in the Application layer, with idempotent posting.
+1. **Test Phases 1–5 on Windows** with `WORKING_GUIDE.md` sections 3.1–3.10, and report anything that fails.
+2. **Phase 5 leftovers.** These were not built; decide with the owner which belong in later phases:
+   - quotations, orders and delivery notes (the Quotations page is still a placeholder);
+   - dated GST rates, cess, reverse charge and bills of supply;
+   - POS and barcode entry, additional charges, customer prices;
+   - a billing settings screen.
 3. **Data-table follow-ups:** per-column filters, and editing or deactivating units and tax categories.
-4. **Before Phase 6,** choose the PDF and barcode libraries after a licence check.
+4. **Phase 6 (printing):** choose the PDF and barcode libraries after a licence check. `BillingService.GetAsync` already returns everything an invoice template needs: company and party GSTIN, place of supply, lines with HSN and rate, and the tax split.

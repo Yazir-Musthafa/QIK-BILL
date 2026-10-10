@@ -1,8 +1,8 @@
 # Accounting map
 
-Status: Phase 4, 11 October 2026.
+Status: Phase 5, 11 October 2026.
 
-The posting engine, chart of accounts and reports are implemented and tested (`Nexora.Accounting`). **Inventory postings are implemented (Phase 4)**: stock documents post their vouchers automatically (see "Inventory" below). The sales, purchase and expense workflows that will generate the remaining vouchers from this map are **not built yet** (Phases 5 and 7). Nothing here is a statement of GST compliance.
+The posting engine, chart of accounts and reports are implemented and tested (`Nexora.Accounting`). **Inventory postings are implemented (Phase 4)**: stock documents post their vouchers automatically (see "Inventory" below). **Sales, purchases, returns, receipts and payments post automatically (Phase 5)**; see "Sales and purchases" below. Expense workflows are Phase 7. Nothing here is a statement of GST compliance.
 
 ## Principles
 
@@ -16,7 +16,7 @@ The posting engine, chart of accounts and reports are implemented and tested (`N
    - profit and loss;
    - the balance sheet.
    A test posts a mixed set of vouchers and checks they agree.
-6. **Profit is never "cash in minus cash out".** Income and expense accounts decide profit. Cost of goods sold will come from the company's costing method (Phase 4), posted to **Cost of Goods Sold** when goods leave stock.
+6. **Profit is never "cash in minus cash out".** Income and expense accounts decide profit. Cost of goods sold comes from the company's costing method and is posted to **Cost of Goods Sold** when a sale moves goods out of stock (Phase 5).
 
 ## Financial years
 
@@ -67,34 +67,34 @@ These accounts are created for every company. They have stable keys (`SystemAcco
 | Payment | Must credit a cash or bank account | `PV/{FY}/0001` |
 | Receipt | Must debit a cash or bank account | `RV/{FY}/0001` |
 | Contra | Cash and bank accounts only | `CV/{FY}/0001` |
-| Sales, Purchase, Expense, Income, Credit note, Debit note | Balance rules only (workflows add their own rules in Phases 5 and 7) | `SV/`, `PU/`, `EV/`, `IV/`, `CN/`, `DN/` |
+| Sales, Purchase, Expense, Income, Credit note, Debit note | Balance rules only. Sales invoices, purchase bills, credit notes and debit notes post these types with their own rules (Phase 5) | `SV/`, `PU/`, `EV/`, `IV/`, `CN/`, `DN/` |
 | Opening | Balance-sheet accounts only; created by the opening balances function | `OB/{FY}/001` |
 | Reversal | Created only by reversing a posted voucher | `RJ/{FY}/0001` |
 
 Numbers come from the company's numbering rules (Settings → Document numbering). They're allocated inside the posting transaction, so they are unique and gapless per type and period, and concurrent posting is tested. Drafts have no number.
 
-## Business event mappings (to be implemented by later phases)
+## Business event mappings
 
-The table uses perpetual inventory. *Party* means the customer's or supplier's own ledger under Sundry Debtors or Sundry Creditors (Phase 5). Intra-state supplies use CGST + SGST; inter-state supplies use IGST. Place of supply decides which (Phase 5).
+The table uses perpetual inventory. *Party* means the customer's or supplier's own ledger under Sundry Debtors or Sundry Creditors, created with the party. Intra-state supplies use CGST + SGST; inter-state supplies use IGST; the party's state (place of supply) decides. Rows marked **(Phase 5)** are implemented; the exact postings are under "Sales and purchases". Rows without a mark are not automated yet (enter them as vouchers).
 
 | Event | Debit | Credit |
 |---|---|---|
-| Credit sale (taxable) | Party (Sundry Debtors) — invoice total | Sales — taxable value; Output CGST/SGST or IGST (+ Cess) — tax; Round Off if rounded |
-| Cash sale | Cash or Bank — total | Sales; Output GST |
-| Cost of goods sold (on each sale) | Cost of Goods Sold — cost at the company's costing method | Inventory |
-| Sales return / credit note | Sales Returns — taxable value; Output GST — tax reversed | Party or Cash/Bank |
-| Return to stock (with a sales return) | Inventory — cost | Cost of Goods Sold |
+| Credit sale (taxable) (Phase 5) | Party (Sundry Debtors) — invoice total | Sales — taxable value; Output CGST/SGST or IGST (+ Cess) — tax; Round Off if rounded |
+| Cash sale (Phase 5) | Cash or Bank — total | Sales; Output GST |
+| Cost of goods sold (on each sale) (Phase 5) | Cost of Goods Sold — cost at the company's costing method | Inventory |
+| Sales return / credit note (Phase 5) | Sales Returns — taxable value; Output GST — tax reversed | Party or Cash/Bank |
+| Return to stock (with a sales return) (Phase 5) | Inventory — cost | Cost of Goods Sold |
 | Discount allowed (settlement, after the invoice) | Discount Allowed | Party |
 | Trade discount (on the invoice) | — (reduces taxable value; not posted separately) | — |
-| Receipt from customer | Cash or Bank | Party |
-| Purchase of stock (credit) | Inventory — taxable value; Input CGST/SGST or IGST (+ Cess) — eligible tax | Party (Sundry Creditors) |
+| Receipt from customer (Phase 5) | Cash or Bank | Party |
+| Purchase of stock (credit) (Phase 5) | Inventory — taxable value; Input CGST/SGST or IGST (+ Cess) — eligible tax | Party (Sundry Creditors) |
 | Purchase with ineligible input tax | Inventory — taxable value plus the ineligible tax | Party |
 | Purchase of services or non-stock items | Purchases (or the specific expense) ; Input GST | Party or Cash/Bank |
 | Freight on purchases | Freight Inward, or Inventory if capitalised (the costing decision is Phase 4) | Party or Cash/Bank |
-| Purchase return / debit note | Party | Inventory — cost; Input GST reversed |
+| Purchase return / debit note (Phase 5) | Party | Inventory — cost; Input GST reversed |
 | Reverse-charge purchase | Expense or Inventory; Input GST (if eligible) | Party; GST Payable under Reverse Charge |
 | Discount received | Party | Discount Received |
-| Payment to supplier | Party | Cash or Bank |
+| Payment to supplier (Phase 5) | Party | Cash or Bank |
 | Expense paid | Expense account; Input GST if eligible | Cash or Bank (or Party if on credit) |
 | Stock adjustment: shortage, damage, expiry (implemented, Phase 4) | Inventory Adjustments | Inventory |
 | Stock adjustment: excess found (implemented, Phase 4) | Inventory | Inventory Adjustments |
@@ -120,9 +120,14 @@ Each company chooses **weighted average** (the default) or **FIFO** under Settin
   - Issues consume the oldest layers first. A whole layer leaves at its exact remaining value; a partial layer leaves at that layer's own rate, rounded to the paisa.
 - **Value of stock arriving without a typed cost** (adjustments in, count gains): the product's current unit cost, which is the average, or the last cost when there is no stock.
 - **Typed unit costs** are per the unit entered (for example per BOX), not per base unit.
-- **Negative stock** is blocked unless the company allows it, and allowing it is possible only with weighted average. With no stock left, issues use the last known unit cost, which can distort the average until stock is received again. Batch and serial stock can never go negative.
+- **Negative stock** is blocked unless the company allows it, and allowing it is possible only with weighted average. Batch and serial stock can never go negative.
+  - With no stock left, issues use the last known unit cost, an estimate.
+  - When stock is next received, the received units first **settle** the missing units. Their estimated value leaves the pool, and any further units enter at the receipt's own cost, so stock never keeps value without quantity.
+  - The difference between what the settled units really cost and their estimate is a cost adjustment: Inventory Adjustments is debited (or credited), and the supplier is still credited the full amount.
+  - The stock movement records the value that entered stock, so stock value still equals the Inventory account.
 - **Posting order and dates:** costing replays a product's movements in posting order. Stock may not be dated before a product's last movement, so date order and costing order always agree.
-- **Reversals:** a stock document can be reversed only while it is the latest activity for each of its products. The reversed document and its reversal are then left out of costing together, which restores costs exactly. Otherwise, post an adjustment.
+- **Reversals:** a stock document can be reversed only while it is the latest live activity for each of its products. Documents that have themselves been reversed don't count, so a chain can be reversed newest first. A reversal can't be dated before the product's latest movement. Reversed documents and their reversals are left out of costing together, which restores costs exactly. Otherwise, post an adjustment.
+- **Physical counts** may not create a serial that is already in stock anywhere, and a serial may appear only once per document.
 
 ### Stock ledger and reconciliation
 
@@ -139,16 +144,64 @@ Each company chooses **weighted average** (the default) or **FIFO** under Settin
 | Receipt (goods in without a purchase invoice) | Inventory | The chosen account: supplier ledger, Cash or Bank | Journal; Payment if Cash or Bank |
 | Issue (internal use, samples, consumption) | The chosen account, or Inventory Adjustments if none is chosen | Inventory | Journal |
 | Adjustment in; physical count gain | Inventory | Inventory Adjustments | Journal |
+| Receipt that settles negative stock | Inventory (value entering stock); Inventory Adjustments (the cost difference, either side) | The chosen account, for the full receipt value | Journal; Payment if Cash or Bank |
 | Adjustment out (for example writing off damaged or expired stock); physical count loss | Inventory Adjustments | Inventory | Journal |
 | Transfer; state change | — (no value change) | — | None |
 | Reversal of a stock document | The reverse of the original voucher | | Reversal |
 
-Sales (Phase 5) will post **Cost of Goods Sold / Inventory** at the cost the pool gives. Purchase invoices (Phase 5) will post **Inventory / supplier** directly, or clear receipts made without an invoice.
+Sales (Phase 5) post **Cost of Goods Sold / Inventory** at the cost the pool gives, and purchase bills post **Inventory / supplier** directly, in the sales or purchase voucher (below). Stock receipts entered under Stock without a bill stay separate: a later bill for the same goods would count them twice, so record bought goods either as a purchase bill or as a stock receipt, not both.
 
-## Not implemented in Phase 3
+## Sales and purchases (implemented in Phase 5)
+
+Every sales invoice, credit note, purchase bill and debit note posts **one voucher** together with its stock movements, in the same transaction as its number. The voucher types are Sales, Credit note, Purchase and Debit note. The voucher records the document as its source and can only be reversed by cancelling the document. Settlements post Receipt or Payment vouchers.
+
+**Calculation** (`BillingCalculator`, unit-tested):
+- gross = quantity × rate, rounded to the paisa;
+- discount = a percentage of gross (rounded) or a fixed amount;
+- taxable = gross − discount. With tax-inclusive rates, taxable is derived so the line total equals the price charged;
+- tax per line on the taxable value, at the product's tax category rate. CGST and SGST are each half the rate, rounded separately; IGST is the full rate;
+- the total may be rounded to whole rupees, and the difference posts to **Round Off**.
+
+The tax rate is configured data (Settings → Inventory → tax categories) and is stored on every posted line. Totals are always recalculated in the application layer, including when a draft is posted.
+
+| Document | Debit | Credit |
+|---|---|---|
+| Sales invoice, credit | Party: total | Sales: taxable value; Output CGST + SGST, or Output IGST; Round Off if rounded up (debit if rounded down) |
+| Sales invoice, cash | Cash or bank account: total | As above |
+| Cost of goods (every sales invoice) | Cost of Goods Sold: stock value issued at the company's costing method | Inventory |
+| Credit note (sales return) | Sales Returns: taxable value; Output GST: tax reversed; Round Off if rounded up | Party (credit mode) or the cash/bank account (cash mode): total |
+| Goods returned to stock | Inventory: the cost the goods left with (in proportion; the last return of a line takes exactly what remains) | Cost of Goods Sold |
+| Purchase bill | Inventory: taxable value (the stock value); Input CGST + SGST or Input IGST; Round Off if rounded up | Party (credit) or cash/bank account (cash): total |
+| Debit note (purchase return) | Party or cash/bank account: total | Inventory: book cost of the goods (costing method); Input GST reversed; Inventory Adjustments: taxable value charged back minus book cost (debit if negative) |
+| Customer receipt | Cash or bank account | Party |
+| Customer refund | Party | Cash or bank account |
+| Supplier payment | Party | Cash or bank account |
+| Supplier refund | Cash or bank account | Party |
+| Any of the above when stock was negative | Inventory Adjustments: cost difference of the settled units (see "Negative stock") | |
+
+Amounts on the same account are netted into one line.
+
+**Cancelling** a document reverses its voucher and its stock movement (an exact stock reversal), and records the reason. It is refused in these cases:
+- the document is not the latest stock activity of its products;
+- a receipt, payment or refund is allocated to it;
+- returns exist against it.
+
+Use a return instead.
+
+**Open items and allocation.** Invoices and bills (and refunds) are *charges*. Receipts, payments and returns are *credits*. An allocation applies part of a credit to a charge of the same party:
+- allocations are append-only;
+- an allocation stops counting when either side is cancelled or reversed;
+- a credit-mode return is allocated to its original document automatically, up to what is outstanding;
+- money not allocated stays as an advance or unapplied credit.
+
+Payment status (Unpaid, Partly paid, Paid) is derived from the open amount. A party's ledger balance equals its open charges minus its open credits, unless manual vouchers are posted to the party ledger. Tests check this.
+
+**Not implemented:** dated GST rates, cess, reverse charge, ineligible input tax, freight and other charges, settlement discounts (Discount Allowed and Discount Received are not posted automatically), purchase of services or non-stock items through bills (use Purchase vouchers), and TDS/TCS.
+
+## Not implemented yet
 
 Several items from section H of the brief are not built yet:
 
 - **Phase 8 reporting work:** cash flow statement, bank reconciliation, cost and profit centres, receivable and payable ageing, bill-wise allocation, and ledger export.
-- **Phase 5:** customer and supplier sub-ledgers created automatically from party masters. Until then, parties are ordinary ledgers created under Sundry Debtors or Sundry Creditors.
+- **Phase 5 (done):** customer and supplier ledgers are created automatically with each party. Ledgers created by hand under Sundry Debtors or Creditors still work in vouchers but are not parties.
 - **Performance at scale:** reports aggregate in memory over the company's ledger entries. Amounts are stored as integer paise, so they can move to SQL aggregation (`SUM`) when volumes require it.

@@ -8,13 +8,13 @@ Last updated: **11 October 2026**, end of Phase 5. Each statement below comes fr
 
 | Check | Result |
 |---|---|
-| Build (`dotnet build Nexora.sln --no-restore`, Phase 5) | Succeeded, 0 warnings, 0 errors (incremental build; the clean-build row from Phase 4 was not repeated) |
+| Clean build (`dotnet build Nexora.sln`, after deleting all `bin`/`obj`) | Succeeded, 0 warnings, 0 errors (end of Phase 5) |
 | Locked package restore | Succeeded |
-| Automated tests (`dotnet test tests/Nexora.Tests`) | **699 passed, 0 failed** (with this guide in place) |
+| Automated tests (`dotnet test tests/Nexora.Tests`) | **700 passed, 0 failed** (with this guide in place) |
 | Of those, design-rule checks on XAML styling | 258 (one per XAML file per rule). They check styling discipline, not behaviour. |
 | Of those, the guide's own status-table check | 31 (one per screen, plus one sanity check) |
 | Of those, binding check | 1 test: every page-level XAML binding (about 400) points to a real view-model property or command |
-| Logic tests (domain, services, database, accounting, inventory, billing, table logic) | 409 (327 before Phase 5, plus 71 billing tests and 11 inventory edge-case tests) |
+| Logic tests (domain, services, database, accounting, inventory, billing, table logic) | 410 (327 before Phase 5, plus 72 billing tests and 11 inventory edge-case tests) |
 | Desktop view models (`src/Nexora.Desktop/ViewModels`) | **No automated tests.** They target Windows and can't be loaded by the test project, so date parsing, voucher-line totals, the command palette and navigation are untested. |
 | Fixed at the start of Phase 5 (inventory edge cases) | (1) A receipt into negative weighted-average stock left value without quantity; the missing units are now settled and the cost difference goes to Inventory Adjustments. (2) A physical count could create a serial that was already in stock in another warehouse, or list a serial twice; both are refused. (3) A chain of stock documents could not be reversed newest first; already-reversed documents no longer block it, and a reversal can't be dated before the product's latest movement. Tests: `Inventory/InventoryEdgeCaseTests`. |
 | Fixed during this audit | Tests added for service paths that had none (chart editing, warehouses, branch deactivation, numbering, logo, role change). In the voucher editor, a failed Post created a second draft on each retry; it now keeps editing the same draft and shows it in the list. The numbering column label "Next number looks like" was misleading and is now "Format (shown with number 1)". |
@@ -405,7 +405,7 @@ Continue in **Test Traders** as `asha` after section 3.7. Before you start, LED-
 - `scripts/build-windows.ps1` and the GitHub Actions workflow have never run.
 - Narrator, high-contrast mode and Windows "reduce animations" are untested.
 - **View models have no automated tests**: date parsing, amount parsing, voucher totals, navigation and the palette. `ViewBindingTests` checks that page-level bindings point to real members, but not bindings inside list rows or grid columns. Nor does it check behaviour.
-- **Test-count composition:** 258 of the 699 tests are XAML design-rule checks, 31 are this guide's status-table checks and 1 is the binding check. The behavioural logic is covered by 409 tests.
+- **Test-count composition:** 258 of the 700 tests are XAML design-rule checks, 31 are this guide's status-table checks and 1 is the binding check. The behavioural logic is covered by 410 tests.
 
 **Not built (in phases already done)**
 - **Dashboard:** no real figures, including low stock, which is shown under Stock instead. Notifications are a static panel.

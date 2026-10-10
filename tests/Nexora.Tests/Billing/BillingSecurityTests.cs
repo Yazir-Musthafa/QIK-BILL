@@ -122,4 +122,28 @@ public sealed class BillingIsolationAndImmutabilityTests : BillingTestBase
         Assert.Contains(numbering, r => r.DocumentType == DocumentTypes.TaxInvoice && r.Example == "INV/2026-27/0001");
         Assert.Equal(new BillingSettingsView(true, false), await Billing.GetSettingsAsync());
     }
+
+    /// <summary>A Phase 4 database has no billing settings or billing numbering; starting the new version adds them once.</summary>
+    [Fact]
+    public async Task Existing_companies_receive_billing_settings_and_numbering_on_upgrade()
+    {
+        using (var connection = Db.OpenRawConnection())
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "DELETE FROM BillingSettings; DELETE FROM NumberingRules WHERE DocumentType IN ("
+                + string.Join(", ", BillingDocumentTypes.All.Select(t => $"'{t.Key}'")) + ");";
+            command.ExecuteNonQuery();
+        }
+
+        await Db.Workspace.InitializeAsync();
+        await Db.Workspace.InitializeAsync();
+        await SignInAsAdministratorAsync();
+
+        var numbering = await Db.Get<CompanyService>().ListNumberingAsync();
+        foreach (var type in BillingDocumentTypes.All)
+            Assert.Single(numbering, r => r.DocumentType == type.Key);
+        Assert.Equal(new BillingSettingsView(true, false), await Billing.GetSettingsAsync());
+        var (invoice, _) = await SellAsync(Local, new BillingLineInput(Led, 1));
+        Assert.Equal("CRN/2026-27/0001", (await ReturnAsync(invoice, (1, 1))).Number);
+    }
 }

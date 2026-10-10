@@ -1,5 +1,47 @@
 # QIK Suite implementation progress
 
+## Phase 5: sales, purchases and payments, complete on macOS (11 October 2026)
+
+**Starting point:** the request said GPT-6 Astra had worked on Phase 5. The repository showed no such work:
+- `git log` ended at the Phase 4 commit `926a72e`;
+- the tree was clean, with no stashes, extra branches or worktrees.
+
+Baseline before any change: build 0 warnings, 0 errors; **605 tests passed, 0 failed**. Phase 5 commits are prefixed `cla:`.
+
+**Windows:** only "the app opens" has been confirmed. The four new screens are **unverified at runtime**. Nothing was printed (Phase 6) and no installer was built.
+
+### Verified by build or test on macOS
+
+| Area | Evidence |
+|---|---|
+| Build | 0 warnings, 0 errors. Migration `Billing` adds 8 tables and 12 triggers. `dotnet ef migrations has-pending-model-changes`: none. |
+| Tests | **700 passed, 0 failed**: 410 behavioural (327 earlier + 72 billing + 11 inventory edge cases), 258 XAML design-rule, 31 guide-coverage, 1 binding check. |
+| Edge case 1: replenishing negative stock | Before the fix, a receipt that brought weighted-average stock back to zero left value without quantity (for example +40.00 at quantity 0). Received units now settle the shortfall: the estimated value leaves the pool, extra units enter at the receipt cost, and the cost difference is posted to Inventory Adjustments. The supplier is still credited in full. Stock still equals the ledger. Covered for full, beyond and partial settlement and adjustment-in, and through a purchase bill. |
+| Edge case 2: duplicate serials in counts | A count gain could create a serial already in stock in another warehouse, and a document could list a serial twice. Both are refused now (in every document type). Recording a missing serial and finding a new one still works. |
+| Edge case 3: reversing a chain | Reversing the newest document and then the earlier one was refused, because the later, already-reversed movements still counted. Reversed pairs are now ignored, and costing after a reversed chain is exact. A reversal can't be dated before the product's latest movement (previously possible in a chain). Reversing an earlier document while a later live one exists is still refused. |
+| Edge-case tests fail without the fixes | Running the 11 edge-case tests against the old code: 8 fail; the other 3 guard behaviour that was already correct. |
+| Calculation | `BillingCalculatorTests` cover each rule: rounding, inclusive and exclusive tax, CGST/SGST/IGST, discounts, invalid input, round-off half away from zero, document totals, proportional returns that add up exactly, and cost portions. |
+| Sales | Credit and cash sales, inter-state IGST, round-off, alternate units with inclusive rates and discounts. Drafts move neither stock nor the ledger. Posting twice is refused. A failed post rolls everything back, including the number. Posted documents keep their tax rate after the category changes. Untaxed products work. FIFO cost of goods. Serials must be in stock. Credit sales need a customer. Stock created by an invoice can't be reversed or posted from Stock. Lists show status and support search. |
+| Returns | Partial returns reverse tax, cost and stock and reduce the outstanding amount. A full return in parts reverses exactly. Returns beyond the quantity sold are refused, including two drafts posted one after the other. Credit beyond the outstanding amount becomes unapplied and can be refunded. Cash-sale returns are refunded from cash. Serials come back once. A return needs a posted original. |
+| Cancellation | Reverses stock and ledger, keeps the number, and is refused twice. Refused while a receipt or return is attached, and allowed once the receipt is reversed. A reason is required; cancellation is refused when later stock moved. |
+| Purchases | A bill receives stock at its taxable value and claims input tax; it creates batches with expiry. A supplier bill number is accepted once (again after cancelling). Debit notes leave at book cost with the difference to Inventory Adjustments. Returns are limited by the bill and by stock. Cash purchases work. A bill settles negative stock. |
+| Settlements | One receipt settles several invoices partly or fully. Over-allocation (amount or outstanding, another party, cash invoices, zero amount, a non-cash account) is refused with nothing posted. Advances can be applied later. Reversal reopens invoices and restores the ledger, and is refused twice. Supplier payments with debit notes work, as do supplier refunds of debit notes. Party ledger balance = outstanding − unapplied after mixed activity. |
+| Parties | Ledgers under Sundry Debtors or Creditors. A customer and supplier with the same name get distinct ledgers; duplicates are refused. An invalid GSTIN, state or PIN leaves no stray ledger. Renaming renames the ledger but not posted documents. Inactive parties can't be billed. |
+| Permissions | A Billing Operator sells within the 5% discount limit but can't override prices, buy, cancel, see suppliers or purchase bills, or see cost. Limits are re-checked when someone else posts a draft. Read-only can view but not change. An Inventory Manager buys but can't see sales or cancel. |
+| Isolation and immutability | Another company's documents and parties can't be read, cancelled or used. SQLite triggers reject UPDATE and DELETE of posted documents, locked lines, settlements and allocations, while drafts stay editable. |
+| Upgrade | A database without billing settings or billing numbering receives them once on start. New companies get both. |
+| Mutation checks | Breaking each of these made 1–37 tests fail: COGS posting, the outstanding check, the return-quantity limit, the price-override check, return auto-allocation, inter-state detection. |
+
+### Built but unverified (needs Windows)
+
+Sales invoices, Purchase bills, Customers and Suppliers screens (`Views/Billing`). They compile (including XAML markup compilation), pass the design-rule tests, and every page-level binding resolves. Their view models have no automated tests.
+
+### Known gaps (Phase 5)
+
+- **Not built:** quotations, sales and purchase orders, delivery notes, goods receipt notes, proforma invoices, hold and resume, barcode or POS entry, additional charges, customer-specific prices, salesperson, recurring invoices, reminders, approvals, statements, and a billing settings screen.
+- **GST:** dated rate history, cess, reverse charge, exempt or nil-rated distinctions, bills of supply, ineligible input tax and GST registers. The rate is the tax category's configured rate, as the owner asked; no rates were added or changed.
+- **Behaviour:** see `WORKING_GUIDE.md` section 4 "Sales, purchases and payments specifics".
+
 ## Phase 4: products and inventory, complete on macOS (11 October 2026)
 
 **Windows:** the owner reports the app **opens** on Windows. No other screen has been confirmed there, so the WPF UI, printing and installer remain **unverified at runtime**. No runtime problems were reported, so none were fixed before this phase. (The report template's "what I saw" field was left unfilled.)
