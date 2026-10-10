@@ -14,6 +14,12 @@ public enum StockDocumentType
     PhysicalCount,
     StateChange,
     Reversal,
+
+    // Posted by sales and purchase documents (Phase 5), numbered with the document's own number.
+    Sale,
+    SalesReturn,
+    Purchase,
+    PurchaseReturn,
 }
 
 /// <summary>Condition of stock. Only Good stock is available to issue unless another state is chosen explicitly.</summary>
@@ -35,8 +41,14 @@ public static class StockDocumentTypeExtensions
         StockDocumentType.AdjustmentOut => "Adjustment out",
         StockDocumentType.PhysicalCount => "Physical count",
         StockDocumentType.StateChange => "State change",
+        StockDocumentType.SalesReturn => "Sales return",
+        StockDocumentType.PurchaseReturn => "Purchase return",
         _ => type.ToString(),
     };
+
+    /// <summary>Stock documents created by sales and purchase documents; they are cancelled there, not under Stock.</summary>
+    public static bool IsBilling(this StockDocumentType type) =>
+        type is StockDocumentType.Sale or StockDocumentType.SalesReturn or StockDocumentType.Purchase or StockDocumentType.PurchaseReturn;
 
     public static string NumberingKey(this StockDocumentType type) => type switch
     {

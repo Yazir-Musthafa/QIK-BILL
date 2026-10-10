@@ -15,8 +15,18 @@ namespace Nexora.Application.Inventory;
 /// (an existing <see cref="BatchId"/>, or a <see cref="BatchNumber"/> that is created on receipt).
 /// Serial-tracked products need one line per serial number with quantity 1.
 /// </summary>
+/// <para><see cref="LineValue"/> is the exact value of the whole line, used by purchase bills and sales returns instead of a unit cost.</para>
 public sealed record StockLineInput(Guid ProductId, decimal Quantity, Guid? UnitId = null, decimal? UnitCost = null,
-    Guid? BatchId = null, string? BatchNumber = null, DateOnly? ManufacturedOn = null, DateOnly? ExpiresOn = null, string? SerialNumber = null);
+    Guid? BatchId = null, string? BatchNumber = null, DateOnly? ManufacturedOn = null, DateOnly? ExpiresOn = null, string? SerialNumber = null,
+    decimal? LineValue = null);
+
+/// <summary>
+/// Value of one posted line, signed like the movement: <see cref="StockValue"/> is what the stock ledger records;
+/// <see cref="EnteredValue"/> is what incoming stock cost. They differ only when a receipt settles negative stock.
+/// </summary>
+internal sealed record StockLineValue(int LineNumber, decimal EnteredValue, decimal StockValue);
+
+internal sealed record StockCoreResult(StockDocument Document, IReadOnlyList<StockLineValue> Lines, decimal Increases, decimal Decreases, decimal Entered);
 
 public sealed record StockDocumentInput(StockDocumentType Type, DateOnly Date, Guid WarehouseId, string Narration, IReadOnlyList<StockLineInput> Lines,
     Guid? ToWarehouseId = null, Guid? CounterAccountId = null, StockState FromState = StockState.Good, StockState ToState = StockState.Good);
@@ -58,11 +68,44 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
         var session = authorizer.Demand(Permissions.InventoryAdjust);
         if (input.Type is StockDocumentType.Opening or StockDocumentType.Receipt) authorizer.Demand(Permissions.InventoryViewCost);
         if (input.Type == StockDocumentType.Reversal) throw new WorkspaceValidationException("Reverse a document from the documents list.");
-        if (input.Lines.Count == 0) throw new WorkspaceValidationException("Add at least one line.");
-        if (input.Lines.Count > 500) throw new WorkspaceValidationException("A stock document can have at most 500 lines.");
+        if (input.Type.IsBilling()) throw new WorkspaceValidationException("Sales and purchase stock is posted by sales and purchase documents.");
 
         using var lockHandle = await ledger.AcquireAsync(cancellationToken);
         await using var unit = await units.BeginAsync(cancellationToken: cancellationToken);
+        var year = FinancialYear.Containing(input.Date);
+        await EnsureOpenYearAsync(unit, session, input.Date, cancellationToken);
+        var number = await NumberAllocator.NextAsync(unit, session.CompanyId, input.Type.NumberingKey(), year,
+            candidate => unit.AnyAsync<StockDocument>(d => d.Number == candidate, cancellationToken), cancellationToken);
+        var posted = await PostCoreAsync(unit, session, input, number, cancellationToken);
+        var document = posted.Document;
+        var (increases, decreases) = (posted.Increases, posted.Decreases);
+
+        Guid? voucherId = null;
+        var lines = await AccountingLinesAsync(unit, input, increases, decreases, posted.Entered, cancellationToken);
+        if (lines.Count > 0)
+        {
+            voucherId = await ledger.PostAsync(unit,
+                new LedgerPosting(input.Date, $"{input.Type.Label()} {number}{(document.Narration.Length > 0 ? " · " + document.Narration : string.Empty)}",
+                    SourceType, document.Id, lines), cancellationToken);
+            document.AttachVoucher(voucherId.Value);
+        }
+
+        unit.Record(new AuditEvent("Posted", nameof(StockDocument), document.Id.ToString(),
+            $"Posted {input.Type.Label().ToLowerInvariant()} {number}" + (increases - decreases != 0 ? $" changing stock value by {increases - decreases:N2}" : string.Empty)));
+        await unit.CommitAsync(cancellationToken);
+        return new StockPostingResult(document.Id, number, voucherId, increases - decreases);
+    }
+
+    /// <summary>
+    /// Adds a stock document and its movements to the caller's unit of work, without an accounting voucher, and returns
+    /// the value of each line. Used by <see cref="PostAsync"/> and by sales and purchase documents, which post one
+    /// voucher for the whole document. The caller holds the posting lock, checks permissions and allocates the number.
+    /// </summary>
+    internal async Task<StockCoreResult> PostCoreAsync(IUnitOfWork unit, SessionInfo session, StockDocumentInput input, string number,
+        CancellationToken cancellationToken)
+    {
+        if (input.Lines.Count == 0) throw new WorkspaceValidationException("Add at least one line.");
+        if (input.Lines.Count > 500) throw new WorkspaceValidationException("A stock document can have at most 500 lines.");
         var context = await PostingContext.LoadAsync(unit, input.Lines.Select(l => l.ProductId), cancellationToken);
         await EnsureOpenYearAsync(unit, session, input.Date, cancellationToken);
         var warehouse = await ActiveWarehouseAsync(unit, input.WarehouseId, cancellationToken);
@@ -77,9 +120,6 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
             throw new WorkspaceValidationException("Choose a different new state.");
 
         var documentId = Guid.NewGuid();
-        var year = FinancialYear.Containing(input.Date);
-        var number = await NumberAllocator.NextAsync(unit, session.CompanyId, input.Type.NumberingKey(), year,
-            candidate => unit.AnyAsync<StockDocument>(d => d.Number == candidate, cancellationToken), cancellationToken);
         var document = new StockDocument(documentId, session.CompanyId, input.Type, number, input.Date, input.Narration,
             warehouse.Id, destination?.Id, input.CounterAccountId, null, clock.UtcNow, session.UserId);
         unit.Add(document);
@@ -87,6 +127,7 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
         // increases and decreases are stock values; entered is what incoming stock cost, which differs from its stock
         // value only when a receipt settles negative stock (CostPool.Receive). The difference is a cost adjustment.
         decimal increases = 0, decreases = 0, entered = 0;
+        var values = new List<StockLineValue>(input.Lines.Count);
         var serials = new HashSet<(Guid, string)>();
         for (var i = 0; i < input.Lines.Count; i++)
         {
@@ -102,19 +143,21 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
             if (serial is not null && !serials.Add((product.Id, serial)))
                 throw new WorkspaceValidationException($"Line {lineNumber}: serial {serial} of {product.Sku} is listed twice in this document.");
             var pool = context.Pool(product);
+            decimal lineEntered = 0, lineStock = 0;
 
             switch (input.Type)
             {
                 case StockDocumentType.Opening:
                 case StockDocumentType.Receipt:
+                case StockDocumentType.Purchase:
+                case StockDocumentType.SalesReturn:
                 {
-                    var unitCost = line.UnitCost ?? throw new WorkspaceValidationException($"Line {lineNumber}: enter the unit cost.");
-                    var value = EnteredCost(line, quantity, unitCost, lineNumber);
+                    var value = line.LineValue is { } exact ? ExactValue(exact, lineNumber)
+                        : EnteredCost(line, quantity, line.UnitCost ?? throw new WorkspaceValidationException($"Line {lineNumber}: enter the unit cost."), lineNumber);
                     context.EnsureSerialNotInStock(product, serial, lineNumber);
                     var stockValue = pool.Receive(quantity, value);
                     context.Add(document, lineNumber, product, warehouse.Id, StockState.Good, batch, serial, input.Date, quantity, stockValue, false, line);
-                    increases += stockValue;
-                    entered += value;
+                    (lineEntered, lineStock) = (value, stockValue);
                     break;
                 }
 
@@ -124,18 +167,19 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
                     context.EnsureSerialNotInStock(product, serial, lineNumber);
                     var stockValue = pool.Receive(quantity, value);
                     context.Add(document, lineNumber, product, warehouse.Id, input.FromState, batch, serial, input.Date, quantity, stockValue, false, line);
-                    increases += stockValue;
-                    entered += value;
+                    (lineEntered, lineStock) = (value, stockValue);
                     break;
                 }
 
                 case StockDocumentType.Issue:
                 case StockDocumentType.AdjustmentOut:
+                case StockDocumentType.Sale:
+                case StockDocumentType.PurchaseReturn:
                 {
                     context.EnsureAvailable(product, warehouse.Id, input.FromState, batch, serial, quantity, lineNumber);
                     var value = pool.Issue(quantity, context.Settings.AllowNegativeStock);
                     context.Add(document, lineNumber, product, warehouse.Id, input.FromState, batch, serial, input.Date, -quantity, -value, false, line);
-                    decreases += value;
+                    (lineEntered, lineStock) = (-value, -value);
                     break;
                 }
 
@@ -161,14 +205,13 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
                         var value = CostOf(difference, decimal.Round(pool.CurrentUnitCost, 4), lineNumber);
                         var stockValue = pool.Receive(difference, value);
                         context.Add(document, lineNumber, product, warehouse.Id, StockState.Good, batch, serial, input.Date, difference, stockValue, false, line);
-                        increases += stockValue;
-                        entered += value;
+                        (lineEntered, lineStock) = (value, stockValue);
                     }
                     else if (difference < 0)
                     {
                         var value = pool.Issue(-difference, allowNegative: true);
                         context.Add(document, lineNumber, product, warehouse.Id, StockState.Good, batch, serial, input.Date, difference, -value, false, line);
-                        decreases += value;
+                        (lineEntered, lineStock) = (-value, -value);
                     }
 
                     break;
@@ -177,22 +220,14 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
                 default:
                     throw new WorkspaceValidationException("This document type cannot be posted here.");
             }
+
+            if (lineStock > 0) increases += lineStock;
+            else decreases -= lineStock;
+            if (lineEntered > 0) entered += lineEntered;
+            values.Add(new StockLineValue(lineNumber, lineEntered, lineStock));
         }
 
-        Guid? voucherId = null;
-        var lines = await AccountingLinesAsync(unit, input, increases, decreases, entered, cancellationToken);
-        if (lines.Count > 0)
-        {
-            voucherId = await ledger.PostAsync(unit,
-                new LedgerPosting(input.Date, $"{input.Type.Label()} {number}{(document.Narration.Length > 0 ? " · " + document.Narration : string.Empty)}",
-                    SourceType, documentId, lines), cancellationToken);
-            document.AttachVoucher(voucherId.Value);
-        }
-
-        unit.Record(new AuditEvent("Posted", nameof(StockDocument), documentId.ToString(),
-            $"Posted {input.Type.Label().ToLowerInvariant()} {number}" + (increases - decreases != 0 ? $" changing stock value by {increases - decreases:N2}" : string.Empty)));
-        await unit.CommitAsync(cancellationToken);
-        return new StockPostingResult(documentId, number, voucherId, increases - decreases);
+        return new StockCoreResult(document, values, increases, decreases, entered);
     }
 
     /// <summary>
@@ -206,6 +241,28 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
         await using var unit = await units.BeginAsync(cancellationToken: cancellationToken);
         var original = await unit.FindAsync<StockDocument>(documentId, cancellationToken)
             ?? throw new WorkspaceValidationException("That stock document no longer exists.");
+        if (original.Type.IsBilling())
+            throw new WorkspaceValidationException($"Stock document {original.Number} belongs to a sales or purchase document. Cancel or return it there.");
+        var reversal = await ReverseCoreAsync(unit, session, original, date, narration, cancellationToken);
+        if (original.VoucherId is { } voucherId)
+        {
+            var reversalVoucher = await ledger.ReverseAsync(unit, voucherId, date, $"Reversal of stock document {original.Number}", cancellationToken);
+            reversal.AttachVoucher(reversalVoucher);
+        }
+
+        unit.Record(new AuditEvent("Reversed", nameof(StockDocument), original.Id.ToString(), $"Reversed stock document {original.Number} with {reversal.Number}"));
+        await unit.CommitAsync(cancellationToken);
+        return reversal.Number;
+    }
+
+    /// <summary>
+    /// Adds the reversal of <paramref name="original"/> (opposite movements at the original values) to the caller's unit of
+    /// work. Does not reverse any voucher: the caller does, because a sales or purchase voucher covers more than stock.
+    /// </summary>
+    internal async Task<StockDocument> ReverseCoreAsync(IUnitOfWork unit, SessionInfo session, StockDocument original, DateOnly date, string narration,
+        CancellationToken cancellationToken)
+    {
+        var documentId = original.Id;
         if (original.Type == StockDocumentType.Reversal) throw new WorkspaceValidationException("A reversal cannot itself be reversed.");
         if (await unit.AnyAsync<StockDocument>(d => d.ReversesDocumentId == documentId, cancellationToken))
             throw new WorkspaceValidationException($"Stock document {original.Number} has already been reversed.");
@@ -245,15 +302,7 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
             context.AddReversal(reversal, movement);
         }
 
-        if (original.VoucherId is { } voucherId)
-        {
-            var reversalVoucher = await ledger.ReverseAsync(unit, voucherId, date, $"Reversal of stock document {original.Number}", cancellationToken);
-            reversal.AttachVoucher(reversalVoucher);
-        }
-
-        unit.Record(new AuditEvent("Reversed", nameof(StockDocument), original.Id.ToString(), $"Reversed stock document {original.Number} with {number}"));
-        await unit.CommitAsync(cancellationToken);
-        return number;
+        return reversal;
     }
 
     public async Task<IReadOnlyList<StockBalanceRow>> BalancesAsync(DateOnly? asOf = null, CancellationToken cancellationToken = default)
@@ -443,6 +492,12 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
     private static decimal EnteredCost(StockLineInput line, decimal baseQuantity, decimal unitCost, int lineNumber) =>
         CostOf(line.UnitId is null ? baseQuantity : line.Quantity, unitCost, lineNumber);
 
+    private static decimal ExactValue(decimal value, int lineNumber)
+    {
+        if (value < 0 || !Money.HasValidScale(value)) throw new WorkspaceValidationException($"Line {lineNumber}: the value must be zero or more, in rupees and paise.");
+        return value;
+    }
+
     private static decimal CostOf(decimal quantity, decimal unitCost, int lineNumber)
     {
         if (unitCost < 0) throw new WorkspaceValidationException($"Line {lineNumber}: the unit cost cannot be negative.");
@@ -576,7 +631,7 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
             if (number.Length == 0) throw new WorkspaceValidationException($"Line {lineNumber}: {product.Sku} is batch-tracked; enter the batch number.");
             var found = _batches.Values.FirstOrDefault(b => b.ProductId == product.Id && b.Number == number);
             if (found is not null) return found;
-            if (type is not (StockDocumentType.Opening or StockDocumentType.Receipt or StockDocumentType.AdjustmentIn or StockDocumentType.PhysicalCount))
+            if (type is not (StockDocumentType.Opening or StockDocumentType.Receipt or StockDocumentType.AdjustmentIn or StockDocumentType.PhysicalCount or StockDocumentType.Purchase))
                 throw new WorkspaceValidationException($"Line {lineNumber}: batch {number} of {product.Sku} does not exist.");
             if (product.TracksExpiry && line.ExpiresOn is null) throw new WorkspaceValidationException($"Line {lineNumber}: enter the expiry date of batch {number}.");
             var batch = new Batch(Guid.NewGuid(), companyId, product.Id, number, line.ManufacturedOn, line.ExpiresOn);
