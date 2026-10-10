@@ -6,7 +6,9 @@
                     xmlns:svm="clr-namespace:Nexora.Desktop.ViewModels.Settings"
                     xmlns:sviews="clr-namespace:Nexora.Desktop.Views.Settings"
                     xmlns:avm="clr-namespace:Nexora.Desktop.ViewModels.Accounting"
-                    xmlns:aviews="clr-namespace:Nexora.Desktop.Views.Accounting">
+                    xmlns:aviews="clr-namespace:Nexora.Desktop.Views.Accounting"
+                    xmlns:ivm="clr-namespace:Nexora.Desktop.ViewModels.Inventory"
+                    xmlns:iviews="clr-namespace:Nexora.Desktop.Views.Inventory">
   <DataTemplate DataType="{x:Type vm:SetupWizardViewModel}"><views:SetupWizardView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:LoginViewModel}"><views:LoginView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:ShellViewModel}"><views:ShellView /></DataTemplate>
@@ -28,6 +30,9 @@
   <DataTemplate DataType="{x:Type avm:StatementsViewModel}"><aviews:StatementsView /></DataTemplate>
   <DataTemplate DataType="{x:Type avm:OpeningBalancesViewModel}"><aviews:OpeningBalancesView /></DataTemplate>
   <DataTemplate DataType="{x:Type avm:FinancialYearsViewModel}"><aviews:FinancialYearsView /></DataTemplate>
+  <DataTemplate DataType="{x:Type ivm:ProductsViewModel}"><iviews:ProductsView /></DataTemplate>
+  <DataTemplate DataType="{x:Type ivm:StockViewModel}"><iviews:StockView /></DataTemplate>
+  <DataTemplate DataType="{x:Type ivm:InventorySettingsViewModel}"><iviews:InventorySettingsView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:HelpViewModel}"><views:HelpView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:GalleryViewModel}"><views:GalleryView /></DataTemplate>
 </ResourceDictionary>

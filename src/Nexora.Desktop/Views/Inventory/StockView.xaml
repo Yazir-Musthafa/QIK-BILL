@@ -1,0 +1,285 @@
+<UserControl x:Class="Nexora.Desktop.Views.Inventory.StockView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Nexora.Desktop.Controls">
+  <DockPanel Margin="24,20,24,24">
+    <TextBlock DockPanel.Dock="Top" Text="{Binding Title}" Style="{StaticResource Text.Title}" Margin="0,0,0,12" />
+    <ListBox DockPanel.Dock="Top" ItemsSource="{Binding Sections}" SelectedItem="{Binding Section}" DisplayMemberPath="Label" Margin="0,0,0,16"
+             AutomationProperties.Name="Stock sections">
+      <ListBox.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Orientation="Horizontal" />
+        </ItemsPanelTemplate>
+      </ListBox.ItemsPanel>
+    </ListBox>
+    <TextBlock DockPanel.Dock="Bottom" Text="{Binding Error}" Style="{StaticResource Text.Error}" Visibility="{Binding Error, Converter={StaticResource VisibleWhen}}" />
+
+    <Grid>
+      <!-- Balances -->
+      <controls:QikDataGrid LayoutKey="stock-balances" ItemsSource="{Binding Balances}" Visibility="{Binding ShowBalances, Converter={StaticResource VisibleWhen}}"
+                            AutomationProperties.Name="Stock balances">
+        <DataGrid.Columns>
+          <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="110" />
+          <DataGridTextColumn Header="Product" Binding="{Binding ProductName}" Width="*" />
+          <DataGridTextColumn Header="Warehouse" Binding="{Binding Warehouse}" Width="130" />
+          <DataGridTextColumn Header="State" Binding="{Binding State}" Width="90" />
+          <DataGridTextColumn Header="Batch" Binding="{Binding Batch}" Width="90" />
+          <DataGridTextColumn Header="Expires" Binding="{Binding ExpiresOn, StringFormat=dd-MM-yyyy}" SortMemberPath="ExpiresOn" Width="90" />
+          <DataGridTextColumn Header="Serial" Binding="{Binding SerialNumber}" Width="110" />
+          <DataGridTextColumn Header="Quantity" Binding="{Binding Quantity}" Width="90" controls:Table.Total="True"
+                              HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+          <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="56" />
+        </DataGrid.Columns>
+      </controls:QikDataGrid>
+
+      <!-- New document -->
+      <Border Style="{StaticResource Panel}" Visibility="{Binding ShowPost, Converter={StaticResource VisibleWhen}}" IsEnabled="{Binding CanPost}">
+        <DockPanel>
+          <Grid DockPanel.Dock="Top">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="160" />
+              <ColumnDefinition Width="12" />
+              <ColumnDefinition Width="110" />
+              <ColumnDefinition Width="12" />
+              <ColumnDefinition Width="170" />
+              <ColumnDefinition Width="12" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <TextBlock Text="Document" Style="{StaticResource Text.Label}" />
+              <ComboBox ItemsSource="{Binding DocumentTypes}" SelectedItem="{Binding DocumentType}" AutomationProperties.Name="Document type" />
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+              <TextBlock Text="Date" Style="{StaticResource Text.Label}" />
+              <TextBox Text="{Binding Date, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" AutomationProperties.Name="Date (dd-mm-yyyy)" />
+            </StackPanel>
+            <StackPanel Grid.Column="4">
+              <TextBlock Text="Warehouse" Style="{StaticResource Text.Label}" />
+              <ComboBox ItemsSource="{Binding Warehouses}" SelectedItem="{Binding Warehouse}" DisplayMemberPath="Name" AutomationProperties.Name="Warehouse" />
+            </StackPanel>
+            <StackPanel Grid.Column="6">
+              <TextBlock Text="Narration" Style="{StaticResource Text.Label}" />
+              <TextBox Text="{Binding Narration, UpdateSourceTrigger=PropertyChanged}" MaxLength="300" AutomationProperties.Name="Narration" />
+            </StackPanel>
+          </Grid>
+
+          <WrapPanel DockPanel.Dock="Top" Margin="0,12,0,0">
+            <StackPanel Width="170" Margin="0,0,12,0" Visibility="{Binding NeedsDestination, Converter={StaticResource VisibleWhen}}">
+              <TextBlock Text="To warehouse" Style="{StaticResource Text.Label}" />
+              <ComboBox ItemsSource="{Binding Warehouses}" SelectedItem="{Binding ToWarehouse}" DisplayMemberPath="Name" AutomationProperties.Name="Destination warehouse" />
+            </StackPanel>
+            <StackPanel Width="130" Margin="0,0,12,0" Visibility="{Binding NeedsFromState, Converter={StaticResource VisibleWhen}}">
+              <TextBlock Text="From state" Style="{StaticResource Text.Label}" />
+              <ComboBox ItemsSource="{Binding States}" SelectedItem="{Binding FromState}" AutomationProperties.Name="From state" />
+            </StackPanel>
+            <StackPanel Width="130" Margin="0,0,12,0" Visibility="{Binding NeedsStates, Converter={StaticResource VisibleWhen}}">
+              <TextBlock Text="New state" Style="{StaticResource Text.Label}" />
+              <ComboBox ItemsSource="{Binding States}" SelectedItem="{Binding ToState}" AutomationProperties.Name="New state" />
+            </StackPanel>
+            <StackPanel Width="320" Margin="0,0,12,0" Visibility="{Binding NeedsCounterAccount, Converter={StaticResource VisibleWhen}}">
+              <TextBlock Text="{Binding CounterAccountLabel}" Style="{StaticResource Text.Label}" />
+              <ComboBox ItemsSource="{Binding Accounts}" SelectedItem="{Binding CounterAccount}" DisplayMemberPath="Display" IsTextSearchEnabled="True"
+                        TextSearch.TextPath="Name" MaxDropDownHeight="360" AutomationProperties.Name="Counter account" />
+            </StackPanel>
+          </WrapPanel>
+
+          <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,16,0,0">
+            <Button Content="Post document" Style="{StaticResource Button.Primary}" Command="{Binding PostCommand}" Margin="0,0,8,0" />
+            <Button Content="Clear" Command="{Binding StartDocumentCommand}" />
+            <TextBlock Style="{StaticResource Text.Caption}" VerticalAlignment="Center" Margin="16,0,0,0" TextWrapping="Wrap"
+                       Text="Posted documents cannot be edited; reverse them from Documents." />
+          </StackPanel>
+
+          <DockPanel Margin="0,16,0,0">
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,4">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition Width="90" />
+                <ColumnDefinition Width="80" />
+                <ColumnDefinition Width="100" />
+                <ColumnDefinition Width="90" />
+                <ColumnDefinition Width="100" />
+                <ColumnDefinition Width="110" />
+                <ColumnDefinition Width="36" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="Product" Style="{StaticResource Text.Label}" />
+              <TextBlock Grid.Column="1" Text="{Binding QuantityLabel}" Style="{StaticResource Text.Label}" />
+              <TextBlock Grid.Column="2" Text="Unit" Style="{StaticResource Text.Label}" />
+              <TextBlock Grid.Column="3" Text="Unit cost" Style="{StaticResource Text.Label}" Visibility="{Binding NeedsCost, Converter={StaticResource VisibleWhen}}" />
+              <TextBlock Grid.Column="4" Text="Batch" Style="{StaticResource Text.Label}" />
+              <TextBlock Grid.Column="5" Text="Expiry" Style="{StaticResource Text.Label}" />
+              <TextBlock Grid.Column="6" Text="Serial" Style="{StaticResource Text.Label}" />
+            </Grid>
+            <Button DockPanel.Dock="Bottom" Content="Add line" Style="{StaticResource Button.Subtle}" HorizontalAlignment="Left" Margin="0,4,0,0" Command="{Binding AddLineCommand}" />
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+              <ItemsControl ItemsSource="{Binding Lines}" Focusable="False">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Grid Margin="0,0,0,4">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition Width="90" />
+                        <ColumnDefinition Width="80" />
+                        <ColumnDefinition Width="100" />
+                        <ColumnDefinition Width="90" />
+                        <ColumnDefinition Width="100" />
+                        <ColumnDefinition Width="110" />
+                        <ColumnDefinition Width="36" />
+                      </Grid.ColumnDefinitions>
+                      <ComboBox ItemsSource="{Binding DataContext.Products, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Product}"
+                                DisplayMemberPath="DisplayName" IsTextSearchEnabled="True" TextSearch.TextPath="Sku" MaxDropDownHeight="360" Margin="0,0,8,0"
+                                AutomationProperties.Name="Product" />
+                      <TextBox Grid.Column="1" Text="{Binding Quantity, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" Margin="0,0,8,0" AutomationProperties.Name="Quantity" />
+                      <ComboBox Grid.Column="2" ItemsSource="{Binding DataContext.Units, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Unit}"
+                                DisplayMemberPath="Code" Margin="0,0,8,0" AutomationProperties.Name="Unit (blank: base unit)" />
+                      <TextBox Grid.Column="3" Text="{Binding UnitCost, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" Margin="0,0,8,0" AutomationProperties.Name="Unit cost"
+                               Visibility="{Binding DataContext.NeedsCost, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource VisibleWhen}}" />
+                      <TextBox Grid.Column="4" Text="{Binding Batch, UpdateSourceTrigger=PropertyChanged}" MaxLength="40" CharacterCasing="Upper" Margin="0,0,8,0" AutomationProperties.Name="Batch number" />
+                      <TextBox Grid.Column="5" Text="{Binding Expires, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" Margin="0,0,8,0" AutomationProperties.Name="Expiry date (dd-mm-yyyy)" />
+                      <TextBox Grid.Column="6" Text="{Binding Serial, UpdateSourceTrigger=PropertyChanged}" MaxLength="60" CharacterCasing="Upper" Margin="0,0,8,0" AutomationProperties.Name="Serial number" />
+                      <Button Grid.Column="7" Style="{StaticResource Button.Icon}" Content="&#xE711;" FontSize="{StaticResource IconSizeSmall}" AutomationProperties.Name="Remove line"
+                              ToolTip="Remove line" Command="{Binding DataContext.RemoveLineCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </DockPanel>
+        </DockPanel>
+      </Border>
+
+      <!-- Documents -->
+      <DockPanel Visibility="{Binding ShowDocuments, Converter={StaticResource VisibleWhen}}">
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,12,0,0" Visibility="{Binding CanPost, Converter={StaticResource VisibleWhen}}">
+          <TextBlock Text="Reversal date" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" Margin="0,0,8,0" />
+          <TextBox Text="{Binding ReversalDate, UpdateSourceTrigger=PropertyChanged}" Width="110" MaxLength="10" Margin="0,0,8,0" AutomationProperties.Name="Reversal date (dd-mm-yyyy)" />
+          <Button Content="Reverse selected document" Command="{Binding ReverseCommand}" />
+        </StackPanel>
+        <controls:QikDataGrid LayoutKey="stock-documents" ItemsSource="{Binding Documents}" SelectedItem="{Binding SelectedDocument}" SelectionMode="Single"
+                              AutomationProperties.Name="Stock documents">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Date" Binding="{Binding Date, StringFormat=dd-MM-yyyy}" SortMemberPath="Date" Width="90" />
+            <DataGridTextColumn Header="Number" Binding="{Binding Number}" Width="130" />
+            <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="110" />
+            <DataGridTextColumn Header="Warehouse" Binding="{Binding Warehouse}" Width="120" />
+            <DataGridTextColumn Header="To" Binding="{Binding ToWarehouse}" Width="120" />
+            <DataGridTextColumn Header="Narration" Binding="{Binding Narration}" Width="*" />
+            <DataGridTextColumn Header="Value change" Binding="{Binding Value, Converter={StaticResource Amount}}" SortMemberPath="Value" Width="120"
+                                HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+            <DataGridTemplateColumn Header="Status" Width="90" SortMemberPath="IsReversed">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <Border Style="{StaticResource Badge.Warning}" Visibility="{Binding IsReversed, Converter={StaticResource VisibleWhen}}"><TextBlock Text="Reversed" /></Border>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+          </DataGrid.Columns>
+        </controls:QikDataGrid>
+      </DockPanel>
+
+      <!-- Movement ledger -->
+      <controls:QikDataGrid LayoutKey="stock-movements" ItemsSource="{Binding Movements}" Visibility="{Binding ShowMovements, Converter={StaticResource VisibleWhen}}"
+                            AutomationProperties.Name="Stock movements">
+        <DataGrid.Columns>
+          <DataGridTextColumn Header="#" Binding="{Binding Sequence}" Width="56" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+          <DataGridTextColumn Header="Date" Binding="{Binding Date, StringFormat=dd-MM-yyyy}" SortMemberPath="Date" Width="90" />
+          <DataGridTextColumn Header="Document" Binding="{Binding DocumentNumber}" Width="130" />
+          <DataGridTextColumn Header="Type" Binding="{Binding DocumentType}" Width="110" />
+          <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="100" />
+          <DataGridTextColumn Header="Product" Binding="{Binding ProductName}" Width="*" />
+          <DataGridTextColumn Header="Warehouse" Binding="{Binding Warehouse}" Width="110" />
+          <DataGridTextColumn Header="State" Binding="{Binding State}" Width="80" />
+          <DataGridTextColumn Header="Batch" Binding="{Binding Batch}" Width="80" />
+          <DataGridTextColumn Header="Serial" Binding="{Binding SerialNumber}" Width="100" />
+          <DataGridTextColumn Header="Quantity" Binding="{Binding Quantity}" Width="90" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+          <DataGridTextColumn Header="Value" Binding="{Binding Value, Converter={StaticResource Amount}}" SortMemberPath="Value" Width="110"
+                              HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+        </DataGrid.Columns>
+      </controls:QikDataGrid>
+
+      <!-- Valuation and reconciliation -->
+      <DockPanel Visibility="{Binding ShowValuation, Converter={StaticResource VisibleWhen}}">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
+          <StackPanel Width="110" Margin="0,0,12,0">
+            <TextBlock Text="As of" Style="{StaticResource Text.Label}" />
+            <TextBox Text="{Binding AsOf, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" AutomationProperties.Name="As of date (dd-mm-yyyy)" />
+          </StackPanel>
+          <Button Content="Show" Style="{StaticResource Button.Primary}" Command="{Binding RefreshValuationCommand}" VerticalAlignment="Bottom" />
+        </StackPanel>
+        <Border DockPanel.Dock="Top" Style="{StaticResource Panel}" Margin="0,0,0,12" Padding="12">
+          <DockPanel>
+            <Grid DockPanel.Dock="Left" Width="460">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition />
+                <ColumnDefinition />
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="Stock value" Style="{StaticResource Text.Caption}" />
+                <TextBlock Text="{Binding Reconciliation.StockValue, Converter={StaticResource Amount}}" Style="{StaticResource Text.Kpi}" />
+              </StackPanel>
+              <StackPanel Grid.Column="1">
+                <TextBlock Text="Inventory in the ledger" Style="{StaticResource Text.Caption}" />
+                <TextBlock Text="{Binding Reconciliation.LedgerValue, Converter={StaticResource Amount}}" Style="{StaticResource Text.Kpi}" />
+              </StackPanel>
+              <StackPanel Grid.Column="2">
+                <TextBlock Text="Difference" Style="{StaticResource Text.Caption}" />
+                <TextBlock Text="{Binding Reconciliation.Difference, Converter={StaticResource Amount}}" Style="{StaticResource Text.Kpi}" />
+              </StackPanel>
+            </Grid>
+            <TextBlock Text="{Binding ReconciliationText}" Style="{StaticResource Text.Secondary}" VerticalAlignment="Center" Margin="16,0,0,0" />
+          </DockPanel>
+        </Border>
+        <controls:QikDataGrid LayoutKey="stock-valuation" ItemsSource="{Binding Valuation}" AutomationProperties.Name="Stock valuation">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="110" />
+            <DataGridTextColumn Header="Product" Binding="{Binding ProductName}" Width="*" />
+            <DataGridTextColumn Header="Quantity" Binding="{Binding Quantity}" Width="100" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+            <DataGridTextColumn Header="Unit cost" Binding="{Binding UnitCost}" Width="110" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+            <DataGridTextColumn Header="Value" Binding="{Binding Value, Converter={StaticResource Amount}}" SortMemberPath="Value" Width="130" controls:Table.Total="True"
+                                HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+          </DataGrid.Columns>
+        </controls:QikDataGrid>
+      </DockPanel>
+
+      <!-- Alerts -->
+      <Grid Visibility="{Binding ShowAlerts, Converter={StaticResource VisibleWhen}}">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition />
+          <ColumnDefinition Width="16" />
+          <ColumnDefinition />
+        </Grid.ColumnDefinitions>
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" Text="At or below reorder level" Style="{StaticResource Text.Section}" Margin="0,0,0,8" />
+          <controls:QikDataGrid LayoutKey="stock-low" ItemsSource="{Binding LowStock}" AutomationProperties.Name="Low stock">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="100" />
+              <DataGridTextColumn Header="Product" Binding="{Binding ProductName}" Width="*" />
+              <DataGridTextColumn Header="Available" Binding="{Binding Available}" Width="80" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+              <DataGridTextColumn Header="Reorder" Binding="{Binding ReorderLevel}" Width="80" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+              <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="56" />
+            </DataGrid.Columns>
+          </controls:QikDataGrid>
+        </DockPanel>
+        <DockPanel Grid.Column="2">
+          <TextBlock DockPanel.Dock="Top" Text="Expired or expiring within 30 days" Style="{StaticResource Text.Section}" Margin="0,0,0,8" />
+          <controls:QikDataGrid LayoutKey="stock-expiry" ItemsSource="{Binding Expiring}" AutomationProperties.Name="Expiring batches">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="100" />
+              <DataGridTextColumn Header="Batch" Binding="{Binding Batch}" Width="90" />
+              <DataGridTextColumn Header="Expires" Binding="{Binding ExpiresOn, StringFormat=dd-MM-yyyy}" SortMemberPath="ExpiresOn" Width="90" />
+              <DataGridTextColumn Header="Quantity" Binding="{Binding Quantity}" Width="80" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+              <DataGridTemplateColumn Header="Status" Width="*" SortMemberPath="IsExpired">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <Border Style="{StaticResource Badge.Danger}" Visibility="{Binding IsExpired, Converter={StaticResource VisibleWhen}}"><TextBlock Text="Expired" /></Border>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+            </DataGrid.Columns>
+          </controls:QikDataGrid>
+        </DockPanel>
+      </Grid>
+    </Grid>
+  </DockPanel>
+</UserControl>

@@ -1,6 +1,8 @@
 # QIK Suite: working and testing guide
 
-Last audited: **10 October 2026**, at commit `b6ee88e` plus this guide. Each statement below comes from reading the code, a clean build and the automated tests on macOS. **Nothing has been run on Windows yet**, so every screen is "UI unverified at runtime" until someone completes the test script in section 3.
+Last updated: **11 October 2026**, end of Phase 4. Each statement below comes from reading the code, a clean build and the automated tests on macOS.
+
+**Windows:** the owner reports that the app **opens** on Windows (11 October 2026). No other screen has been confirmed on Windows, so everything else is "UI unverified at runtime" until the test script in section 3 is completed.
 
 ## How this guide was checked
 
@@ -8,11 +10,11 @@ Last audited: **10 October 2026**, at commit `b6ee88e` plus this guide. Each sta
 |---|---|
 | Clean build (`dotnet build Nexora.sln`, after deleting all `bin`/`obj`) | Succeeded, 0 warnings, 0 errors |
 | Locked package restore | Succeeded |
-| Automated tests (`dotnet test tests/Nexora.Tests`) | **502 passed, 0 failed** (with this guide in place) |
-| Of those, design-rule checks on XAML styling | 228 (one per XAML file per rule). They check styling discipline, not behaviour. |
-| Of those, the guide's own status-table check | 30 (one per screen, plus one sanity check) |
+| Automated tests (`dotnet test tests/Nexora.Tests`) | **605 passed, 0 failed** (with this guide in place) |
+| Of those, design-rule checks on XAML styling | 246 (one per XAML file per rule). They check styling discipline, not behaviour. |
+| Of those, the guide's own status-table check | 31 (one per screen, plus one sanity check) |
 | Of those, binding check | 1 test: every page-level XAML binding (about 400) points to a real view-model property or command |
-| Logic tests (domain, services, database, accounting) | 243 |
+| Logic tests (domain, services, database, accounting, inventory, table logic) | 327 |
 | Desktop view models (`src/Nexora.Desktop/ViewModels`) | **No automated tests.** They target Windows and can't be loaded by the test project, so date parsing, voucher-line totals, the command palette and navigation are untested. |
 | Fixed during this audit | Tests added for service paths that had none (chart editing, warehouses, branch deactivation, numbering, logo, role change). In the voucher editor, a failed Post created a second draft on each retry; it now keeps editing the same draft and shows it in the list. The numbering column label "Next number looks like" was misleading and is now "Format (shown with number 1)". |
 
@@ -43,10 +45,10 @@ Two abbreviations in the "Tested by" column: `WS` = `Workspace/WorkspaceServiceT
 | Sales | Customers | PLACEHOLDER | Says "planned for Phase 5" | Everything. Workaround: create customer ledgers under Sundry Debtors in Chart of accounts. | None | Not yet |
 | Purchases | Purchase invoices | PLACEHOLDER | Says "planned for Phase 5" | Everything | None | Not yet |
 | Purchases | Suppliers | PLACEHOLDER | Says "planned for Phase 5" | Everything. Workaround: create supplier ledgers under Sundry Creditors. | None | Not yet |
-| Inventory | Products | PLACEHOLDER | Says "planned for Phase 4" | Everything | None | Not yet |
-| Inventory | Stock | PLACEHOLDER | Says "planned for Phase 4" | Everything | None | Not yet |
+| Inventory | Products | FULLY FUNCTIONAL | List (filter, columns, totals, saved layout, show archived). Create and edit: SKU, name, description, category, brand, barcode (EAN-13/EAN-8 check digit, or text), QR identifier, HSN/SAC, tax category, unit, tracking (none, batch, serial; expiry with batch), purchase/selling/MRP, reorder level. Archive (only at zero stock). Variants (size, colour, model) with their own SKU and stock. Alternate units (for example 1 BOX = 12 PCS). Purchase price withheld by the service without "Inventory: View cost". | No product images. No CSV/Excel import or export (Phase 8). A product's unit and tracking are fixed after creation. | `Inventory/InventoryDomainTests`, `Inventory/StockTests` (`ProductCatalogueTests`, `InventoryAccessTests`) | Not yet |
+| Inventory | Stock | FULLY FUNCTIONAL | **Balances** by product, warehouse, state, batch and serial. **New document:** opening stock, receipt (credit a supplier, cash or bank), issue, adjustment in/out, transfer, physical count, state change (good, damaged, expired, returned, obsolete). Batch, expiry and serial entry; alternate units. **Documents** list with reversal (latest document of its products only). **Movement ledger.** **Valuation and reconciliation** (stock value against the Inventory ledger). **Low stock and expiry** alerts. Each value-changing document posts its accounting voucher in the same transaction. | No reservations (they arrive with sales orders in Phase 5). No COGS posting from sales (Phase 5). No printing of stock documents (Phase 6). Stock dates can't go back before a product's last movement. | `Inventory/StockTests` (posting, costing, negative stock, transfers, states, counts, batches, serials, reversal, concurrency, reconciliation, isolation, immutability, permissions), `CostPoolTests` | Not yet |
 | Accounts | Chart of accounts | FULLY FUNCTIONAL | Tree with indentation and System badges. Create ledgers and groups (nature comes from the group). Rename, move within the same nature, deactivate and reactivate. Duplicate codes and names are refused. The type can't change once an account has postings. | Changing the Type of an existing group is silently ignored (groups stay groups) | `CoverageGapTests` (added in this audit), `ChartOfAccountsTemplateTests`, `AccountDomainTests`, `PostingTests` | Not yet |
-| Accounts | Vouchers | FULLY FUNCTIONAL | List of all vouchers. Editor for Journal, Payment, Receipt, Contra, Sales, Purchase, Expense, Income, Credit note, Debit note. Live debit/credit totals and difference. Save draft, Post (numbered), Delete draft, Reverse with a date. Posted vouchers open read-only. | No search or filter on the list. No date picker (type dd-mm-yyyy). No printing (Phase 6). Pressing Post on an invalid voucher first saves it as a draft; it stays open and in the list until you fix and post it or delete it. | `PostingTests`, `VoucherDomainTests`, `VoucherRulesTests`, `AccountingAccessTests` | Not yet |
+| Accounts | Vouchers | FULLY FUNCTIONAL | List with quick filter, column chooser and saved layout. Editor for Journal, Payment, Receipt, Contra, Sales, Purchase, Expense, Income, Credit note, Debit note. Live debit/credit totals and difference. Save draft, Post (numbered), Delete draft, Reverse with a date. Posted vouchers open read-only. Manual vouchers can't use the Inventory account. Vouchers created by stock documents can only be reversed from Stock. | No date picker (type dd-mm-yyyy). No printing (Phase 6). Pressing Post on an invalid voucher first saves it as a draft; it stays open and in the list until you fix and post it or delete it. | `PostingTests`, `VoucherDomainTests`, `VoucherRulesTests`, `AccountingAccessTests` | Not yet |
 | Accounts | Ledgers | FULLY FUNCTIONAL | Statement for any ledger account: opening balance, lines, running balance, closing balance | The range must fall inside one financial year (by design). No export or print. | `PostingTests`, `LedgerCalculatorTests` | Not yet |
 | Accounts | Trial balance | FULLY FUNCTIONAL | Balances as of a date, totals, and a "Does not balance" badge if they ever differ | No group subtotals. No export or print. | `PostingTests`, `LedgerCalculatorTests` | Not yet |
 | Accounts | Financial statements | FULLY FUNCTIONAL | Profit and loss (from–to) and balance sheet (as of "to"), with prior years' profit carried into Retained Earnings | No group subtotals. No cash flow statement (Phase 8). No export or print. | `PostingTests`, `LedgerCalculatorTests` | Not yet |
@@ -64,9 +66,11 @@ Two abbreviations in the "Tested by" column: `WS` = `Workspace/WorkspaceServiceT
 | Settings | Settings → Document numbering | FULLY FUNCTIONAL | Prefix (with {FY}), number width and yearly reset for 17 document types. Changes apply to the next posted voucher. | Only voucher types use numbering today; invoice and order types wait for Phases 5–6 | `NumberingTests`, `CoverageGapTests`, `PostingTests` | Not yet |
 | Settings | Settings → Users | FULLY FUNCTIONAL | List users. Create a user with a temporary password. Give an existing account access. Change role. Remove and restore access. Reset password. Last-administrator and no-escalation rules. | Nothing known | `Perm`, `CoverageGapTests` | Not yet |
 | Settings | Settings → Roles and permissions | FULLY FUNCTIONAL | Six built-in roles plus custom roles. Tick permissions by module, set a discount limit, delete unused custom roles. You can't grant what you don't hold. | The discount limit is stored but not used until sales exist (Phase 5) | `RoleTests`, `Perm` | Not yet |
+| Settings | Settings → Inventory | FULLY FUNCTIONAL | Costing method (weighted average or FIFO, fixed once stock moves), allow negative stock (weighted average only), units (add), tax categories (add, reference rate). | Units and tax categories can be added but not edited or deactivated from this screen. Tax rates are reference values until Phase 5 adds dated GST rates. | `InventoryRuleTests`, `StockTests`, `UpgradeTests` | Not yet |
 | Settings | Settings → Financial years | FULLY FUNCTIONAL | List years with their draft counts. Open the next year. Close a year (refused while drafts are dated in it). Reopen. | Nothing known | `PostingTests`, `AccountingAccessTests` | Not yet |
-| Settings | Settings → Audit trail | FULLY FUNCTIONAL | Newest 500 entries: who, when, action, summary. Selecting an entry shows field-level old and new values. "Verify integrity" re-checks the hash chain. | No search, filter or paging in the screen (the service supports dates and type, the UI doesn't use them). No export. | `AuditTrailTests`, `AuditChainTests`, `CompanyIsolationTests` | Not yet |
+| Settings | Settings → Audit trail | FULLY FUNCTIONAL | Newest 500 entries: who, when, action, summary, with quick filter and saved layout. Selecting an entry shows field-level old and new values. "Verify integrity" re-checks the hash chain. | No paging beyond 500 or date filter in the screen. No export. | `AuditTrailTests`, `AuditChainTests`, `CompanyIsolationTests` | Not yet |
 | Hidden | Component gallery (Ctrl+Shift+G) | PARTIAL | Shows every control and state; the confirmation and toast buttons work | A developer reference screen by design; its sample buttons do nothing. No tests. | Design-rule tests only | Not yet |
+| Shared | Data table (filter, columns, totals, saved layouts) | PARTIAL | Used on Products, Stock, Vouchers, Audit trail, Users, Trial balance and the inventory settings lists. Quick filter (every word must match), row count, show/hide columns, sort, resize, reorder, totals row, layout saved per user. | Layout merging, filtering, totals and per-user storage are tested (`TableLayoutTests`). The WPF control code itself (applying layouts, footer alignment, column menu) has no automated tests. No per-column filters. | `Preferences/TableLayoutTests` | Not yet |
 | Shared | Confirmation dialogs and toasts | PARTIAL | Used for deletes, reversals, closing years and so on. Toasts disappear after 4 seconds. | View-model code only; no automated tests | None | Not yet |
 
 ### Files behind each screen
@@ -93,6 +97,10 @@ Two abbreviations in the "Tested by" column: `WS` = `Workspace/WorkspaceServiceT
 | Vouchers | `Views/Accounting/VouchersView.xaml` | `VouchersViewModel` | `Accounting/VoucherService.cs` |
 | Ledgers, Trial balance, Financial statements | `Views/Accounting/{Ledger,TrialBalance,Statements}View.xaml` | `LedgerViewModel`, `TrialBalanceViewModel`, `StatementsViewModel` | `LedgerService` |
 | Opening balances | `Views/Accounting/OpeningBalancesView.xaml` | `OpeningBalancesViewModel` | `VoucherService.PostOpeningBalancesAsync` |
+| Products | `Views/Inventory/ProductsView.xaml` | `ViewModels/Inventory/InventoryViewModels.cs` (`ProductsViewModel`) | `Application/Inventory/InventoryCatalogueService.cs` |
+| Stock | `Views/Inventory/StockView.xaml` | `StockViewModel` | `Application/Inventory/StockService.cs`, `Accounting/LedgerPoster.cs` |
+| Settings → Inventory | `Views/Inventory/InventorySettingsView.xaml` | `InventorySettingsViewModel` | `InventoryCatalogueService` |
+| Data table | `Themes/Controls.xaml` (style), `Controls/QikDataGrid.cs` | — | `Application/Preferences/TableLayout.cs` (`UserPreferenceService`) |
 
 View and view-model paths are under `src/Nexora.Desktop/`. Services are under `src/Nexora.Application/` or `src/Nexora.Accounting/`.
 
@@ -117,6 +125,7 @@ View and view-model paths are under `src/Nexora.Desktop/`. Services are under `s
    - numbering rules for 17 document types;
    - a standard Indian chart of accounts (57 accounts and groups);
    - the first financial year, open;
+   - inventory settings (weighted average, no negative stock), 10 units (PCS, NOS, BOX, PACK, DOZ, KG, G, L, ML, M), 4 tax categories, and numbering for 8 stock document types;
    - with the box ticked, a separate "Demonstration Company (sample data)" with the same structure.
    You land on the dashboard and are already signed in.
 4. **Sign in later** with your username (not case-sensitive) and password.
@@ -252,7 +261,7 @@ Stay in **Test Traders** as `asha`. Type dates exactly as shown (dd-mm-yyyy). Am
 | P3-COA-04 | Click **New**, code `1131`, name Duplicate, group Sundry Debtors. Save. | "Account code 1131 is already used." | ☐ Pass ☐ Fail |
 | P3-COA-05 | Select **Rent** and change its group to "Current Assets". Save. | "An account cannot move to a group of a different nature." | ☐ Pass ☐ Fail |
 | P3-COA-06 | Select **Cash** and click **Deactivate**. | "System accounts are used by posting rules and cannot be deactivated." | ☐ Pass ☐ Fail |
-| P3-OPN-01 | **Opening balances**, year 2026-27: Cash debit `25000`, Primary Bank Account debit `175000`, Owner's Capital credit `190000`. Click **Post opening balances** and confirm. | "Opening balances posted as OB/2026-27/001." (The 10,000 difference goes to Opening Balance Difference.) | ☐ Pass ☐ Fail |
+| P3-OPN-01 | **Opening balances**, year 2026-27: Cash debit `25000`, Primary Bank Account debit `175000`, Owner's Capital credit `190000`. Click **Post opening balances** and confirm. | Inventory is not in the list (opening stock is entered under Stock). "Opening balances posted as OB/2026-27/001." (The 10,000 difference goes to Opening Balance Difference.) | ☐ Pass ☐ Fail |
 | P3-VCH-01 | **Vouchers → New voucher**. Type Receipt, date `05-10-2026`, narration Cash sale. Lines: Cash debit 11800; Sales credit 10000; Output CGST credit 900; Output SGST credit 900. Before posting, watch the totals. | A red "Difference …" shows until the lines balance, then disappears. Both totals read **11,800.00**. | ☐ Pass ☐ Fail |
 | P3-VCH-02 | Click **Post**. | "Posted as RV/2026-27/0001." The editor becomes read-only with a "Posted" badge. The list shows the voucher. | ☐ Pass ☐ Fail |
 | P3-VCH-03 | With the posted voucher open, try to type in any field. | Nothing can be edited. There are no Save draft, Post or Delete buttons, only Reverse. | ☐ Pass ☐ Fail |
@@ -260,23 +269,24 @@ Stay in **Test Traders** as `asha`. Type dates exactly as shown (dd-mm-yyyy). Am
 | P3-VCH-05 | New: Contra, `07-10-2026`, Cash deposited. Primary Bank Account debit 20000; Cash credit 20000. Post. | "Posted as CV/2026-27/0001." | ☐ Pass ☐ Fail |
 | P3-VCH-06 | New: Journal, `08-10-2026`, Salaries paid by owner. Salaries and Wages debit 5000; Owner's Capital credit 5000. Post. | "Posted as JV/2026-27/0001." | ☐ Pass ☐ Fail |
 | P3-VCH-07 | New: Sales, `09-10-2026`, Credit sale. Sharma Traders debit 2360; Sales credit 2000; Output IGST credit 360. Post. | "Posted as SV/2026-27/0001." | ☐ Pass ☐ Fail |
-| P3-VCH-08 | New: Purchase, `10-10-2026`, Stock purchase. Inventory debit 4000; Input CGST debit 360; Input SGST debit 360; Kaveri Distributors credit 4720. Post. | "Posted as PU/2026-27/0001." | ☐ Pass ☐ Fail |
+| P3-VCH-08 | New: Purchase, `10-10-2026`, Services purchase. Purchases (non-stock) debit 4000; Input CGST debit 360; Input SGST debit 360; Kaveri Distributors credit 4720. Post. (Stock purchases are recorded under Stock; see section 3.7.) | "Posted as PU/2026-27/0001." | ☐ Pass ☐ Fail |
 | P3-VCH-09 | New: Journal, `11-10-2026`. Rent debit 1000; Owner's Capital credit 999.99. Click **Post**. | The live total shows "Difference 0.01". Posting fails with "…differ by 0.01. A voucher must balance." **Known behaviour:** it is left in the list as a draft. Select it and click **Delete draft**, then confirm. | ☐ Pass ☐ Fail |
 | P3-VCH-10 | New: Journal, `11-10-2026`. Cash debit 100; Sales credit 100. Post. Then delete the resulting draft. | "Journal vouchers do not use cash or bank accounts. Use a payment, receipt or contra voucher." | ☐ Pass ☐ Fail |
 | P3-VCH-11 | New: Payment, `11-10-2026`. Rent debit 100; Owner's Capital credit 100. Post. Then delete the draft. | "A payment voucher must credit a cash or bank account." | ☐ Pass ☐ Fail |
 | P3-VCH-12 | New: Receipt, date `31-02-2026`. Post. | "Date: enter a date as dd-mm-yyyy, for example 01-04-2026." | ☐ Pass ☐ Fail |
 | P3-VCH-13 | New: Receipt, date `31-03-2026` (before the books start). Cash 10 / Sales 10. Post. Then delete the draft. | "The company's books start on 01 Apr 2026. Choose a later date." | ☐ Pass ☐ Fail |
 | P3-VCH-14 | New: Receipt, `11-10-2026`, Cash debit 3000; Sales credit 3000. Post. | "Posted as RV/2026-27/0002." | ☐ Pass ☐ Fail |
+| P3-VCH-15 | New: Journal, `11-10-2026`. Inventory debit 100; Owner's Capital credit 100. Post. Then delete the draft. | "…Inventory is kept by stock documents. Record stock changes under Stock so stock value and the ledger stay equal." | ☐ Pass ☐ Fail |
 | P3-REV-01 | With RV/2026-27/0002 open, set Reversal date `12-10-2026`. Click **Reverse** and confirm. | "Reversed with RJ/2026-27/0001." The original shows "Reversed by RJ/2026-27/0001", and Reverse is now disabled. The list shows the reversal and a "Reversed" badge on the original. | ☐ Pass ☐ Fail |
 | P3-LED-01 | **Ledgers**: account "1111 · Cash", from `06-10-2026` to `31-10-2026`. Click **Show**. | Opening balance **36,800.00 Dr**. Three lines: CV 20,000 credit, RV/0002 3,000 debit, RJ/0001 3,000 credit. Closing balance **16,800.00 Dr**. | ☐ Pass ☐ Fail |
 | P3-LED-02 | Same account, from `01-03-2027` to `30-04-2027`. Show. | "Choose dates within one financial year (1 April to 31 March)." | ☐ Pass ☐ Fail |
 | P3-TB-01 | **Trial balance** as of `31-10-2026`. Show. | Total debit and total credit both **2,23,880.00**. No "Does not balance" badge. Primary Bank Account debit **1,82,882.00**. Owner's Capital credit **1,95,000.00**. Sales credit **12,000.00**. Opening Balance Difference credit **10,000.00**. | ☐ Pass ☐ Fail |
-| P3-FS-01 | **Financial statements**, from `01-04-2026` to `31-10-2026`. Show. | Total income **12,000.00**. Total expenses **17,118.00**. Net profit **-5,118.00** (a loss). | ☐ Pass ☐ Fail |
-| P3-FS-02 | Look at the balance sheet on the same screen. | Total assets **2,06,762.00**. "Profit for the current year" **-5,118.00**. Total liabilities and equity **2,06,762.00**. No "Does not balance" badge. | ☐ Pass ☐ Fail |
+| P3-FS-01 | **Financial statements**, from `01-04-2026` to `31-10-2026`. Show. | Total income **12,000.00**. Total expenses **21,118.00**. Net profit **-9,118.00** (a loss). | ☐ Pass ☐ Fail |
+| P3-FS-02 | Look at the balance sheet on the same screen. | Total assets **2,02,762.00**. "Profit for the current year" **-9,118.00**. Total liabilities and equity **2,02,762.00**. No "Does not balance" badge. | ☐ Pass ☐ Fail |
 | P3-REC-01 | Compare the screens. | Cash on the trial balance (16,800.00), the ledger closing balance (16,800.00) and the balance sheet (16,800.00) all match. Net profit appears identically in P&L and the balance sheet. | ☐ Pass ☐ Fail |
 | P3-FY-01 | **Settings → Financial years**. Click **Open next year**. | "FY 2027-28 opened…" Both years are listed as Open. | ☐ Pass ☐ Fail |
 | P3-FY-02 | Vouchers: Receipt, `05-04-2027`, Cash debit 1000; Sales credit 1000. Post. | "Posted as RV/2027-28/0001" (numbering restarts in the new year). | ☐ Pass ☐ Fail |
-| P3-FY-03 | **Financial statements**, from `01-04-2027` to `30-04-2027`. | Net profit **1,000.00**. On the balance sheet: Cash **17,800.00**, Retained Earnings **-5,118.00** (last year's loss carried forward), totals equal at **2,07,762.00**. | ☐ Pass ☐ Fail |
+| P3-FY-03 | **Financial statements**, from `01-04-2027` to `30-04-2027`. | Net profit **1,000.00**. On the balance sheet: Cash **17,800.00**, Retained Earnings **-9,118.00** (last year's loss carried forward), totals equal at **2,03,762.00**. | ☐ Pass ☐ Fail |
 | P3-FY-04 | Vouchers: create a Journal draft dated `13-10-2026` (Rent 10 / Owner's Capital 10), click **Save draft** only. Then in Financial years, select 2026-27 and click **Close selected year**, then confirm. | "1 draft voucher(s) are dated in FY 2026-27. Post or delete them before closing the year." | ☐ Pass ☐ Fail |
 | P3-FY-05 | Delete that draft. Close 2026-27 again. | "FY 2026-27 closed." Status shows Closed with a date. | ☐ Pass ☐ Fail |
 | P3-FY-06 | Try to post a Receipt dated `13-10-2026` (Cash 10 / Sales 10). Then delete the draft. | "FY 2026-27 is closed. Post in an open year or ask an administrator to reopen it." | ☐ Pass ☐ Fail |
@@ -284,7 +294,49 @@ Stay in **Test Traders** as `asha`. Type dates exactly as shown (dd-mm-yyyy). Am
 | P3-NUM-01 | **Settings → Document numbering**: Journal voucher prefix `JRN/{FY}/`, width 3. Save. Then post a Journal dated `13-10-2026`: Rent debit 500; Owner's Capital credit 500. | "Posted as JRN/2026-27/002." The counter continues from JV/2026-27/0001. | ☐ Pass ☐ Fail |
 | P3-AUD-01 | **Settings → Audit trail**. | Entries "Posted …", "Reversed voucher RV/2026-27/0002 with RJ/2026-27/0001", and the financial year updates are listed. **Verify integrity** reports intact. | ☐ Pass ☐ Fail |
 
-### 3.7 Formats and keyboard
+### 3.7 Inventory (Phase 4)
+
+Stay in **Test Traders** as `asha`. Section 3.3 created warehouse **W1 Main store**. Use dates in October 2026 **on or after 20-10-2026**, typed as dd-mm-yyyy. All figures assume the default **weighted average** costing.
+
+| ID | Steps | Expected result | Result |
+|---|---|---|---|
+| P4-SET-01 | **Settings → Inventory**. | Weighted average selected; "Allow negative stock" unticked; 10 units; tax categories Exempt, GST 5%, GST 18%, GST 40%. | ☐ Pass ☐ Fail |
+| P4-SET-02 | **Settings → Branches and warehouses**: add warehouse `SHOP`, name Shop floor (no branch). | It appears and is active. | ☐ Pass ☐ Fail |
+| P4-PRD-01 | **Products → New product**. SKU `led-18w`, name LED panel 18 W, category Lighting, brand Brightline, barcode `4006381333932`, HSN `9405`, tax GST 18%, unit PCS, tracking None, purchase 310, selling 450, MRP 499, reorder 10. **Save product.** | "This looks like an EAN-13 barcode but its last (check) digit is wrong." | ☐ Pass ☐ Fail |
+| P4-PRD-02 | Change the barcode to `4006381333931` and set selling to `550`. Save. | "The selling price cannot be more than the MRP." | ☐ Pass ☐ Fail |
+| P4-PRD-03 | Set selling back to `450`. Save. | "Product saved." The list shows SKU `LED-18W`, On hand 0. | ☐ Pass ☐ Fail |
+| P4-PRD-04 | New product with SKU `LED-18W` again. Save. | "SKU LED-18W is already used by another product." | ☐ Pass ☐ Fail |
+| P4-PRD-05 | Select LED-18W. Under **Alternate units** choose BOX, type `12`, click **Add**. | "1 BOX = 12 base units" is listed. | ☐ Pass ☐ Fail |
+| P4-PRD-06 | Create `SYRUP` (Cough syrup, unit NOS, tracking Batch, tick "Track expiry dates"), `PHONE-X` (unit PCS, tracking Serial), `FAN-1200` (unit PCS) and `TSHIRT` (unit PCS). | All four are saved. | ☐ Pass ☐ Fail |
+| P4-PRD-07 | Select TSHIRT. Under **Add a variant**: size M, colour Red, variant SKU `TSHIRT-M-RED`. Click **Add variant**. | "Variant added." TSHIRT shows a "Variants" badge; the new row reads "… / M / Red". | ☐ Pass ☐ Fail |
+| P4-STK-01 | **Stock → New document.** Receipt, date `20-10-2026`, warehouse Main store, credit account Kaveri Distributors. Line: LED-18W, quantity 10, unit cost 300. **Post document.** | "Posted SR/2026-27/0001. The accounting voucher was posted with it." | ☐ Pass ☐ Fail |
+| P4-STK-02 | Receipt, same date and supplier: LED-18W, quantity 10, unit cost 330. Post. Then a third receipt: LED-18W, quantity 1, **unit BOX**, unit cost 3780. Post. | Two more receipts. **Balances**: LED-18W in Main store **32**. (The box became 12 PCS; the average cost stays 315.) | ☐ Pass ☐ Fail |
+| P4-STK-03 | Issue, `20-10-2026`, Main store, debit account left blank: LED-18W 5. Post. Open **Documents**. | The issue shows Value change **-1,575.00** (5 × 315). | ☐ Pass ☐ Fail |
+| P4-STK-04 | Issue LED-18W 40 from Main store. | "Line 1: only 27 of LED-18W is in this warehouse; 40 is needed." Nothing posted. | ☐ Pass ☐ Fail |
+| P4-STK-05 | Transfer, Main store to Shop floor: LED-18W 7. Post. | "Posted ST/2026-27/0001." with **no** voucher sentence. Balances: Main store 20, Shop floor 7. | ☐ Pass ☐ Fail |
+| P4-STK-06 | State change, Main store, from Good to Damaged: LED-18W 2. Post. Open **Products**. | LED-18W: On hand **27**, Available **25**. | ☐ Pass ☐ Fail |
+| P4-STK-07 | Adjustment out, Main store, from state Damaged: LED-18W 2. Post. | Documents: Value change **-630.00**. Balances no longer show a Damaged row. | ☐ Pass ☐ Fail |
+| P4-STK-08 | Physical count, Main store: LED-18W counted quantity 17. Post. | Documents: Value change **-315.00** (one unit short). Balances: Main store 17, Shop floor 7. | ☐ Pass ☐ Fail |
+| P4-STK-09 | Receipt: SYRUP 25, unit cost 42.50, batch left empty. Post. | "…SYRUP is batch-tracked; enter the batch number." | ☐ Pass ☐ Fail |
+| P4-STK-10 | Same line with batch `L1` and expiry **10 days from today**. Post. Open **Low stock and expiry**. | Posted. L1 is listed under "Expired or expiring within 30 days" with quantity 25. | ☐ Pass ☐ Fail |
+| P4-STK-11 | Receipt: PHONE-X quantity 1, unit cost 9000, serial `SN-001`. Post. Repeat with the same serial. Then issue PHONE-X 1 with serial `SN-999`. | First posts. Second: "…serial SN-001 of PHONE-X is already in stock." Third: "…only 0 of serial SN-999 is in this warehouse…". | ☐ Pass ☐ Fail |
+| P4-STK-12 | **Documents**: select the SYRUP receipt, reversal date `20-10-2026`, **Reverse selected document**, then confirm. | "Reversed with SX/2026-27/0001." The receipt shows "Reversed"; SYRUP balance is gone. | ☐ Pass ☐ Fail |
+| P4-STK-13 | Select the first LED-18W receipt (SR/2026-27/0001) and reverse it. | "Later stock movements exist for these products. Reverse the later documents first, or post an adjustment instead." | ☐ Pass ☐ Fail |
+| P4-STK-14 | **Vouchers**: open the journal whose narration starts "Receipt SR/2026-27/0001" and click **Reverse**. | "Voucher … was created by a stock document. Reverse that document under Stock instead, so stock and accounts stay in step." | ☐ Pass ☐ Fail |
+| P4-STK-15 | Try a receipt dated `19-10-2026` for LED-18W. | "LED-18W has stock movements up to 20-10-2026. Post on or after that date." | ☐ Pass ☐ Fail |
+| P4-VAL-01 | **Valuation and reconciliation**, as of `31-10-2026`, **Show**. | LED-18W 24 at unit cost 315 = **7,560.00**; PHONE-X 1 = **9,000.00**; total **16,560.00**. Stock value 16,560.00, Inventory in the ledger 16,560.00, Difference 0.00, with "Stock value equals the Inventory balance in the ledger." | ☐ Pass ☐ Fail |
+| P4-VAL-02 | **Trial balance** as of `31-10-2026`. | Inventory debit **16,560.00**. Inventory Adjustments debit **2,520.00** (1,575 + 630 + 315). Kaveri Distributors credit **23,800.00** (4,720 from section 3.6 + 19,080 of stock receipts). Totals equal. | ☐ Pass ☐ Fail |
+| P4-SET-03 | **Settings → Inventory**: choose FIFO and **Save policy**. | "The costing method cannot change after stock has moved…" A warning badge says the method is fixed. | ☐ Pass ☐ Fail |
+| P4-ARC-01 | **Products**: archive LED-18W. Then archive FAN-1200. | LED-18W: "This product still has 24 in stock…". FAN-1200 is archived and disappears unless "Show archived" is ticked. Unarchive it again. | ☐ Pass ☐ Fail |
+| P4-LOW-01 | Edit LED-18W: reorder level `30`. Save. Open **Stock → Low stock and expiry**. | LED-18W listed: available 24, reorder 30. | ☐ Pass ☐ Fail |
+| P4-TBL-01 | On **Products**, type `led` in the filter, then clear it. Click **Columns** and untick Brand. Drag the "Unit" header to the left. Close and reopen QIK Suite, sign in, and open Products. | The filter shows 1 row and "1 row". Brand stays hidden and Unit stays moved after reopening. The totals row shows the On hand total. | ☐ Pass ☐ Fail |
+| P4-PRM-01 | Sign in as `bina` (Billing Operator). Open Products, then Stock. | Purchase column empty; purchase price field disabled with the cost note. Stock has no "Valuation and reconciliation" section; the New document panel is disabled. | ☐ Pass ☐ Fail |
+| P4-PRM-02 | Sign in as `ravi` (Read-only). | Products editor disabled; no New product button; New document disabled; Settings → Inventory controls disabled. | ☐ Pass ☐ Fail |
+| P4-PRM-03 | Sign in as `ivan` (Inventory Manager, set a password if asked). Post an issue of LED-18W 1 from Shop floor. Open Settings → Inventory. | The issue posts. The policy section is disabled ("needs both Inventory: Manage and Company: Manage"). | ☐ Pass ☐ Fail |
+| P4-PRM-04 | Sign in as `anu` (Accountant). Open Stock. | Valuation and reconciliation is visible; the New document panel is disabled (no Inventory: Adjust). | ☐ Pass ☐ Fail |
+| P4-ISO-01 | Switch to **Second Co** (section 3.5). Open Products and Stock. | No products, balances or documents from Test Traders. | ☐ Pass ☐ Fail |
+
+### 3.8 Formats and keyboard
 
 | ID | Steps | Expected result | Result |
 |---|---|---|---|
@@ -293,7 +345,7 @@ Stay in **Test Traders** as `asha`. Type dates exactly as shown (dd-mm-yyyy). Am
 | GEN-KEY-01 | In a voucher, press **Tab** repeatedly from the first line's account. | Focus moves Account → Debit → Credit → Line note → Remove → next line's Account. A focus ring is always visible. | ☐ Pass ☐ Fail |
 | GEN-KEY-02 | Do P1-LOG-01 to P1-SHL-03 using only the keyboard. | Possible without the mouse. | ☐ Pass ☐ Fail |
 
-### 3.8 Optional: demonstration company (needs a reset)
+### 3.9 Optional: demonstration company (needs a reset)
 
 | ID | Steps | Expected result | Result |
 |---|---|---|---|
@@ -311,16 +363,16 @@ Stay in **Test Traders** as `asha`. Type dates exactly as shown (dd-mm-yyyy). Am
 ## 4. Known gaps and risks
 
 **Not verified**
-- **Nothing has been run on Windows.** All WPF screens, keyboard handling, DPI scaling, fonts, themes, popups, dialogs and the single-instance check are unverified at runtime.
+- **Only startup has been seen on Windows** (owner report, 11 October 2026: "it opens"). Every screen, keyboard handling, DPI scaling, fonts, themes, popups, dialogs and the single-instance check remain unverified at runtime.
 - The `win-x64` build was produced on macOS and never started.
 - `scripts/build-windows.ps1` and the GitHub Actions workflow have never run.
 - Narrator, high-contrast mode and Windows "reduce animations" are untested.
 - **View models have no automated tests**: date parsing, amount parsing, voucher totals, navigation and the palette. `ViewBindingTests` checks that page-level bindings point to real members, but not bindings inside list rows or grid columns. Nor does it check behaviour.
-- **Test-count composition:** 228 of the 502 tests are XAML design-rule checks, 30 are this guide's status-table checks and 1 is the binding check. The behavioural logic is covered by 243 tests.
+- **Test-count composition:** 246 of the 605 tests are XAML design-rule checks, 31 are this guide's status-table checks and 1 is the binding check. The behavioural logic is covered by 327 tests.
 
 **Not built (in phases already done)**
-- **Dashboard:** no real figures; notifications are a static panel.
-- **Lists:** no search, filter or paging on vouchers or the audit trail. No shared data-table features (column hide, saved layouts, totals row control).
+- **Dashboard:** no real figures, including low stock, which is shown under Stock instead. Notifications are a static panel.
+- **Lists:** the shared data table gives quick filter, column choice, totals and saved layouts. There are no per-column filters and no paging beyond what each screen loads.
 - **Entry:** no date picker.
 - **Output:** no printing, PDF or export anywhere.
 - **Company:** the logo is stored but not displayed. Branches, warehouses and the discount limit aren't used by any workflow yet.
@@ -334,7 +386,22 @@ Stay in **Test Traders** as `asha`. Type dates exactly as shown (dd-mm-yyyy). Am
 - **The audit chain** detects edits and deletions, but someone with file access could rewrite the whole chain. External anchoring is planned for Phase 9.
 - **The "at most one reversal per voucher" rule** relies on SQLite treating empty values as distinct. A future SQL Server version needs a filtered index.
 
-**Phases not started:** 4 (products and inventory), 5 (sales, purchases, GST), 6 (printing), 7 (expenses, CRM, service), 8 (reports, dashboard data, import/export, backup), 9 (security hardening, installer, release).
+**Inventory (Phase 4) specifics**
+- **Cost and dates:** cost is pooled per product across all warehouses. Stock dates can't go before a product's last movement.
+- **Reversal:** a stock document can be reversed only while it is the latest activity for its products; otherwise post an adjustment.
+- **States and values:** quantities are tracked per warehouse, state and batch, but value is tracked per product. Transfers and state changes carry no value.
+- **Negative stock:** possible only with weighted average. With no stock left, issues use the last unit cost, which can distort the average until the next receipt.
+- **Tax rates:** tax category rates are reference values. Current GST rates were not verified; Phase 5 adds dated rates.
+- **Not built:**
+  - stock reservations and COGS on sales (Phase 5);
+  - product images;
+  - CSV/Excel import/export (Phase 8);
+  - printing of stock documents and labels (Phase 6);
+  - editing or deactivating units and tax categories from the screen;
+  - per-column filters in the data table.
+- **Older databases:** if an older database already has manual vouchers posted to Inventory, the reconciliation will show a difference. That is expected, and it is explained on screen.
+
+**Phases not started:** 5 (sales, purchases, GST), 6 (printing), 7 (expenses, CRM, service), 8 (reports, dashboard data, import/export, backup), 9 (security hardening, installer, release).
 
 ## 5. Phase checklist
 
@@ -343,7 +410,7 @@ Stay in **Test Traders** as `asha`. Type dates exactly as shown (dd-mm-yyyy). Am
 | 1. Foundation: solution, shell, design system, themes, DI, logging, database, login, setup | Done on macOS, not verified on Windows | Builds clean; setup, sign-in, shell and themes work on Windows 10/11; design-rule tests pass |
 | 2. Companies, users, roles, permissions, audit trail, isolation | Done on macOS, not verified on Windows | Permissions enforced in services; audit records old/new values and verifies; tests prove one company can't read another's data |
 | 3. Accounting engine | Done on macOS, not verified on Windows (cash flow, bank reconciliation, cost centres and ageing moved to Phase 8) | Every posted voucher balances; posted records are immutable except by reversal; years open/close; trial balance, ledgers, P&L and balance sheet reconcile in tests |
-| 4. Products and inventory | Not started | Products, units, variants, warehouses, batches/serials; stock from a movement ledger; FIFO/weighted average costing per company; negative stock blocked unless allowed; inventory postings reconcile to the ledger |
+| 4. Products and inventory | Done on macOS, not verified on Windows (deferred: CSV/Excel import/export to Phase 8, reservations and COGS from sales to Phase 5, product images) | Products, units, variants, warehouses, batches/serials; stock from a movement ledger; FIFO/weighted average costing per company; negative stock blocked unless allowed; inventory postings reconcile to the ledger |
 | 5. Sales and purchases with GST | Not started | Quotation-to-invoice and purchase workflows post stock and accounts atomically; GST by place of supply with rates as dated data; totals recalculated in the Application layer; numbering and idempotency |
 | 6. Printing | Not started | Printer settings and Print Centre with a verified test page; invoice, receipt and label templates; PDF export; barcode/QR |
 | 7. Expenses, CRM, service | Not started | Expense vouchers with approvals; leads to customers; service jobs consuming spare parts that post inventory and accounts |

@@ -13,7 +13,7 @@ public sealed record TrendBar(string Label, double Revenue, double Expenses, str
 
 public sealed record AgeingRow(string Label, string Amount, double Fraction);
 
-public sealed record ProductRow(string Name, string Amount, double Fraction);
+public sealed record TopProductRow(string Name, string Amount, double Fraction);
 
 public sealed record ActivityRow(string Time, string Title, string Detail);
 
@@ -44,7 +44,7 @@ public sealed partial class DashboardViewModel(
     [ObservableProperty] private IReadOnlyList<KpiItem> _kpis = [];
     [ObservableProperty] private IReadOnlyList<TrendBar> _trend = [];
     [ObservableProperty] private IReadOnlyList<AgeingRow> _ageing = [];
-    [ObservableProperty] private IReadOnlyList<ProductRow> _topProducts = [];
+    [ObservableProperty] private IReadOnlyList<TopProductRow> _topProducts = [];
     [ObservableProperty] private IReadOnlyList<ActivityRow> _activity = [];
     [ObservableProperty] private IReadOnlyList<StockRow> _lowStock = [];
 
@@ -95,7 +95,7 @@ public sealed partial class DashboardViewModel(
 
         var productMax = snapshot.TopProducts.Count == 0 ? 1m : Math.Max(1m, snapshot.TopProducts.Max(p => p.Revenue));
         TopProducts = snapshot.TopProducts
-            .Select(p => new ProductRow(p.Name, IndianNumberFormat.Amount(p.Revenue), (double)(p.Revenue / productMax))).ToList();
+            .Select(p => new TopProductRow(p.Name, IndianNumberFormat.Amount(p.Revenue), (double)(p.Revenue / productMax))).ToList();
 
         Activity = snapshot.RecentActivity
             .Select(a => new ActivityRow(a.OccurredAt.ToLocalTime().ToString("HH:mm"), a.Title, a.Detail)).ToList();

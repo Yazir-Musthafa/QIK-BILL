@@ -487,7 +487,9 @@ public sealed partial class OpeningBalancesViewModel(
         foreach (var year in (await ledgers.ListYearsAsync()).Where(y => !y.IsClosed)) Years.Add(year);
         Year ??= Years.LastOrDefault();
         Rows.Clear();
+        // Inventory is excluded: opening stock is entered under Stock (Opening stock), so quantities and value stay together.
         foreach (var row in (await chart.ListAsync()).Where(r => !r.IsGroup && r.IsActive && r.Nature.IsBalanceSheet()
+                     && r.Kind != AccountKind.Inventory
                      && r.SystemKey != SystemAccounts.OpeningBalanceDifference && r.SystemKey != SystemAccounts.RetainedEarnings))
             Rows.Add(new OpeningBalanceRow { Account = new AccountChoice(row.Id, row.Code, row.Name, row.Nature, false) });
     });

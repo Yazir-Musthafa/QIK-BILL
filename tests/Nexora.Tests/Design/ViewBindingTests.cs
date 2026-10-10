@@ -151,7 +151,7 @@ public sealed partial class ViewBindingTests
     [GeneratedRegex(@"\b(?<kind>class|record|interface|enum)\s+(?<name>\w+)")]
     private static partial Regex TypeDeclarationPattern();
 
-    [GeneratedRegex(@"\[ObservableProperty\][^\n]*?\s*(?:\[[^\]]+\]\s*)*private\s+[\w<>?,\[\] ]+?\s+_(?<field>\w+)")]
+    [GeneratedRegex(@"\[ObservableProperty\][^\n]*?\s*(?:\[[^\]]+\]\s*)*private\s+[\w<>?,.\[\] ]+?\s+_(?<field>\w+)")]
     private static partial Regex ObservablePattern();
 
     [GeneratedRegex(@"\[RelayCommand[^\]]*\]\s*(?:public|private|internal)\s+(?:async\s+)?[\w<>?]+\s+(?<method>\w+)\(")]

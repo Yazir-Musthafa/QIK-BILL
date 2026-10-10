@@ -1,8 +1,8 @@
 # Accounting map
 
-Status: Phase 3, 10 October 2026.
+Status: Phase 4, 11 October 2026.
 
-The posting engine, chart of accounts and reports are implemented and tested (`Nexora.Accounting`). The sales, purchase, inventory and expense workflows that will generate vouchers from this map are **not built yet** (Phases 4, 5 and 7). Until then, vouchers are entered by hand. Nothing here is a statement of GST compliance.
+The posting engine, chart of accounts and reports are implemented and tested (`Nexora.Accounting`). **Inventory postings are implemented (Phase 4)**: stock documents post their vouchers automatically (see "Inventory" below). The sales, purchase and expense workflows that will generate the remaining vouchers from this map are **not built yet** (Phases 5 and 7). Nothing here is a statement of GST compliance.
 
 ## Principles
 
@@ -96,13 +96,54 @@ The table uses perpetual inventory. *Party* means the customer's or supplier's o
 | Discount received | Party | Discount Received |
 | Payment to supplier | Party | Cash or Bank |
 | Expense paid | Expense account; Input GST if eligible | Cash or Bank (or Party if on credit) |
-| Stock adjustment: shortage, damage, expiry | Inventory Adjustments | Inventory |
-| Stock adjustment: excess found | Inventory | Inventory Adjustments |
+| Stock adjustment: shortage, damage, expiry (implemented, Phase 4) | Inventory Adjustments | Inventory |
+| Stock adjustment: excess found (implemented, Phase 4) | Inventory | Inventory Adjustments |
 | Service job spare parts (Phase 7) | Cost of Goods Sold | Inventory |
 | Service invoice labour (Phase 7) | Party or Cash | Sales (or a service income ledger); Output GST |
 | Bank charges | Bank Charges | Bank |
 | Owner introduces capital | Cash or Bank | Owner's Capital |
 | Opening balances | Assets | Liabilities, Capital; any difference to Opening Balance Difference |
+
+## Inventory (implemented in Phase 4)
+
+### Costing method
+
+Each company chooses **weighted average** (the default) or **FIFO** under Settings → Inventory. The choice cannot change once any stock has moved, because it decides every stored value.
+
+- **Cost pool:** cost is pooled per product across all warehouses and states. Transfers between warehouses and changes of state (good, damaged, expired, returned, obsolete) move quantity only; they have no value and post no voucher.
+- **Weighted average:**
+  - A receipt adds its quantity and value to the pool.
+  - An issue takes the running average per unit, rounded half away from zero to the paisa (`Money.Round`).
+  - The last unit in stock takes exactly the remaining value, so no rounding residue is left behind.
+- **FIFO:**
+  - Each receipt becomes a layer.
+  - Issues consume the oldest layers first. A whole layer leaves at its exact remaining value; a partial layer leaves at that layer's own rate, rounded to the paisa.
+- **Value of stock arriving without a typed cost** (adjustments in, count gains): the product's current unit cost, which is the average, or the last cost when there is no stock.
+- **Typed unit costs** are per the unit entered (for example per BOX), not per base unit.
+- **Negative stock** is blocked unless the company allows it, and allowing it is possible only with weighted average. With no stock left, issues use the last known unit cost, which can distort the average until stock is received again. Batch and serial stock can never go negative.
+- **Posting order and dates:** costing replays a product's movements in posting order. Stock may not be dated before a product's last movement, so date order and costing order always agree.
+- **Reversals:** a stock document can be reversed only while it is the latest activity for each of its products. The reversed document and its reversal are then left out of costing together, which restores costs exactly. Otherwise, post an adjustment.
+
+### Stock ledger and reconciliation
+
+- **Stock ledger:** every stock quantity and value is a sum of `StockMovements`, an append-only ledger. Rows can't be updated or deleted: the domain, the data context and SQLite triggers all refuse it.
+- **Atomic posting:** each value-changing stock document posts its voucher through `ILedgerPoster`, in the same transaction as the movements. The voucher records its source document, and it can be reversed only by reversing that document under Stock.
+- **No manual Inventory postings:** manual vouchers and the opening balances screen cannot use accounts of kind Inventory. Opening stock is entered as an Opening stock document instead.
+- **Reconciliation:** as a result, **stock value (sum of movement values) always equals the Inventory account balance**. Stock → Valuation and reconciliation shows both and their difference. A reconciliation test posts every document type and checks stock valuation, the stock ledger, the trial balance and the balance sheet agree.
+
+### Inventory postings
+
+| Stock document | Debit | Credit | Voucher type |
+|---|---|---|---|
+| Opening stock | Inventory | Opening Balance Difference | Journal |
+| Receipt (goods in without a purchase invoice) | Inventory | The chosen account: supplier ledger, Cash or Bank | Journal; Payment if Cash or Bank |
+| Issue (internal use, samples, consumption) | The chosen account, or Inventory Adjustments if none is chosen | Inventory | Journal |
+| Adjustment in; physical count gain | Inventory | Inventory Adjustments | Journal |
+| Adjustment out (for example writing off damaged or expired stock); physical count loss | Inventory Adjustments | Inventory | Journal |
+| Transfer; state change | — (no value change) | — | None |
+| Reversal of a stock document | The reverse of the original voucher | | Reversal |
+
+Sales (Phase 5) will post **Cost of Goods Sold / Inventory** at the cost the pool gives. Purchase invoices (Phase 5) will post **Inventory / supplier** directly, or clear receipts made without an invoice.
 
 ## Not implemented in Phase 3
 
