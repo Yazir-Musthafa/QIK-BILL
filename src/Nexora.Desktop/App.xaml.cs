@@ -62,6 +62,7 @@ public partial class App : System.Windows.Application
             if (data.MigratedFromLegacy) Log.Information("Data copied from the previous Nexora data folder; the old folder was left in place");
             var workspace = _services.GetRequiredService<IWorkspaceService>();
             await workspace.InitializeAsync();
+            Controls.QikDataGrid.LayoutStore = new TableLayoutStore(_services.GetRequiredService<Application.Preferences.UserPreferenceService>());
             var window = _services.GetRequiredService<MainWindow>();
             MainWindow = window;
             await window.InitializeAsync();
@@ -135,4 +136,12 @@ public partial class App : System.Windows.Application
         _instanceMutex?.Dispose();
         base.OnExit(e);
     }
+}
+
+/// <summary>Saves table layouts per signed-in user through the application preference service.</summary>
+internal sealed class TableLayoutStore(Nexora.Application.Preferences.UserPreferenceService preferences) : Controls.ITableLayoutStore
+{
+    public Task<string?> LoadAsync(string key) => preferences.GetAsync(key);
+
+    public Task SaveAsync(string key, string value) => preferences.SetAsync(key, value);
 }

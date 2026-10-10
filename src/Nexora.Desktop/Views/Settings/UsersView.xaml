@@ -1,6 +1,7 @@
 <UserControl x:Class="Nexora.Desktop.Views.Settings.UsersView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Nexora.Desktop.Controls">
   <DockPanel Margin="0,0,0,24">
     <TextBlock DockPanel.Dock="Top" Text="Users" Style="{StaticResource Text.Section}" Margin="0,0,0,8" />
     <TextBlock DockPanel.Dock="Bottom" Text="{Binding Error}" Style="{StaticResource Text.Error}" Visibility="{Binding Error, Converter={StaticResource VisibleWhen}}" />
@@ -61,8 +62,8 @@
       </StackPanel>
     </ScrollViewer>
 
-    <DataGrid ItemsSource="{Binding Users}" SelectedItem="{Binding Selected}" SelectionMode="Single" AutomationProperties.Name="Users">
-      <DataGrid.Columns>
+    <controls:QikDataGrid LayoutKey="users" ItemsSource="{Binding Users}" SelectedItem="{Binding Selected}" SelectionMode="Single" AutomationProperties.Name="Users">
+      <controls:QikDataGrid.Columns>
         <DataGridTextColumn Header="Name" Binding="{Binding DisplayName}" Width="*" />
         <DataGridTextColumn Header="Username" Binding="{Binding Username}" Width="120" />
         <DataGridTextColumn Header="Role" Binding="{Binding RoleName}" Width="140" />
@@ -81,7 +82,7 @@
           </DataGridTemplateColumn.CellTemplate>
         </DataGridTemplateColumn>
         <DataGridTextColumn Header="Last sign-in (UTC)" Binding="{Binding LastSignInUtc, StringFormat=dd MMM yyyy HH:mm}" Width="140" />
-      </DataGrid.Columns>
-    </DataGrid>
+      </controls:QikDataGrid.Columns>
+    </controls:QikDataGrid>
   </DockPanel>
 </UserControl>

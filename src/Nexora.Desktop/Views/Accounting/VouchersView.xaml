@@ -1,6 +1,7 @@
 <UserControl x:Class="Nexora.Desktop.Views.Accounting.VouchersView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Nexora.Desktop.Controls">
   <Grid Margin="24,20,24,24">
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="2*" MinWidth="320" />
@@ -15,8 +16,8 @@
                 Visibility="{Binding CanCreate, Converter={StaticResource VisibleWhen}}" />
         <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Title}" />
       </DockPanel>
-      <DataGrid ItemsSource="{Binding Vouchers}" SelectedItem="{Binding Selected}" SelectionMode="Single" AutomationProperties.Name="Vouchers">
-        <DataGrid.Columns>
+      <controls:QikDataGrid LayoutKey="vouchers" ItemsSource="{Binding Vouchers}" SelectedItem="{Binding Selected}" SelectionMode="Single" AutomationProperties.Name="Vouchers">
+        <controls:QikDataGrid.Columns>
           <DataGridTextColumn Header="Date" Binding="{Binding Date, StringFormat=dd-MM-yyyy}" SortMemberPath="Date" Width="86" />
           <DataGridTextColumn Header="Number" Binding="{Binding Number}" Width="120" />
           <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="80" />
@@ -39,8 +40,8 @@
           </DataGridTemplateColumn>
           <DataGridTextColumn Header="Amount" Binding="{Binding Total, Converter={StaticResource Amount}}" SortMemberPath="Total" Width="*"
                               HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
-        </DataGrid.Columns>
-      </DataGrid>
+        </controls:QikDataGrid.Columns>
+      </controls:QikDataGrid>
     </DockPanel>
 
     <!-- Voucher editor -->

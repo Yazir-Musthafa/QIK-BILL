@@ -22,6 +22,7 @@ public static class DependencyInjection
         services.AddSingleton<UserService>();
         services.AddSingleton<RoleService>();
         services.AddSingleton<AuditService>();
+        services.AddSingleton<Preferences.UserPreferenceService>();
         return services;
     }
 }

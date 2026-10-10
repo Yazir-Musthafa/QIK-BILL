@@ -693,6 +693,118 @@
     </Style.Triggers>
   </Style>
 
+  <!-- ===== Context menus (column chooser) ===== -->
+  <Style TargetType="ContextMenu">
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+    <Setter Property="HasDropShadow" Value="False" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ContextMenu">
+          <Border Style="{StaticResource Popup.Surface}" Margin="8,2,8,12" Padding="4" MinWidth="180">
+            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle" />
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style TargetType="MenuItem">
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+    <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="MenuItem">
+          <Border x:Name="Row" Background="Transparent" CornerRadius="{StaticResource ControlRadius}" MinHeight="{StaticResource ControlHeight}" Padding="8,0">
+            <DockPanel>
+              <TextBlock x:Name="Check" DockPanel.Dock="Left" Width="20" Style="{StaticResource Text.Icon}" FontSize="{StaticResource IconSizeSmall}"
+                         Text="&#xE73E;" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Left" Visibility="Hidden" />
+              <ContentPresenter ContentSource="Header" VerticalAlignment="Center" RecognizesAccessKey="True" />
+            </DockPanel>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="Check" Property="Visibility" Value="Visible" />
+            </Trigger>
+            <Trigger Property="IsHighlighted" Value="True">
+              <Setter TargetName="Row" Property="Background" Value="{DynamicResource HoverBrush}" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- ===== Shared data table: toolbar (filter, row count, columns), grid, totals row ===== -->
+  <Style TargetType="controls:QikDataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="controls:QikDataGrid">
+          <DockPanel>
+            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+              <Button x:Name="PART_Columns" DockPanel.Dock="Right" Style="{StaticResource Button.Subtle}" Content="Columns"
+                      AutomationProperties.Name="Choose columns" ToolTip="Show or hide columns" />
+              <TextBlock DockPanel.Dock="Right" Text="{TemplateBinding RowCountText}" Style="{StaticResource Text.Caption}"
+                         VerticalAlignment="Center" Margin="12,0" />
+              <Grid Width="260" HorizontalAlignment="Left">
+                <TextBox x:Name="Filter" Text="{Binding FilterText, RelativeSource={RelativeSource TemplatedParent}, UpdateSourceTrigger=PropertyChanged}"
+                         Padding="28,4,8,4" AutomationProperties.Name="Filter rows" />
+                <TextBlock Style="{StaticResource Text.Icon}" FontSize="{StaticResource IconSizeSmall}" Text="&#xE71C;" HorizontalAlignment="Left"
+                           Margin="10,0,0,0" Foreground="{DynamicResource TextSecondaryBrush}" IsHitTestVisible="False" />
+                <TextBlock x:Name="Hint" Text="Filter rows" Foreground="{DynamicResource TextSecondaryBrush}" Margin="29,0,0,0"
+                           VerticalAlignment="Center" IsHitTestVisible="False" Visibility="Collapsed" />
+              </Grid>
+            </DockPanel>
+            <Border x:Name="Footer" DockPanel.Dock="Bottom" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1,0,1,1"
+                    Background="{DynamicResource SurfaceSubtleBrush}" CornerRadius="0,0,6,6" Margin="0,-6,0,0" Padding="1,12,1,6"
+                    ClipToBounds="True" Visibility="Collapsed">
+              <Grid x:Name="PART_Footer" HorizontalAlignment="Left" />
+            </Border>
+            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{StaticResource PanelRadius}">
+              <ScrollViewer x:Name="DG_ScrollViewer" Focusable="False">
+                <ScrollViewer.Template>
+                  <ControlTemplate TargetType="ScrollViewer">
+                    <Grid>
+                      <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                      </Grid.RowDefinitions>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <DataGridColumnHeadersPresenter x:Name="PART_ColumnHeadersPresenter" Grid.Column="0" />
+                      <ScrollContentPresenter x:Name="PART_ScrollContentPresenter" Grid.Row="1" Grid.Column="0"
+                                              CanContentScroll="{TemplateBinding CanContentScroll}" />
+                      <ScrollBar x:Name="PART_VerticalScrollBar" Grid.Row="1" Grid.Column="1" Orientation="Vertical"
+                                 Maximum="{TemplateBinding ScrollableHeight}" ViewportSize="{TemplateBinding ViewportHeight}"
+                                 Value="{Binding VerticalOffset, Mode=OneWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                 Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}" />
+                      <ScrollBar x:Name="PART_HorizontalScrollBar" Grid.Row="2" Grid.Column="0" Orientation="Horizontal"
+                                 Maximum="{TemplateBinding ScrollableWidth}" ViewportSize="{TemplateBinding ViewportWidth}"
+                                 Value="{Binding HorizontalOffset, Mode=OneWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                 Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}" />
+                    </Grid>
+                  </ControlTemplate>
+                </ScrollViewer.Template>
+                <ItemsPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+              </ScrollViewer>
+            </Border>
+          </DockPanel>
+          <ControlTemplate.Triggers>
+            <Trigger Property="FilterText" Value="">
+              <Setter TargetName="Hint" Property="Visibility" Value="Visible" />
+            </Trigger>
+            <Trigger Property="HasTotals" Value="True">
+              <Setter TargetName="Footer" Property="Visibility" Value="Visible" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <!-- Right-aligned, tabular amount cells -->
   <Style x:Key="Cell.Amount" TargetType="TextBlock" BasedOn="{StaticResource Text.Amount}">
     <Setter Property="VerticalAlignment" Value="Center" />

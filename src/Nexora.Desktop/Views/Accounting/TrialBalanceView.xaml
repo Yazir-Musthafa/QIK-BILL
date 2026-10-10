@@ -1,6 +1,7 @@
 <UserControl x:Class="Nexora.Desktop.Views.Accounting.TrialBalanceView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Nexora.Desktop.Controls">
   <DockPanel Margin="24,20,24,24" MaxWidth="900" HorizontalAlignment="Left">
     <TextBlock DockPanel.Dock="Top" Text="{Binding Title}" Style="{StaticResource Text.Title}" Margin="0,0,0,16" />
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
@@ -30,14 +31,14 @@
         <TextBlock Grid.Column="2" Text="{Binding TotalCredit}" Style="{StaticResource Text.Amount}" FontWeight="SemiBold" Margin="0,0,9,0" />
       </Grid>
     </Border>
-    <DataGrid ItemsSource="{Binding Rows}" AutomationProperties.Name="Trial balance">
-      <DataGrid.Columns>
+    <controls:QikDataGrid LayoutKey="trial-balance" ItemsSource="{Binding Rows}" AutomationProperties.Name="Trial balance">
+      <controls:QikDataGrid.Columns>
         <DataGridTextColumn Header="Code" Binding="{Binding Code}" Width="80" />
         <DataGridTextColumn Header="Account" Binding="{Binding Name}" Width="*" />
         <DataGridTextColumn Header="Nature" Binding="{Binding Nature}" Width="90" />
         <DataGridTextColumn Header="Debit" Binding="{Binding Debit, Converter={StaticResource Amount}, ConverterParameter=blank}" Width="140" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
         <DataGridTextColumn Header="Credit" Binding="{Binding Credit, Converter={StaticResource Amount}, ConverterParameter=blank}" Width="140" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
-      </DataGrid.Columns>
-    </DataGrid>
+      </controls:QikDataGrid.Columns>
+    </controls:QikDataGrid>
   </DockPanel>
 </UserControl>
