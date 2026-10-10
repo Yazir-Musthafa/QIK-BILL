@@ -7,6 +7,8 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <Deterministic>true</Deterministic>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <!-- Declared for every project so lock files are identical for plain restores and win-x64 publishes. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AnalysisLevel>latest</AnalysisLevel>
     <Version>0.1.0</Version>

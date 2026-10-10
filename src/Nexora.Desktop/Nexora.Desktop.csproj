@@ -7,7 +7,6 @@
     <AssemblyName>Nexora</AssemblyName>
     <RootNamespace>Nexora.Desktop</RootNamespace>
     <PublishTrimmed>false</PublishTrimmed>
-    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Nexora.Infrastructure/Nexora.Infrastructure.csproj" />

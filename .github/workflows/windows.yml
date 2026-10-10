@@ -1,0 +1,39 @@
+name: windows
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build, test and publish
+        shell: pwsh
+        run: ./scripts/build-windows.ps1 -Configuration Release
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: artifacts/test-results
+
+      - name: Upload win-x64 build
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexora-win-x64
+          path: artifacts/publish/win-x64
+
+      # Installer packaging (Inno Setup or WiX) is added in Phase 9.
