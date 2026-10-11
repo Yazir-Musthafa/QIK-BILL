@@ -1,4 +1,4 @@
-# Handoff: end of Phase 5 (11 October 2026)
+# Handoff: end of Phase 6 (11 October 2026)
 
 Read this first, then:
 
@@ -7,16 +7,17 @@ Read this first, then:
 - `ACCOUNTING_MAP.md`;
 - `WORKING_GUIDE.md`: screen status and the Windows test script.
 
-**Phase 5 (sales, purchases and payments) is complete on macOS. Phase 6 (printing) is next; it was not started.** The owner has confirmed only that the app opens on Windows.
+**Phase 6 (printing, labels, PDF, barcodes and QR) is complete on macOS. Phase 7 (expenses, CRM, service) is next; it was not started.** The owner has confirmed only that the app opens on Windows; nothing has been printed there.
 
 **About "GPT-6 Astra":** the Phase 5 request said an agent called GPT-6 Astra had already worked on Phase 5. The repository had no trace of it: no commits, branches, stashes, worktrees or uncommitted files after the Phase 4 commit `926a72e`. Phase 5 was therefore built from that commit. The three inventory edge cases named in the request were investigated and fixed (see `PROGRESS.md`).
 
 ## State
 
 - **Build:** clean, 0 warnings. `dotnet restore --locked-mode` passes, and a `win-x64` self-contained publish produces `QIKSuite.exe`.
-- **Tests:** **700 passing** (`dotnet test tests/Nexora.Tests`): 410 behavioural, 258 XAML design-rule, 31 guide checks and 1 binding check.
-- **Migrations:** `InitialWorkspace`, `CompaniesUsersRolesAudit`, `AccountingEngine`, `Inventory`, `Billing`. The last three contain SQLite immutability triggers.
-- **Commits** in Phase 5 use the prefix `cla:` (the owner's request).
+- **Tests:** **806 passing** (`dotnet test tests/Nexora.Tests`): 504 behavioural, 270 XAML design-rule, 31 guide checks and 1 binding check.
+- **Migrations:** `InitialWorkspace`, `CompaniesUsersRolesAudit`, `AccountingEngine`, `Inventory`, `Billing`, `Printing`. The last four contain SQLite immutability triggers.
+- **Commits:** Phase 5 used the prefix `cla:` and Phase 6 uses `claude:` (the owner's requests).
+- **New packages (Phase 6):** PDFsharp 6.2.4 (MIT) and ZXing.Net 0.16.11 (Apache-2.0), plus the bundled Noto Sans font (OFL). See `THIRD_PARTY_LICENSES.md` and `DECISIONS.md`.
 - **Not yet run:** the WPF UI, printing and the installer. Nothing has run on Windows.
 
 ## What was done in Phases 2 and 3
@@ -125,13 +126,46 @@ Never mark something FULLY FUNCTIONAL unless the code is wired to a real service
 - **Prefix clashes:** numbering prefixes are not checked against other document types. Posting refuses a number already used by a stock document, but two billing types given the same prefix would share a number format.
 - **Opening balances:** party opening balances entered by voucher are not open items.
 
+## Phase 6 in brief
+
+- **`Nexora.Printing` (net10.0, tested on macOS):**
+  - `Barcodes/`: Code128, Ean13, ProductBarcode, QrCodes (ZXing), QrContentFormat.
+  - `Layout/`: page items, PageSetup, PrintFonts (bundled Noto Sans; also the PDFsharp font resolver), TextFit, PageComposer (pagination, scale, roll height, page numbers).
+  - `Templates/`: InvoiceTemplate (tax invoice or cash bill, credit note, purchase bill, debit note, delivery note, purchase order), ReceiptTemplate, StatementTemplate, TestPageTemplate, LabelTemplate.
+  - `Pdf/PdfRenderer` and `EscPos/EscPosWriter` (experimental).
+  - `PrintingService`: preferences, settings, label layouts, preview, print, PDF, history, test pages.
+  - `IPrinterGateway` and `PrintingSeedContributor`.
+- **Domain** (`Domain/Printing`): PrinterProfile (one per purpose), PrintSettings (the seed marker), LabelLayout, PrintRecord (append-only), PrinterTest (Sent → confirmed once).
+- **Desktop** (`Services/Printing`):
+  - `WindowsPrinterGateway`: System.Printing, XPS writer, winspool RAW;
+  - `WpfDocumentBuilder`: draws the same page items;
+  - `PrintActions`: preview window, print with recovery guidance, PDF save dialog.
+- **Desktop screens:**
+  - `Views/Printing/PrintCentreView` and `PrintPreviewWindow`;
+  - print buttons on BillingView, PartiesView and ProductsView;
+  - the scanner hook in `MainWindow.xaml.cs`, using `ScanDetector`; pages implement `IScanTarget`.
+- **Rules to keep:**
+  - templates print stored figures only;
+  - a print is recorded only after the gateway accepts it;
+  - a test page passes only when a person confirms it;
+  - everything Windows-specific stays behind `IPrinterGateway`, so tests use `FakePrinterGateway`.
+- **Binding-test pitfall:** in view-model files, strings and comments must not contain "record", "class", "enum" or "interface" followed by a word. The binding test splits class bodies on them. A toast saying "then record whether…" broke it in Phase 6.
+
+## Known problems (Phase 6)
+
+- **Nothing printed on Windows.** Expect fixes in WindowsPrinterGateway (ticket handling, custom roll sizes, error mapping), WPF text baseline and width differences, and the preview window.
+- **Roll paper:** thermal rolls are sent as one custom-size page. Some drivers ignore custom sizes and feed a fixed length.
+- **Preferences are per company:** printer names are per computer. Two computers in one company should use identical printer names, or the Windows default.
+- **ESC/POS** is untested on any device.
+
 ## Next steps
 
-1. **Test Phases 1–5 on Windows** with `WORKING_GUIDE.md` sections 3.1–3.10, and report anything that fails.
+1. **Test Phases 1–6 on Windows** with `WORKING_GUIDE.md` sections 3.1–3.11. Section 3.9 is the printer script (A4, 80 mm thermal, label printer, USB scanner). Report what came out on paper, not only what the screen said.
 2. **Phase 5 leftovers.** These were not built; decide with the owner which belong in later phases:
    - quotations, orders and delivery notes (the Quotations page is still a placeholder);
    - dated GST rates, cess, reverse charge and bills of supply;
    - POS and barcode entry, additional charges, customer prices;
    - a billing settings screen.
 3. **Data-table follow-ups:** per-column filters, and editing or deactivating units and tax categories.
-4. **Phase 6 (printing):** choose the PDF and barcode libraries after a licence check. `BillingService.GetAsync` already returns everything an invoice template needs: company and party GSTIN, place of supply, lines with HSN and rate, and the tax split.
+4. **Printing follow-ups after the Windows run:** fix whatever the printer script shows. Consider per-computer printer preferences, a template designer and batch printing.
+5. **Phase 7 (expenses, CRM, service)** is next.

@@ -27,3 +27,28 @@
 4. An interrupted copy is redone on the next start.
 
 **Later.** The solution can be fully renamed (namespaces, projects, `QikDbContext`, and so on) as a separate, mechanical change. Do it in one dedicated commit, with no other edits, on a clean tree. Regenerate nothing: keep the existing migration IDs and only change namespaces. Then rebuild and run all tests.
+
+## 2026-10-11: Printing is platform-neutral; Windows printing lives in the desktop app (Phase 6)
+
+**Decision.** `Nexora.Printing` now targets plain `net10.0` (it was a placeholder `net10.0-windows` WPF project). It holds everything that can be tested without Windows:
+- barcode and QR encoding;
+- layout and pagination, and the document and label templates;
+- PDF output;
+- the ESC/POS command writer;
+- `PrintingService` (preferences, rendering, reprint records, test prints).
+
+The Windows parts live in `Nexora.Desktop/Services/Printing`:
+- the printer gateway, using System.Printing and the spooler;
+- the WPF preview and printing renderer.
+
+They sit behind `Nexora.Printing.IPrinterGateway`, and tests use a fake.
+
+**Why.** The brief asks for layout, pagination and totals to be unit-tested on macOS. The test project targets `net10.0` and cannot reference a `-windows` project.
+
+**Libraries.**
+- **PDFsharp 6.2.4 (MIT).** Chosen over QuestPDF (whose community licence is revenue-limited) and iText (AGPL or commercial).
+- **ZXing.Net 0.16.11 (Apache-2.0)** for QR encoding. It has no dependencies on modern .NET. QRCoder was rejected because its net6 target pulls in System.Drawing.Common.
+- **Code 128 and EAN-13** are encoded in our own code, small and verified by decoding with ZXing in tests.
+- **Font:** the Noto Sans font (SIL OFL 1.1) is embedded. It is used for measuring, for PDF and for Windows printing, so every output paginates the same and includes ₹.
+
+**One rendering path.** Templates produce `RenderedDocument` page items in points. The PDF renderer and the WPF renderer draw those items and nothing else.

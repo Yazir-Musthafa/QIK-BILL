@@ -1,8 +1,8 @@
 # Third-party licences
 
-Status: Phase 1, 10 October 2026. Generated from `packages.lock.json` and each package's `.nuspec` licence expression in the local NuGet cache. Versions are pinned in `Directory.Packages.props`.
+Status: Phase 6, 11 October 2026 (Phase 6 added PDFsharp, ZXing.Net and the Noto Sans font). Generated from `packages.lock.json` and each package's `.nuspec` licence expression in the local NuGet cache. Versions are pinned in `Directory.Packages.props`.
 
-**Summary:** every dependency is MIT or Apache-2.0. These licences allow commercial redistribution without a paid licence at any revenue level. They do require the licence and copyright notices to be included with the distributed product. Phase 9 must put those notices in the installer.
+**Summary:** every dependency is MIT or Apache-2.0, and the bundled font is under the SIL Open Font License. These licences allow commercial redistribution without a paid licence at any revenue level. They do require the licence and copyright notices to be included with the distributed product. Phase 9 must put those notices in the installer.
 
 No paid-licence packages are used. FluentAssertions 8 and later needs a paid commercial licence, so it was avoided on purpose. Tests use xUnit's built-in `Assert` (Apache-2.0).
 
@@ -23,7 +23,15 @@ These DLLs appear in the self-contained `win-x64` publish output.
 | Serilog | 4.3.0 | Apache-2.0 | Structured logging |
 | Serilog.Extensions.Logging | 10.0.0 | Apache-2.0 | Serilog provider for Microsoft.Extensions.Logging |
 | Serilog.Sinks.File | 7.0.0 | Apache-2.0 | Rolling file sink |
+| PDFsharp | 6.2.4 | MIT | PDF export (Phase 6). Copyright the PDFsharp Team / empira Software GmbH. Its dependency System.Security.Cryptography.Pkcs (MIT) is supplied by the .NET 10 runtime |
+| ZXing.Net | 0.16.11 | Apache-2.0 | QR code encoding (Phase 6). Copyright Michael Jahn and the ZXing authors. Apache-2.0 also requires keeping its NOTICE text with redistributions |
 | .NET runtime and WPF (self-contained) | 10.0 | MIT | Runtime |
+
+## Fonts shipped with the application
+
+| Font | Version | Licence | Purpose |
+|---|---|---|---|
+| Noto Sans Regular and Bold (`src/Nexora.Printing/Fonts`) | Noto Sans hinted TTF from the Noto Project (copyright 2022 The Noto Project Authors) | SIL Open Font License 1.1, full text in `src/Nexora.Printing/Fonts/OFL.txt` (copied to the output as `licenses/NotoSans-OFL.txt`) | Printed documents, PDF and print preview. Embedded in the Nexora.Printing assembly and in exported PDFs (subset). The OFL allows bundling and embedding in commercial software; the font may not be sold on its own, and modified versions may not use the name "Noto". |
 
 ## Build-time only (not shipped)
 
@@ -38,9 +46,10 @@ Microsoft.EntityFrameworkCore.Design 10.0.12 is referenced with `PrivateAssets=a
 | xunit.runner.visualstudio | 3.1.5 | Apache-2.0 |
 | Microsoft.NET.Test.Sdk, Microsoft.TestPlatform.*, Microsoft.CodeCoverage | 18.0.0 | MIT |
 | coverlet.collector | 6.0.4 | MIT |
+| ZXing.Net (also shipped, above) | 0.16.11 | Apache-2.0: the tests also use its barcode readers to decode what QIK Suite encodes |
 
 ## Pending decisions (later phases)
 
-The PDF library and the barcode/QR library (Phase 6) are not chosen yet. Several popular .NET PDF libraries have revenue-based or AGPL licences, for example QuestPDF's community licence and iText. Check each candidate against the expected revenue before adopting it, and record it here.
+**Phase 6 choices (done).** PDFsharp (MIT) was chosen for PDF because the common alternatives have revenue-based or AGPL licences (QuestPDF's community licence, iText). ZXing.Net (Apache-2.0) encodes QR codes; QRCoder (MIT) was not used because its .NET 6 target depends on System.Drawing.Common. Code 128 and EAN-13 are encoded in QIK Suite's own code. Phase 9 must include the MIT, Apache-2.0 (with NOTICE) and OFL texts in the installer.
 
 `dotnet list package --vulnerable --include-transitive` reported no known vulnerabilities on 10 October 2026.

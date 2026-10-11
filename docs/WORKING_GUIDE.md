@@ -1,6 +1,6 @@
 # QIK Suite: working and testing guide
 
-Last updated: **11 October 2026**, end of Phase 5. Each statement below comes from reading the code, a clean build and the automated tests on macOS.
+Last updated: **11 October 2026**, end of Phase 6. Each statement below comes from reading the code, a clean build and the automated tests on macOS.
 
 **Windows:** the owner reports that the app **opens** on Windows (11 October 2026). No other screen has been confirmed on Windows, so everything else is "UI unverified at runtime" until the test script in section 3 is completed.
 
@@ -8,13 +8,13 @@ Last updated: **11 October 2026**, end of Phase 5. Each statement below comes fr
 
 | Check | Result |
 |---|---|
-| Clean build (`dotnet build Nexora.sln`, after deleting all `bin`/`obj`) | Succeeded, 0 warnings, 0 errors (end of Phase 5) |
+| Clean build (`dotnet build Nexora.sln`, after deleting all `bin`/`obj`) | Succeeded, 0 warnings, 0 errors (end of Phase 6) |
 | Locked package restore | Succeeded |
-| Automated tests (`dotnet test tests/Nexora.Tests`) | **700 passed, 0 failed** (with this guide in place) |
-| Of those, design-rule checks on XAML styling | 258 (one per XAML file per rule). They check styling discipline, not behaviour. |
+| Automated tests (`dotnet test tests/Nexora.Tests`) | **806 passed, 0 failed** (with this guide in place) |
+| Of those, design-rule checks on XAML styling | 270 (one per XAML file per rule). They check styling discipline, not behaviour. |
 | Of those, the guide's own status-table check | 31 (one per screen, plus one sanity check) |
 | Of those, binding check | 1 test: every page-level XAML binding (about 400) points to a real view-model property or command |
-| Logic tests (domain, services, database, accounting, inventory, billing, table logic) | 410 (327 before Phase 5, plus 72 billing tests and 11 inventory edge-case tests) |
+| Logic tests (domain, services, database, accounting, inventory, billing, printing, table logic) | 504 (410 at the end of Phase 5, plus 94 printing tests) |
 | Desktop view models (`src/Nexora.Desktop/ViewModels`) | **No automated tests.** They target Windows and can't be loaded by the test project, so date parsing, voucher-line totals, the command palette and navigation are untested. |
 | Fixed at the start of Phase 5 (inventory edge cases) | (1) A receipt into negative weighted-average stock left value without quantity; the missing units are now settled and the cost difference goes to Inventory Adjustments. (2) A physical count could create a serial that was already in stock in another warehouse, or list a serial twice; both are refused. (3) A chain of stock documents could not be reversed newest first; already-reversed documents no longer block it, and a reversal can't be dated before the product's latest movement. Tests: `Inventory/InventoryEdgeCaseTests`. |
 | Fixed during this audit | Tests added for service paths that had none (chart editing, warehouses, branch deactivation, numbering, logo, role change). In the voucher editor, a failed Post created a second draft on each retry; it now keeps editing the same draft and shows it in the list. The numbering column label "Next number looks like" was misleading and is now "Format (shown with number 1)". |
@@ -41,12 +41,12 @@ Two abbreviations in the "Tested by" column: `WS` = `Workspace/WorkspaceServiceT
 | Shell | Sidebar, top bar, command palette, theme, company switcher, user menu | PARTIAL | Grouped sidebar collapses to icons (Ctrl+B) and is remembered. Ctrl+K palette searches pages and actions. Theme switch (Ctrl+Shift+L) is remembered. Company switcher changes company and role. Sidebar hides pages your role can't open. | Palette, sidebar and keyboard handling are view-model code with no automated tests. Only saving preferences and switching company are tested. | `WS` (preferences, switching), `CompanyIsolationTests` | Not yet |
 | Shell | Notifications (bell) | PLACEHOLDER | Opens a panel | Always shows the same "You're all caught up…" text; no notifications exist | None | Not yet |
 | Overview | Dashboard | PARTIAL | Layout, quick actions, demo company's labelled sample figures, honest "—" for real companies. Payment and Receipt quick actions open Vouchers. | **Shows no real figures.** Real companies always show "—", and the demo company shows fixed sample numbers. Real dashboard data is Phase 8. Four quick actions open placeholders. | `WS` (empty versus demo snapshot) | Not yet |
-| Sales | Sales invoices | PARTIAL | **Invoices** list (status filter, search, totals) with a **preview** of the stored document: party and company GSTIN, place of supply, lines with HSN and GST rate, CGST/SGST/IGST, round off, outstanding, allocations, cost (with "View cost"). **Invoice editor**: customer or walk-in cash sale, cash/bank account, warehouse, lines with unit, rate (blank = selling price), discount % or amount, batch, serial; tax-inclusive option; round to rupees. **Save draft and calculate** (totals come from the service), **Save and post**, edit/post/delete drafts, **cancel** with a reason, **Return goods** (credit note against the invoice, partial or full). **Credit notes** list. **Receipts**: customer receipts and refunds with allocation to one or more documents (oldest first or typed), advances, reversal. Price override and discount limit enforced by the service. | No barcode scanning or fast POS entry, hold/resume, additional charges, customer-specific prices, salesperson, recurring invoices or payment reminders. No quotations/orders/delivery notes. No printing or PDF (Phase 6). No dated GST rates, cess, reverse charge or bills of supply. View-model code has no automated tests. | `Billing/SalesTests`, `Billing/BillingCalculatorTests`, `Billing/PurchaseAndSettlementTests` (`SettlementTests`), `Billing/BillingSecurityTests`, `Inventory/InventoryEdgeCaseTests` | Not yet |
+| Sales | Sales invoices | PARTIAL | **Invoices** list (status filter, search, totals) with a **preview** of the stored document: party and company GSTIN, place of supply, lines with HSN and GST rate, CGST/SGST/IGST, round off, outstanding, allocations, cost (with "View cost"). **Invoice editor**: customer or walk-in cash sale, cash/bank account, warehouse, lines with unit, rate (blank = selling price), discount % or amount, batch, serial; tax-inclusive option; round to rupees. **Save draft and calculate** (totals come from the service), **Save and post**, edit/post/delete drafts, **cancel** with a reason, **Return goods** (credit note against the invoice, partial or full). **Credit notes** list. **Receipts**: customer receipts and refunds with allocation to one or more documents (oldest first or typed), advances, reversal. Price override and discount limit enforced by the service. **Printing (Phase 6):** Preview, Print, Export PDF and Print on receipt printer for the selected document; Delivery note from an invoice; receipts print from the Receipts section. **Scan or type a code** in the editor (barcode, QR identifier or SKU, then Enter) to add a line; a scan with no text box focused does the same. | No barcode scanning or fast POS entry, hold/resume, additional charges, customer-specific prices, salesperson, recurring invoices or payment reminders. No quotations/orders/delivery notes. No dated GST rates, cess, reverse charge or bills of supply. View-model code has no automated tests. | `Billing/SalesTests`, `Printing/PrintCentreTests` (`DocumentPrintTests`, `ReprintTests`), `Billing/BillingCalculatorTests`, `Billing/PurchaseAndSettlementTests` (`SettlementTests`), `Billing/BillingSecurityTests`, `Inventory/InventoryEdgeCaseTests` | Not yet |
 | Sales | Quotations | PLACEHOLDER | Says "planned for Phase 5" | Everything: quotations, sales orders and delivery notes were not built in Phase 5 (see section 4) | None | Not yet |
-| Sales | Customers | FULLY FUNCTIONAL | List with outstanding, unapplied credit and ledger balance (totals row). Create and edit: name, phone, email, GSTIN (check character; state taken from it), state, address, city, PIN code, credit limit. A ledger is created under Sundry Debtors (renamed with the customer). Deactivate and reactivate. Open documents and settlements of the selected customer. | Credit limit is shown, not enforced. No customer statement print or export. Opening balances of existing customers are not open items (enter them as invoices or an opening voucher). | `Billing/PurchaseAndSettlementTests` (`PartyTests`, `SettlementTests`), `Billing/BillingSecurityTests` | Not yet |
-| Purchases | Purchase bills | PARTIAL | Same page layout as Sales invoices. **Bills**: supplier, supplier bill number (recorded once per supplier), lines with purchase rate (blank = purchase price), discount, new batch with expiry, serials; cash or credit. Posting receives the stock through the inventory engine at the taxable value and claims input CGST/SGST or IGST. **Debit notes** (purchase returns, partial or full) send goods back at book cost. **Payments**: supplier payments and refunds with allocation, advances, reversal. | No purchase orders, goods receipt notes, approvals, freight or other charges, ineligible input tax or reverse charge. No printing. View-model code has no automated tests. | `Billing/PurchaseAndSettlementTests` (`PurchaseBillTests`, `SettlementTests`), `Billing/BillingSecurityTests` | Not yet |
-| Purchases | Suppliers | FULLY FUNCTIONAL | As Customers, with the ledger under Sundry Creditors and balances shown as payable. | As Customers. Ledgers created by hand under Sundry Creditors (for example in section 3.6) are not suppliers. | `Billing/PurchaseAndSettlementTests` (`PartyTests`), `Billing/BillingSecurityTests` | Not yet |
-| Inventory | Products | FULLY FUNCTIONAL | List (filter, columns, totals, saved layout, show archived). Create and edit: SKU, name, description, category, brand, barcode (EAN-13/EAN-8 check digit, or text), QR identifier, HSN/SAC, tax category, unit, tracking (none, batch, serial; expiry with batch), purchase/selling/MRP, reorder level. Archive (only at zero stock). Variants (size, colour, model) with their own SKU and stock. Alternate units (for example 1 BOX = 12 PCS). Purchase price withheld by the service without "Inventory: View cost". | No product images. No CSV/Excel import or export (Phase 8). A product's unit and tracking are fixed after creation. | `Inventory/InventoryDomainTests`, `Inventory/StockTests` (`ProductCatalogueTests`, `InventoryAccessTests`) | Not yet |
+| Sales | Customers | FULLY FUNCTIONAL | List with outstanding, unapplied credit and ledger balance (totals row). Create and edit: name, phone, email, GSTIN (check character; state taken from it), state, address, city, PIN code, credit limit. A ledger is created under Sundry Debtors (renamed with the customer). Deactivate and reactivate. Open documents and settlements of the selected customer. **Statement of account** for a date range: Preview, Print, Export PDF (Phase 6). | Credit limit is shown, not enforced. Opening balances of existing customers are not open items (enter them as invoices or an opening voucher). | `Billing/PurchaseAndSettlementTests` (`PartyTests`, `SettlementTests`), `Billing/BillingSecurityTests`, `Printing/PrintCentreTests` (statements) | Not yet |
+| Purchases | Purchase bills | PARTIAL | Same page layout as Sales invoices. **Bills**: supplier, supplier bill number (recorded once per supplier), lines with purchase rate (blank = purchase price), discount, new batch with expiry, serials; cash or credit. Posting receives the stock through the inventory engine at the taxable value and claims input CGST/SGST or IGST. **Debit notes** (purchase returns, partial or full) send goods back at book cost. **Payments**: supplier payments and refunds with allocation, advances, reversal. **Printing (Phase 6):** bills and debit notes print, preview and export to PDF; a draft bill can be printed as a **purchase order** (there is no purchase order workflow; the order carries no number). Payments print as payment vouchers. | No purchase orders, goods receipt notes, approvals, freight or other charges, ineligible input tax or reverse charge. View-model code has no automated tests. | `Printing/PrintCentreTests`, `Billing/PurchaseAndSettlementTests` (`PurchaseBillTests`, `SettlementTests`), `Billing/BillingSecurityTests` | Not yet |
+| Purchases | Suppliers | FULLY FUNCTIONAL | As Customers, with the ledger under Sundry Creditors and balances shown as payable, and supplier statements. | As Customers. Ledgers created by hand under Sundry Creditors (for example in section 3.6) are not suppliers. | `Billing/PurchaseAndSettlementTests` (`PartyTests`), `Billing/BillingSecurityTests` | Not yet |
+| Inventory | Products | FULLY FUNCTIONAL | List (filter, columns, totals, saved layout, show archived). Create and edit: SKU, name, description, category, brand, barcode (EAN-13/EAN-8 check digit, or text), QR identifier, HSN/SAC, tax category, unit, tracking (none, batch, serial; expiry with batch), purchase/selling/MRP, reorder level. Archive (only at zero stock). Variants (size, colour, model) with their own SKU and stock. Alternate units (for example 1 BOX = 12 PCS). Purchase price withheld by the service without "Inventory: View cost". **Labels (Phase 6):** preview and print labels of the selected product with a label layout; a scan with no text box focused selects the scanned product. | No product images. No CSV/Excel import or export (Phase 8). A product's unit and tracking are fixed after creation. | `Printing/LayoutTests` (`LabelLayoutTests`), `Printing/PrintCentreTests` (`LabelPrintTests`), `Inventory/InventoryDomainTests`, `Inventory/StockTests` (`ProductCatalogueTests`, `InventoryAccessTests`) | Not yet |
 | Inventory | Stock | FULLY FUNCTIONAL | **Balances** by product, warehouse, state, batch and serial. **New document:** opening stock, receipt (credit a supplier, cash or bank), issue, adjustment in/out, transfer, physical count, state change (good, damaged, expired, returned, obsolete). Batch, expiry and serial entry; alternate units. **Documents** list with reversal (latest document of its products only). **Movement ledger.** **Valuation and reconciliation** (stock value against the Inventory ledger). **Low stock and expiry** alerts. Each value-changing document posts its accounting voucher in the same transaction. | No reservations (sales orders were not built). Stock moved by invoices, bills and returns appears here (types Sale, SalesReturn, Purchase, PurchaseReturn) but is cancelled from Sales or Purchases, not reversed here. No printing of stock documents (Phase 6). Stock dates can't go back before a product's last movement. | `Inventory/StockTests` (posting, costing, negative stock, transfers, states, counts, batches, serials, reversal, concurrency, reconciliation, isolation, immutability, permissions), `CostPoolTests`, `Inventory/InventoryEdgeCaseTests` | Not yet |
 | Accounts | Chart of accounts | FULLY FUNCTIONAL | Tree with indentation and System badges. Create ledgers and groups (nature comes from the group). Rename, move within the same nature, deactivate and reactivate. Duplicate codes and names are refused. The type can't change once an account has postings. | Changing the Type of an existing group is silently ignored (groups stay groups) | `CoverageGapTests` (added in this audit), `ChartOfAccountsTemplateTests`, `AccountDomainTests`, `PostingTests` | Not yet |
 | Accounts | Vouchers | FULLY FUNCTIONAL | List with quick filter, column chooser and saved layout. Editor for Journal, Payment, Receipt, Contra, Sales, Purchase, Expense, Income, Credit note, Debit note. Live debit/credit totals and difference. Save draft, Post (numbered), Delete draft, Reverse with a date. Posted vouchers open read-only. Manual vouchers can't use the Inventory account. Vouchers created by stock documents can only be reversed from Stock. | No date picker (type dd-mm-yyyy). No printing (Phase 6). Pressing Post on an invalid voucher first saves it as a draft; it stays open and in the list until you fix and post it or delete it. | `PostingTests`, `VoucherDomainTests`, `VoucherRulesTests`, `AccountingAccessTests` | Not yet |
@@ -58,9 +58,9 @@ Two abbreviations in the "Tested by" column: `WS` = `Workspace/WorkspaceServiceT
 | Relationships | CRM | PLACEHOLDER | Says "planned for Phase 7" | Everything | None | Not yet |
 | Relationships | Service jobs | PLACEHOLDER | Says "planned for Phase 7" | Everything | None | Not yet |
 | Insights | Reports | PLACEHOLDER | Says "planned for Phase 8" | Everything. The accounting reports are under Accounts. | None | Not yet |
-| System | Print centre | PLACEHOLDER | Says "planned for Phase 6" | Everything; nothing can be printed or exported to PDF | None | Not yet |
+| System | Print centre | PARTIAL | **Printers and test pages:** installed Windows printers with default flag, status, connection, and the paper sizes, colour and duplex support the driver reports ("Not reported" when it does not). Print a test page on A4, A5, 58 mm or 80 mm, then record **Came out correctly** or **There was a problem** (notes required); the result shows per printer. **Preferences** for invoices, receipts, reports and labels: printer, paper, orientation, margins, scale, font size, copies, and experimental ESC/POS for receipts. **Labels:** several products with quantities, layout, skip used labels on a sheet, preview, print, PDF; scanning adds products; create and edit label layouts. **Print history:** every print and PDF export with who, when, printer, copies and print number, plus test-page results. **Settings:** DUPLICATE marking, label QR content, invoice reference QR content, footer note. | **Nothing has been printed on Windows yet.** The Windows printer code (listing printers, reading capabilities, sending jobs, mapping printer errors, raw ESC/POS) and the preview window have no automated tests. ESC/POS is experimental and untested on any printer. No per-company default for "which preference prints which document" beyond the four purposes. | `Printing/PrintCentreTests` (`TestPrintTests`, `ReprintTests`, `LabelPrintTests`, `PrintAccessTests`), `Printing/LayoutTests`, `Printing/BarcodeTests` | Not yet |
 | System | Settings | FULLY FUNCTIONAL | Section list showing only the sections your role allows; each section is listed below | See each section | See the sections | Not yet |
-| System | Help | PARTIAL | Lists the keyboard shortcuts | Static text, with no service and no tests. Billing function keys are listed as future (Phase 5). | None | Not yet |
+| System | Help | PARTIAL | Lists the keyboard shortcuts | Static text, with no service and no tests. Billing function keys are listed as future. | None | Not yet |
 | Settings | Settings → General | FULLY FUNCTIONAL | Theme (light/dark). Your companies with your role in each. Create a company (you become its administrator). Delete the demonstration company. | Nothing known | `WS`, `Perm`, `CompanyIsolationTests` | Not yet |
 | Settings | Settings → Company profile | FULLY FUNCTIONAL | Trade and legal name, address, city, PIN code, state, phone, email, PAN and GSTIN, with validation (GSTIN check character, state match, PAN match). Logo upload (PNG/JPEG up to 512 KB) and remove. | The logo is stored but **not shown anywhere yet** (it will be used on printed documents in Phase 6). GSTIN is checked offline only. | `CompanyProfileTests`, `TaxIdentifierTests`, `AuditTrailTests`, `CoverageGapTests` | Not yet |
 | Settings | Settings → Branches and warehouses | FULLY FUNCTIONAL | Create and edit branches (code, name, state, address) and warehouses (code, name, optional branch). Activate and deactivate. Duplicate codes are refused. | Branches are not used by any workflow yet; warehouses are used by Stock, Sales and Purchases | `CoverageGapTests`, `CompanyIsolationTests` | Not yet |
@@ -71,7 +71,7 @@ Two abbreviations in the "Tested by" column: `WS` = `Workspace/WorkspaceServiceT
 | Settings | Settings → Financial years | FULLY FUNCTIONAL | List years with their draft counts. Open the next year. Close a year (refused while drafts are dated in it). Reopen. | Nothing known | `PostingTests`, `AccountingAccessTests` | Not yet |
 | Settings | Settings → Audit trail | FULLY FUNCTIONAL | Newest 500 entries: who, when, action, summary, with quick filter and saved layout. Selecting an entry shows field-level old and new values. "Verify integrity" re-checks the hash chain. | No paging beyond 500 or date filter in the screen. No export. | `AuditTrailTests`, `AuditChainTests`, `CompanyIsolationTests` | Not yet |
 | Hidden | Component gallery (Ctrl+Shift+G) | PARTIAL | Shows every control and state; the confirmation and toast buttons work | A developer reference screen by design; its sample buttons do nothing. No tests. | Design-rule tests only | Not yet |
-| Shared | Data table (filter, columns, totals, saved layouts) | PARTIAL | Used on Products, Stock, Vouchers, Audit trail, Users, Trial balance, the inventory settings lists, Sales invoices, Purchase bills, Customers and Suppliers. Quick filter (every word must match), row count, show/hide columns, sort, resize, reorder, totals row, layout saved per user. | Layout merging, filtering, totals and per-user storage are tested (`TableLayoutTests`). The WPF control code itself (applying layouts, footer alignment, column menu) has no automated tests. No per-column filters. | `Preferences/TableLayoutTests` | Not yet |
+| Shared | Data table (filter, columns, totals, saved layouts) | PARTIAL | Used on Products, Stock, Vouchers, Audit trail, Users, Trial balance, the inventory settings lists, Sales invoices, Purchase bills, Customers, Suppliers and Print centre. Quick filter (every word must match), row count, show/hide columns, sort, resize, reorder, totals row, layout saved per user. | Layout merging, filtering, totals and per-user storage are tested (`TableLayoutTests`). The WPF control code itself (applying layouts, footer alignment, column menu) has no automated tests. No per-column filters. | `Preferences/TableLayoutTests` | Not yet |
 | Shared | Confirmation dialogs and toasts | PARTIAL | Used for deletes, reversals, closing years and so on. Toasts disappear after 4 seconds. | View-model code only; no automated tests | None | Not yet |
 
 ### Files behind each screen
@@ -103,9 +103,11 @@ Two abbreviations in the "Tested by" column: `WS` = `Workspace/WorkspaceServiceT
 | Settings → Inventory | `Views/Inventory/InventorySettingsView.xaml` | `InventorySettingsViewModel` | `InventoryCatalogueService` |
 | Sales invoices, Purchase bills | `Views/Billing/BillingView.xaml` (one view for both) | `ViewModels/Billing/BillingViewModels.cs` (`SalesBillingViewModel`, `PurchaseBillingViewModel`, base `BillingViewModel`) | `Application/Billing/BillingService.cs`, `SettlementService.cs`, `StockService` (core posting), `LedgerPoster` |
 | Customers, Suppliers | `Views/Billing/PartiesView.xaml` (one view for both) | `CustomersViewModel`, `SuppliersViewModel` (base `PartiesViewModel`) | `Application/Billing/PartyService.cs` |
+| Print centre | `Views/Printing/PrintCentreView.xaml` | `ViewModels/Printing/PrintCentreViewModels.cs` (`PrintCentreViewModel`) | `Printing/PrintingService.cs`; Windows printers: `Desktop/Services/Printing/WindowsPrinterGateway.cs` |
+| Print preview window (from any Print/Preview button) | `Views/Printing/PrintPreviewWindow.xaml` | `Services/Printing/PrintActions.cs` (`PrintPreviewModel`) | `PrintingService`, `Desktop/Services/Printing/WpfDocumentBuilder.cs` |
 | Data table | `Themes/Controls.xaml` (style), `Controls/QikDataGrid.cs` | — | `Application/Preferences/TableLayout.cs` (`UserPreferenceService`) |
 
-View and view-model paths are under `src/Nexora.Desktop/`. Services are under `src/Nexora.Application/` or `src/Nexora.Accounting/`.
+View and view-model paths are under `src/Nexora.Desktop/`. Services are under `src/Nexora.Application/`, `src/Nexora.Accounting/` or `src/Nexora.Printing/`.
 
 ## 2. How to start and first run
 
@@ -373,7 +375,85 @@ Continue in **Test Traders** as `asha` after section 3.7. Before you start, LED-
 | P5-PRM-03 | Sign in as `ivan` (Inventory Manager). | Purchase bills and Suppliers are available; Sales invoices and Customers are not in the sidebar. | ☐ Pass ☐ Fail |
 | P5-ISO-01 | Switch to **Second Co**. Open Customers, Suppliers, Sales invoices and Purchase bills. | All empty. | ☐ Pass ☐ Fail |
 
-### 3.9 Formats and keyboard
+### 3.9 Printing, labels and scanners (Phase 6)
+
+Continue in **Test Traders** as `asha` after section 3.8. You need at least one real printer; the printer scripts below say which. Write down the printer model and connection (USB or network) for each script. **Nothing in this section has been run on Windows yet**, so record what actually happens on paper, even when the screen says the job was sent.
+
+**General**
+
+| ID | Steps | Expected result | Result |
+|---|---|---|---|
+| P6-SET-01 | Sidebar **System → Print centre**. | The section **Printers and test pages** lists the printers Windows has installed. The default printer has a "Default" badge. Paper sizes, colour and duplex show what the driver reports, or "Not reported". | ☐ Pass ☐ Fail |
+| P6-SET-02 | **Preferences**. | Four cards: Invoices (A4), Receipts (Thermal80), Reports (A4), Labels (A4), each on "(Windows default printer)". | ☐ Pass ☐ Fail |
+| P6-SET-03 | **Settings**: set Label QR content to `{colour}` and **Save settings**. | "Label QR format: {colour} is not a known field. Use: {sku}, {name}, {barcode}, {price}, {mrp}." | ☐ Pass ☐ Fail |
+| P6-SET-04 | Set Label QR content back to `{sku}`, Invoice reference QR content to `INV {number} {total}`, Footer note to `Thank you. Goods once sold are taken back only with this bill.` Save. | "Print settings saved." | ☐ Pass ☐ Fail |
+
+**A4 printer (laser or inkjet)**
+
+| ID | Steps | Expected result | Result |
+|---|---|---|---|
+| P6-A4-01 | **Printers and test pages**: select the A4 printer, paper A4, **Print test page**. | Toast "Test page sent…". A panel asks whether it came out correctly. On paper: a frame on all four sides, a scale that measures **180 mm** with a ruler (±1 mm), text from 6 pt to 16 pt including the ₹ sign, a Code 128 barcode and a QR code. | ☐ Pass ☐ Fail |
+| P6-A4-02 | Scan the test page's barcode and QR code with a USB scanner (into Notepad) or a phone. Then click **Came out correctly**; if anything was wrong, type what and click **There was a problem**. | The barcode reads the test code (TP…); the QR reads "QIK Suite test TP…". The printer row's "Last test" shows "Confirmed good" (or "Problem reported") with the time. | ☐ Pass ☐ Fail |
+| P6-A4-03 | **Preferences → Invoices**: choose the A4 printer. **Save**. | "Invoices preferences saved." | ☐ Pass ☐ Fail |
+| P6-A4-04 | **Sales invoices**: select INV/2026-27/0001. Click **Preview**. | A window shows the invoice: company name, GSTIN and state, the customer, place of supply, lines with HSN and GST rate, the tax summary, totals, amount in words, the reference QR labelled "Reference QR. Not an e-invoice QR.", the footer note, and "Authorised signatory". The totals equal those in the preview panel. | ☐ Pass ☐ Fail |
+| P6-A4-05 | In the window, copies 1, **Print**. | Toast "Sent … to <printer>. Check the printer for the paper." The paper matches the preview; amounts line up in their columns; nothing is cut off at the margins. | ☐ Pass ☐ Fail |
+| P6-A4-06 | Print the same invoice again from the preview panel's **Print**. Open **Print centre → Print history**. | The second paper has a boxed **DUPLICATE**. History shows two rows for the invoice: print no. 1 and 2, the second with Duplicate True, By Asha Rao. | ☐ Pass ☐ Fail |
+| P6-A4-07 | **Export PDF**, save it to the desktop, open it. | The file name starts with "TAX INVOICE" (or "INVOICE" when the company has no GSTIN). The PDF looks like the paper, including ₹. History shows an Output "Pdf" row. | ☐ Pass ☐ Fail |
+| P6-A4-08 | Select INV/2026-27/0002 and click **Delivery note**. | "DELIVERY NOTE" with goods, HSN and quantities, **no prices**, and a receiver's signature line. | ☐ Pass ☐ Fail |
+| P6-A4-09 | **Purchase bills → Bill editor**: Pune Wholesale, LED-18W 5, rate 300, **Save draft and calculate**. Open **Bills**, select the draft, click **Purchase order**. | "PURCHASE ORDER" without a DRAFT banner, number "Not numbered". Delete the draft afterwards. | ☐ Pass ☐ Fail |
+| P6-A4-10 | **Customers** → Meera Electricals → Statement from `01-04-2026` to `31-10-2026` → **Preview**, then **Print**. | "STATEMENT OF ACCOUNT" with opening balance, each posting with its voucher number, debit, credit and running balance (Dr/Cr), the closing balance and the open documents. | ☐ Pass ☐ Fail |
+| P6-A4-11 | **Sales invoices → Receipts**: select REC/2026-27/0001 (reversed in P5-REC-03). **Preview**. | "RECEIPT" with a **REVERSED** banner, the amount in words and the method. | ☐ Pass ☐ Fail |
+| P6-A4-12 | **Preferences → Invoices**: paper A5, font 8. Save. Preview INV/2026-27/0001. | The page is A5 and the layout still fits. Set it back to A4 and font 9. | ☐ Pass ☐ Fail |
+
+**Thermal receipt printer, 80 mm (58 mm works the same way)**
+
+| ID | Steps | Expected result | Result |
+|---|---|---|---|
+| P6-T80-01 | Install the printer's Windows driver. Set its paper to 80 mm (roll) in the driver's preferences. Open **Print centre**. | The printer is listed. Capabilities may say "Not reported"; that is acceptable. | ☐ Pass ☐ Fail |
+| P6-T80-02 | Select it, paper **Thermal80**, **Print test page**. | A strip with a frame around the content, a **70 mm** scale, text including ₹, a barcode and a QR code. Confirm or report the problem. | ☐ Pass ☐ Fail |
+| P6-T80-03 | **Preferences → Receipts**: choose the thermal printer, paper Thermal80. Save. **Sales invoices**: select INV/2026-27/0003 (the cash sale), **Print on receipt printer**. | A narrow "TAX INVOICE · CASH BILL" (or "CASH BILL") with lines, totals, GST summary, amount in words and the footer. Little blank paper after the end (some drivers add a fixed feed). | ☐ Pass ☐ Fail |
+| P6-T80-04 | *Experimental, optional:* only if P6-T80-03 failed or printed badly. **Preferences → Receipts**: tick "Send as raw ESC/POS", type the printer's exact Windows name, save, print again. Untick afterwards. | Record exactly what printed. ₹ prints as "Rs." by design. Whether the QR code, barcode and cutter work depends on the model; none has been tested. | ☐ Pass ☐ Fail |
+
+**Label printer (for example a 50 × 25 mm roll)**
+
+| ID | Steps | Expected result | Result |
+|---|---|---|---|
+| P6-LBL-01 | In Windows, set the label printer's paper to the label size (50 × 25 mm). **Preferences → Labels**: choose the label printer. Save. | Saved. | ☐ Pass ☐ Fail |
+| P6-LBL-02 | **Print centre → Labels**: layout "Roll label 50 × 25 mm". Add LED-18W, quantity 3. **Preview**, then **Print labels**. | Three pages of 50 × 25 mm, each with the product name, "₹ 450.00" and an EAN-13 barcode with 4006381333931 under it. Three labels print, one per label, without drifting. | ☐ Pass ☐ Fail |
+| P6-LBL-03 | Scan each printed label with the USB scanner into Notepad. | Each reads 4006381333931. | ☐ Pass ☐ Fail |
+| P6-LBL-04 | *A4 label sheets (3 × 8, 63.5 × 33.9 mm) on the A4 printer:* set Preferences → Labels back to the A4 printer. Layout "A4 sheet 3 × 8", add LED-18W 5 and FAN-1200 4, skip `2`. **Print labels** on plain paper and hold it against a label sheet. | Labels start at the third position. If they are offset, correct the layout's margins in the layout editor (**Save layout**) and repeat, then print on the sheet. | ☐ Pass ☐ Fail |
+| P6-LBL-05 | Layout editor: set label width `70` with 3 columns, **Save layout**. | "The labels do not fit across the page: left margin + columns × width + gaps is wider than the page." | ☐ Pass ☐ Fail |
+| P6-LBL-06 | **Settings**: Label QR content `{sku}|{price}`. **New layout**: name "QR 50 × 25", page and label 50 × 25, 1 column, 1 row, margins and gaps 0, Code **Qr**. Save. Preview labels of LED-18W and scan the QR with a phone. | The QR reads "LED-18W|450.00". | ☐ Pass ☐ Fail |
+| P6-LBL-07 | **Products**: select LED-18W, layout "Roll label 50 × 25 mm", labels `2`, **Preview labels**. | Two label pages as in P6-LBL-02. | ☐ Pass ☐ Fail |
+
+**USB barcode scanner (set to keyboard mode with Enter after each code)**
+
+| ID | Steps | Expected result | Result |
+|---|---|---|---|
+| P6-SCN-01 | **Products**: click a row of the list (so no text box has focus), scan LED-18W's barcode. | LED-18W is selected. No text appears in any box. | ☐ Pass ☐ Fail |
+| P6-SCN-02 | **Sales invoices → Invoice editor**: click in "Scan or type a code", scan LED-18W twice. | One line with LED-18W, quantity 2. | ☐ Pass ☐ Fail |
+| P6-SCN-03 | Click an empty part of the editor (not a text box), scan FAN-1200's code (or type FAN-1200 into the code box and press Enter). | A FAN-1200 line is added. | ☐ Pass ☐ Fail |
+| P6-SCN-04 | Click in the Narration box and scan a barcode. | The digits are typed into Narration only; no line is added (scans into a text box are left to that box). Clear the narration. | ☐ Pass ☐ Fail |
+| P6-SCN-05 | Type `4006381333931` slowly into the code box and press Enter. Then scan a barcode that belongs to no product. | Typing works the same as scanning in the code box. The unknown code shows "No product has the code …". | ☐ Pass ☐ Fail |
+| P6-SCN-06 | **Print centre → Labels**: click an empty area, scan LED-18W. | LED-18W is added to the label list (scanning again adds 1 to its quantity). | ☐ Pass ☐ Fail |
+
+**Printer problems**
+
+| ID | Steps | Expected result | Result |
+|---|---|---|---|
+| P6-ERR-01 | Switch the A4 printer off (or unplug it) and wait until Windows shows it as offline. Print an invoice. | "Printing did not complete" with "Could not print to …" and the advice "The printer is offline or disconnected…". Print history has **no** new row. (Some drivers queue the job instead of reporting offline: record what happened.) | ☐ Pass ☐ Fail |
+| P6-ERR-02 | **Preferences → Invoices**: type printer `Missing printer`, save, print an invoice. | "Windows has no printer named "Missing printer"." with advice to check Printers & scanners. Choose the real printer again. | ☐ Pass ☐ Fail |
+| P6-ERR-03 | **Printers and test pages**: with the printer still off, print a test page. | The confirmation panel does not appear; an error with advice shows. **Print history → Test pages** lists it as SendFailed. | ☐ Pass ☐ Fail |
+
+**Permissions and isolation**
+
+| ID | Steps | Expected result | Result |
+|---|---|---|---|
+| P6-PRM-01 | Sign in as `bina` (Billing Operator). Print an invoice from Sales invoices. | The print works. Print centre is not in the sidebar; Purchase bills is not either. | ☐ Pass ☐ Fail |
+| P6-PRM-02 | Sign in as `ivan` (Inventory Manager). **Products → Print labels**. | Labels print. Print centre and Sales invoices are not in the sidebar. | ☐ Pass ☐ Fail |
+| P6-ISO-01 | Switch to **Second Co**. Open Print centre → Print history and Preferences. | No history from Test Traders; its own four default preferences. | ☐ Pass ☐ Fail |
+
+### 3.10 Formats and keyboard
 
 | ID | Steps | Expected result | Result |
 |---|---|---|---|
@@ -382,7 +462,7 @@ Continue in **Test Traders** as `asha` after section 3.7. Before you start, LED-
 | GEN-KEY-01 | In a voucher, press **Tab** repeatedly from the first line's account. | Focus moves Account → Debit → Credit → Line note → Remove → next line's Account. A focus ring is always visible. | ☐ Pass ☐ Fail |
 | GEN-KEY-02 | Do P1-LOG-01 to P1-SHL-03 using only the keyboard. | Possible without the mouse. | ☐ Pass ☐ Fail |
 
-### 3.10 Optional: demonstration company (needs a reset)
+### 3.11 Optional: demonstration company (needs a reset)
 
 | ID | Steps | Expected result | Result |
 |---|---|---|---|
@@ -405,7 +485,7 @@ Continue in **Test Traders** as `asha` after section 3.7. Before you start, LED-
 - `scripts/build-windows.ps1` and the GitHub Actions workflow have never run.
 - Narrator, high-contrast mode and Windows "reduce animations" are untested.
 - **View models have no automated tests**: date parsing, amount parsing, voucher totals, navigation and the palette. `ViewBindingTests` checks that page-level bindings point to real members, but not bindings inside list rows or grid columns. Nor does it check behaviour.
-- **Test-count composition:** 258 of the 700 tests are XAML design-rule checks, 31 are this guide's status-table checks and 1 is the binding check. The behavioural logic is covered by 410 tests.
+- **Test-count composition:** 270 of the 806 tests are XAML design-rule checks, 31 are this guide's status-table checks and 1 is the binding check. The behavioural logic is covered by 504 tests.
 
 **Not built (in phases already done)**
 - **Dashboard:** no real figures, including low stock, which is shown under Stock instead. Notifications are a static panel.
@@ -449,7 +529,19 @@ Continue in **Test Traders** as `asha` after section 3.7. Before you start, LED-
 - **Allocations** cannot be undone one by one; reverse the receipt or payment instead.
 - **Not built:** quotations, sales and purchase orders, delivery notes, goods receipt notes, proforma invoices, hold/resume, barcode or POS entry, additional charges, customer-specific prices, salesperson, recurring invoices, reminders, approvals, ageing, statements and printing (Phase 6). The billing settings (round to rupees, tax-inclusive rates) have a service but no settings screen; the defaults are "round to rupees" and "tax-exclusive", and both can be changed per document in the editor.
 
-**Phases not started:** 6 (printing), 7 (expenses, CRM, service), 8 (reports, dashboard data, import/export, backup), 9 (security hardening, installer, release).
+**Printing, labels and scanners (Phase 6) specifics**
+- **Unverified on Windows:** printer discovery and capabilities, printing through Windows drivers, the preview window, paper sizes on real printers, thermal roll length, label alignment, raw ESC/POS and USB scanner input. What is tested on macOS: barcode and QR encoding (decoded back by an independent reader), layout arithmetic and pagination, templates printing the stored figures, PDF output, reprint counting and DUPLICATE marking, test-page records, label geometry, ESC/POS command bytes, scan detection, permissions and isolation.
+- **Same pages everywhere:** templates produce one set of page items. They are drawn to PDF (PDFsharp) or to the Windows printer and preview (WPF), with the bundled Noto Sans font, so sizes and pagination match. WPF text measurement can differ by a fraction of a point from the layout measurement.
+- **Totals:** templates print the stored figures of the posted (or draft) document; the tax summary groups the stored line taxes by rate. Nothing is recalculated.
+- **QR codes** on invoices are optional references in a configurable format. They are not GST e-invoice QR codes, and the printout says so.
+- **Purchase orders** print from a draft purchase bill; QIK Suite has no purchase order workflow or number. **Delivery notes** print from a sales invoice.
+- **Reprints:** every print and PDF export of a document is counted. Copies within one job are not marked DUPLICATE; the second and later jobs are (when enabled). A print is recorded only after Windows accepts it.
+- **Test pages** count as passed only when someone confirms the paper.
+- **ESC/POS** is experimental: only the command bytes are tested; no printer model has been tried. Text is ASCII (₹ prints as "Rs.").
+- **Printer preferences are per company**, not per computer. Two computers sharing a company share printer names, so name printers the same way on both, or leave the Windows default.
+- **Not built:** custom template designer, per-customer templates, batch printing of many invoices at once, e-mailing PDFs, print-job status after Windows accepts a job.
+
+**Phases not started:** 7 (expenses, CRM, service), 8 (reports, dashboard data, import/export, backup), 9 (security hardening, installer, release).
 
 ## 5. Phase checklist
 
@@ -460,7 +552,7 @@ Continue in **Test Traders** as `asha` after section 3.7. Before you start, LED-
 | 3. Accounting engine | Done on macOS, not verified on Windows (cash flow, bank reconciliation, cost centres and ageing moved to Phase 8) | Every posted voucher balances; posted records are immutable except by reversal; years open/close; trial balance, ledgers, P&L and balance sheet reconcile in tests |
 | 4. Products and inventory | Done on macOS, not verified on Windows (deferred: CSV/Excel import/export to Phase 8, reservations and COGS from sales to Phase 5, product images) | Products, units, variants, warehouses, batches/serials; stock from a movement ledger; FIFO/weighted average costing per company; negative stock blocked unless allowed; inventory postings reconcile to the ledger |
 | 5. Sales and purchases with GST | Done on macOS, not verified on Windows (not built: quotations, orders, delivery notes, dated GST rates, cess, reverse charge, POS/barcode entry; see section 4) | Quotation-to-invoice and purchase workflows post stock and accounts atomically; GST by place of supply with rates as dated data; totals recalculated in the Application layer; numbering and idempotency |
-| 6. Printing | Not started | Printer settings and Print Centre with a verified test page; invoice, receipt and label templates; PDF export; barcode/QR |
+| 6. Printing | Done on macOS, nothing printed on Windows yet (layout, PDF, barcodes, records and permissions are tested; Windows printing, preview and scanners are unverified) | Printer settings and Print Centre with a verified test page; invoice, receipt and label templates; PDF export; barcode/QR |
 | 7. Expenses, CRM, service | Not started | Expense vouchers with approvals; leads to customers; service jobs consuming spare parts that post inventory and accounts |
 | 8. Reports, dashboard data, import/export, backup | Not started | Reports from real postings, exportable and printable; real dashboard figures; CSV/Excel import/export with formula-injection protection; encrypted, verifiable backup with a tested restore |
 | 9. Security, full test pass, installer, release | Not started | Session timeout, optional encryption, DPAPI secrets; full Windows QA pass; Inno Setup or WiX installer; signed release script; KNOWN_LIMITATIONS.md |

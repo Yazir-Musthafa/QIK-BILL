@@ -1,5 +1,55 @@
 # QIK Suite implementation progress
 
+## Phase 6: printing, labels, PDF, barcodes and QR, complete on macOS (11 October 2026)
+
+**Starting point:** `d405020` (end of Phase 5) with a clean tree. Baseline: locked restore OK, build 0 warnings and 0 errors, **700 tests passed**.
+- **Windows notes:** the owner's note was left as the template placeholder, so I took it as "Phase 5 screens not tested yet". No runtime problems were reported, so none were fixed.
+- **Phase 5 gaps for printing:** two pieces of document data were missing and were added:
+  - a settlement detail view (`SettlementService.GetAsync`);
+  - party statements across financial years (`PartyService.StatementAsync`).
+  Quotations and orders were not started.
+- **Commits** are prefixed `claude:`.
+
+**Windows:** nothing has been printed, previewed or scanned on Windows. Every Windows printing path is **unverified at runtime**.
+
+### Verified by build or test on macOS
+
+| Area | Evidence |
+|---|---|
+| Build | 0 warnings, 0 errors. `Nexora.Printing` is now `net10.0` (decision recorded). Migration `Printing` adds 5 tables and 2 triggers; the model has no pending changes. |
+| Tests | **806 passed, 0 failed**: 504 behavioural (410 earlier + 94 printing), 270 XAML design-rule, 31 guide-coverage, 1 binding check. |
+| Barcodes | EAN-13 check digits match GS1 examples, and the code is 95 modules with guards. Every leading digit 0–9 decodes back to the same digits with ZXing's reader. Code 128 uses code set C for digits; its checksum is the weighted sum mod 103; 7 varied strings decode back exactly; non-ASCII text is refused. A product code uses EAN-13 only when it is a valid EAN-13. QR codes (ZXing encoder, UTF-8, level M) decode back, including ₹. |
+| QR content format | Placeholders are filled case-insensitively. Unknown fields, unbalanced braces and document fields on labels are refused when settings are saved. |
+| Layout | ISO A4 and A5 sizes in points; landscape swaps sides; 58 and 80 mm rolls have no page height and grow with content. Scale shrinks from the margin corner. Page breaks never put text below the bottom margin, the continuation header repeats, and pages read "Page n of N". Wrapping never exceeds the width or drops words. The bundled font has ₹. |
+| Templates | The invoice prints the stored figures: taxable, CGST, SGST, round-off, total, amount in words. It shows company name, address and GSTIN, the party, place of supply and signature. The tax summary groups stored line taxes and adds up to the header. 60 lines on A5 paginate onto 3 pages, with totals only on the last page and totals kept with the signature. Cash bills fit one 80 mm page. Delivery notes have no prices. Purchase orders print only from draft bills. Draft and cancelled documents carry banners. Credit notes, purchase bills and debit notes have their own titles. Receipts show allocations, the advance and words. Statements show opening, lines, closing (Dr/Cr) and open documents. The invoice QR follows the configured format, is labelled "Not an e-invoice QR", and decodes. |
+| PDF | Produced from the same pages; Noto Sans is embedded as a subset. Exports are counted as prints. I rendered sample A4 invoice, 80 mm cash bill, label sheet, statement and test-page PDFs to images and looked at them. That review caught an arrow glyph missing from the font on the test page and a label's price crowding its barcode; both are fixed. |
+| Reprints | The second print gets print number 2 and DUPLICATE; the first does not. With marking turned off, prints are still counted. A failed print is not recorded and returns recovery advice. Jobs use the profile's printer, paper, orientation, copies, scale and font size. |
+| Test prints | Recorded as Sent; they pass only when someone confirms. Confirming twice is refused, a problem needs notes, and a failed send can't be confirmed. Printers keep the capabilities the driver reported, without inventing any. |
+| Labels | Sheet positions (columns, rows, gaps, margins, page breaks, skipped labels). Everything stays inside the label. The label barcode scans, with modules wider than 0.7 pt. QR labels keep text clear of the code. Layouts that don't fit are refused, and inactive layouts can't print. |
+| ESC/POS (experimental) | Initialise, feed and cut bytes; lines and pairs fit the column count; Code 128 and QR commands carry correct lengths; non-ASCII is replaced. Raw bytes are sent only when enabled for receipts on thermal paper. |
+| Scanner | Fast keys ending in Enter count as a scan; slow typing, short codes and a late Enter don't; a scan right after typing is recognised. Codes find products by barcode, QR identifier or SKU. |
+| Permissions | A Billing Operator prints sales documents but can't print purchase bills, change preferences, run test pages, change settings or see the full history. An Inventory Manager prints labels but not sales invoices. Settings, layouts and test pages need printing.manage. |
+| Isolation and immutability | Another company can't render a document by ID and sees none of the print history. The isolation tests cover the 5 new tables automatically. SQLite rejects UPDATE and DELETE on print records. |
+| Upgrade | Existing companies receive print settings, four preferences and two label layouts once. |
+| Mutation checks | Breaking each of these failed 1–8 printing tests: EAN-13 parity, Code 128 checksum, DUPLICATE marking, not recording failed prints, page breaking, confirming unsent test pages, label column spacing. The EAN-13 parity mutation first survived, so the all-leading-digits test was added. |
+
+### Built but unverified (needs Windows)
+
+- **Print centre:** the screen, the print preview window and the print buttons on Sales invoices, Purchase bills, Receipts, Customers, Suppliers and Products.
+- **`WindowsPrinterGateway`:** printer listing, capability reading, status mapping, XPS printing with tickets, and raw spooler output.
+- **`WpfDocumentBuilder`:** drawing the pages with WPF.
+- **Window-level scanner hook.**
+
+They compile, pass the design-rule tests, and their page-level bindings resolve.
+
+### Known gaps (Phase 6)
+
+See `WORKING_GUIDE.md` section 4, "Printing, labels and scanners specifics". In short:
+- nothing has been printed on Windows;
+- ESC/POS is untested on hardware;
+- printer preferences are per company, not per computer;
+- there is no template designer, no batch invoice printing and no e-mail.
+
 ## Phase 5: sales, purchases and payments, complete on macOS (11 October 2026)
 
 **Starting point:** the request said GPT-6 Astra had worked on Phase 5. The repository showed no such work:
