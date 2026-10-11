@@ -13,7 +13,7 @@ public sealed record ProductRow(Guid Id, string Sku, string Name, string Display
     string? Barcode, string? QrCode, string HsnCode, Guid UnitId, string UnitCode, Guid? TaxCategoryId, string TaxCategoryName,
     decimal? PurchasePrice, decimal SellingPrice, decimal Mrp, decimal ReorderLevel, TrackingMode Tracking, bool TracksExpiry,
     Guid? ParentProductId, string VariantSize, string VariantColour, string VariantModel, bool HasVariants, bool IsArchived,
-    decimal OnHand, decimal Available);
+    decimal OnHand, decimal Available, int WarrantyMonths = 0);
 
 public sealed record ProductInput(Guid? Id, ProductDetails Details, Guid UnitId, TrackingMode Tracking, bool TracksExpiry);
 
@@ -48,7 +48,7 @@ public sealed class InventoryCatalogueService(IUnitOfWorkFactory units, IAuthori
                 p.TaxCategoryId is { } t ? taxes.GetValueOrDefault(t, string.Empty) : string.Empty,
                 showCost ? p.PurchasePrice : null, p.SellingPrice, p.Mrp, p.ReorderLevel, p.Tracking, p.TracksExpiry,
                 p.ParentProductId, p.VariantSize, p.VariantColour, p.VariantModel, parents.Contains(p.Id), p.IsArchived,
-                onHand.GetValueOrDefault(p.Id), available.GetValueOrDefault(p.Id)))
+                onHand.GetValueOrDefault(p.Id), available.GetValueOrDefault(p.Id), p.WarrantyMonths))
             .ToList();
     }
 
@@ -112,6 +112,7 @@ public sealed class InventoryCatalogueService(IUnitOfWorkFactory units, IAuthori
             Brand = parent.Brand,
             HsnCode = parent.HsnCode,
             TaxCategoryId = parent.TaxCategoryId,
+            WarrantyMonths = details.WarrantyMonths == 0 ? parent.WarrantyMonths : details.WarrantyMonths,
             PurchasePrice = authorizer.Has(Permissions.InventoryViewCost) ? details.PurchasePrice : parent.PurchasePrice,
         };
         var variant = new Product(Guid.NewGuid(), session.CompanyId, merged, parent.UnitId, parent.Tracking, parent.TracksExpiry, parent.Id);

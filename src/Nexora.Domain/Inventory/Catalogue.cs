@@ -228,6 +228,9 @@ public sealed partial class Product : ICompanyOwned, IAudited
 
     public bool IsArchived { get; private set; }
 
+    /// <summary>Manufacturer or shop warranty from the sale date, in months (0 = none). Used to tell whether a service job is under warranty.</summary>
+    public int WarrantyMonths { get; private set; }
+
     public string DisplayName => string.Join(" / ", new[] { Name, VariantSize, VariantColour, VariantModel }.Where(p => p.Length > 0));
 
     public void Update(ProductDetails details)
@@ -246,6 +249,7 @@ public sealed partial class Product : ICompanyOwned, IAudited
         Money.EnsureValid(details.Mrp, "MRP");
         if (details.Mrp > 0 && details.SellingPrice > details.Mrp) throw new DomainException("The selling price cannot be more than the MRP.");
         Quantity.EnsureNonNegative(details.ReorderLevel, "Reorder level");
+        if (details.WarrantyMonths is < 0 or > 120) throw new DomainException("Warranty must be 0 to 120 months.");
 
         Sku = sku;
         Name = name;
@@ -260,6 +264,7 @@ public sealed partial class Product : ICompanyOwned, IAudited
         SellingPrice = details.SellingPrice;
         Mrp = details.Mrp;
         ReorderLevel = details.ReorderLevel;
+        WarrantyMonths = details.WarrantyMonths;
         VariantSize = Text(details.VariantSize, 30, "Size");
         VariantColour = Text(details.VariantColour, 30, "Colour");
         VariantModel = Text(details.VariantModel, 30, "Model");
@@ -300,7 +305,8 @@ public sealed record ProductDetails(
     decimal ReorderLevel = 0,
     string VariantSize = "",
     string VariantColour = "",
-    string VariantModel = "");
+    string VariantModel = "",
+    int WarrantyMonths = 0);
 
 /// <summary>An alternate unit for a product: one <c>Unit</c> equals <see cref="Factor"/> base units (for example 1 BOX = 12 PCS).</summary>
 public sealed class UnitConversion : ICompanyOwned, IAudited

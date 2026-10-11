@@ -68,7 +68,7 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
         var session = authorizer.Demand(Permissions.InventoryAdjust);
         if (input.Type is StockDocumentType.Opening or StockDocumentType.Receipt) authorizer.Demand(Permissions.InventoryViewCost);
         if (input.Type == StockDocumentType.Reversal) throw new WorkspaceValidationException("Reverse a document from the documents list.");
-        if (input.Type.IsBilling()) throw new WorkspaceValidationException("Sales and purchase stock is posted by sales and purchase documents.");
+        if (input.Type.IsSourced()) throw new WorkspaceValidationException("Sales, purchase and service stock is posted by those documents.");
 
         using var lockHandle = await ledger.AcquireAsync(cancellationToken);
         await using var unit = await units.BeginAsync(cancellationToken: cancellationToken);
@@ -151,6 +151,7 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
                 case StockDocumentType.Receipt:
                 case StockDocumentType.Purchase:
                 case StockDocumentType.SalesReturn:
+                case StockDocumentType.ServiceReturn:
                 {
                     var value = line.LineValue is { } exact ? ExactValue(exact, lineNumber)
                         : EnteredCost(line, quantity, line.UnitCost ?? throw new WorkspaceValidationException($"Line {lineNumber}: enter the unit cost."), lineNumber);
@@ -175,6 +176,7 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
                 case StockDocumentType.AdjustmentOut:
                 case StockDocumentType.Sale:
                 case StockDocumentType.PurchaseReturn:
+                case StockDocumentType.ServiceIssue:
                 {
                     context.EnsureAvailable(product, warehouse.Id, input.FromState, batch, serial, quantity, lineNumber);
                     var value = pool.Issue(quantity, context.Settings.AllowNegativeStock);
@@ -241,8 +243,8 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
         await using var unit = await units.BeginAsync(cancellationToken: cancellationToken);
         var original = await unit.FindAsync<StockDocument>(documentId, cancellationToken)
             ?? throw new WorkspaceValidationException("That stock document no longer exists.");
-        if (original.Type.IsBilling())
-            throw new WorkspaceValidationException($"Stock document {original.Number} belongs to a sales or purchase document. Cancel or return it there.");
+        if (original.Type.IsSourced())
+            throw new WorkspaceValidationException($"Stock document {original.Number} belongs to a sales or purchase document or a service job. Cancel or return it there.");
         var reversal = await ReverseCoreAsync(unit, session, original, date, narration, cancellationToken);
         if (original.VoucherId is { } voucherId)
         {

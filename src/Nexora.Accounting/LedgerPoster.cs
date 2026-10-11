@@ -43,11 +43,31 @@ internal sealed class LedgerPoster(VoucherService vouchers, IAuthorizer authoriz
             LedgerAccountRole.InputSgst => SystemAccounts.InputSgst,
             LedgerAccountRole.InputIgst => SystemAccounts.InputIgst,
             LedgerAccountRole.RoundOff => SystemAccounts.RoundOff,
+            LedgerAccountRole.WarrantyExpense => SystemAccounts.WarrantyExpense,
             _ => throw new ArgumentOutOfRangeException(nameof(role)),
         };
-        var account = (await unit.ListAsync<Account>(a => a.SystemKey == key, cancellationToken)).SingleOrDefault()
-            ?? throw new WorkspaceValidationException($"The system account \"{key}\" is missing from the chart of accounts.");
-        return account.Id;
+        var account = (await unit.ListAsync<Account>(a => a.SystemKey == key, cancellationToken)).SingleOrDefault();
+        if (account is null && role == LedgerAccountRole.WarrantyExpense) account = await AddWarrantyAccountAsync(unit, cancellationToken);
+        return account?.Id ?? throw new WorkspaceValidationException($"The system account \"{key}\" is missing from the chart of accounts.");
+    }
+
+    /// <summary>
+    /// Companies created before Phase 7 have no Warranty and Service Costs account. It is added on first use, in the
+    /// caller's transaction, under the group that holds Round Off (Indirect Expenses), with the next free code.
+    /// </summary>
+    private async Task<Account> AddWarrantyAccountAsync(IUnitOfWork unit, CancellationToken cancellationToken)
+    {
+        var session = authorizer.RequireSession();
+        var sibling = (await unit.ListAsync<Account>(a => a.SystemKey == SystemAccounts.RoundOff, cancellationToken)).SingleOrDefault()
+            ?? throw new WorkspaceValidationException("The Round Off account is missing, so the warranty account cannot be added.");
+        var parent = await unit.FindAsync<Account>(sibling.ParentId!.Value, cancellationToken) ?? throw new WorkspaceValidationException("The expense group is missing.");
+        var codes = (await unit.ListAsync<Account>(cancellationToken: cancellationToken)).Select(a => a.Code).ToHashSet(StringComparer.Ordinal);
+        var names = (await unit.ListAsync<Account>(cancellationToken: cancellationToken)).Select(a => a.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var code = Enumerable.Range(5309, 90).Select(n => n.ToString(System.Globalization.CultureInfo.InvariantCulture)).First(c => !codes.Contains(c));
+        var name = names.Contains("Warranty and Service Costs") ? "Warranty and Service Costs (system)" : "Warranty and Service Costs";
+        var account = new Account(Guid.NewGuid(), session.CompanyId, code, name, parent.Nature, AccountKind.General, parent.Id, SystemAccounts.WarrantyExpense);
+        unit.Add(account);
+        return account;
     }
 
     public async Task<Guid> PostAsync(IUnitOfWork unit, LedgerPosting posting, CancellationToken cancellationToken)

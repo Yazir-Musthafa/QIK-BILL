@@ -20,6 +20,10 @@ public enum StockDocumentType
     SalesReturn,
     Purchase,
     PurchaseReturn,
+
+    // Posted by service jobs (Phase 7), numbered after the job.
+    ServiceIssue,
+    ServiceReturn,
 }
 
 /// <summary>Condition of stock. Only Good stock is available to issue unless another state is chosen explicitly.</summary>
@@ -43,12 +47,17 @@ public static class StockDocumentTypeExtensions
         StockDocumentType.StateChange => "State change",
         StockDocumentType.SalesReturn => "Sales return",
         StockDocumentType.PurchaseReturn => "Purchase return",
+        StockDocumentType.ServiceIssue => "Service parts issue",
+        StockDocumentType.ServiceReturn => "Service parts return",
         _ => type.ToString(),
     };
 
     /// <summary>Stock documents created by sales and purchase documents; they are cancelled there, not under Stock.</summary>
     public static bool IsBilling(this StockDocumentType type) =>
         type is StockDocumentType.Sale or StockDocumentType.SalesReturn or StockDocumentType.Purchase or StockDocumentType.PurchaseReturn;
+
+    /// <summary>Stock documents owned by another module (billing or service); they are not posted or reversed under Stock.</summary>
+    public static bool IsSourced(this StockDocumentType type) => type.IsBilling() || type is StockDocumentType.ServiceIssue or StockDocumentType.ServiceReturn;
 
     public static string NumberingKey(this StockDocumentType type) => type switch
     {

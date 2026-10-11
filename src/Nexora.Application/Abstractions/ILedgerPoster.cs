@@ -21,6 +21,7 @@ public enum LedgerAccountRole
     InputSgst,
     InputIgst,
     RoundOff,
+    WarrantyExpense,
 }
 
 public sealed record LedgerPostingLine(Guid AccountId, decimal Debit, decimal Credit, string? Narration = null);

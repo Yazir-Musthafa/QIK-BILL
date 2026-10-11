@@ -38,6 +38,7 @@ public static class SystemAccounts
     public const string RoundOff = "round-off";
     public const string BankCharges = "bank-charges";
     public const string InventoryAdjustment = "inventory-adjustment";
+    public const string WarrantyExpense = "warranty-expense";
 }
 
 /// <summary>The default Indian chart of accounts given to every company.</summary>
@@ -108,6 +109,7 @@ public static class ChartOfAccountsTemplate
         L("5306", "Salaries and Wages", AccountNature.Expense, AccountKind.General, "5300"),
         L("5307", "Electricity", AccountNature.Expense, AccountKind.General, "5300"),
         L("5308", "Office Expenses", AccountNature.Expense, AccountKind.General, "5300"),
+        L("5309", "Warranty and Service Costs", AccountNature.Expense, AccountKind.General, "5300", SystemAccounts.WarrantyExpense),
     ];
 
     public static IReadOnlyList<Account> Create(Guid companyId)

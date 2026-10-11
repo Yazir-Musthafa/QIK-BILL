@@ -5,6 +5,9 @@ using Nexora.Domain.Accounting;
 using Nexora.Domain.Audit;
 using Nexora.Domain.Billing;
 using Nexora.Domain.Common;
+using Nexora.Domain.Crm;
+using Nexora.Domain.Expenses;
+using Nexora.Domain.Service;
 using Nexora.Domain.Companies;
 using Nexora.Domain.Inventory;
 using Nexora.Domain.Numbering;
@@ -190,6 +193,16 @@ internal static class ImmutabilityRules
         Allocation => true,
         // Print history is evidence of who printed what; it is never edited.
         PrintRecord => true,
+        // Phase 7: posted expenses and their lines are fixed; reversals, timeline entries and part movements are append-only;
+        // delivered or cancelled service jobs are closed.
+        Expense => entry.OriginalValues.GetValue<ExpenseStatus>(nameof(Expense.Status)) == ExpenseStatus.Posted,
+        ExpenseLine => entry.OriginalValues.GetValue<bool>(nameof(ExpenseLine.IsLocked)),
+        ExpenseAttachment => entry.State == EntityState.Modified,
+        ExpenseReversal => true,
+        Activity => true,
+        ServicePart => true,
+        ServicePartReturn => true,
+        ServiceJob => entry.OriginalValues.GetValue<ServiceStatus>(nameof(ServiceJob.Status)) is ServiceStatus.Delivered or ServiceStatus.Cancelled,
         _ => false,
     };
 }
