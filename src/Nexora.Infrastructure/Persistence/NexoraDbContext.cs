@@ -8,6 +8,7 @@ using Nexora.Domain.Common;
 using Nexora.Domain.Companies;
 using Nexora.Domain.Inventory;
 using Nexora.Domain.Numbering;
+using Nexora.Domain.Printing;
 using Nexora.Domain.Security;
 using Nexora.Domain.Settings;
 using Nexora.Domain.Users;
@@ -187,6 +188,8 @@ internal static class ImmutabilityRules
         Settlement => true,
         SettlementReversal => true,
         Allocation => true,
+        // Print history is evidence of who printed what; it is never edited.
+        PrintRecord => true,
         _ => false,
     };
 }

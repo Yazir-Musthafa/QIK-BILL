@@ -7,6 +7,7 @@ using Nexora.Application.Abstractions;
 using Nexora.Application.Security;
 using Nexora.Infrastructure;
 using Nexora.Infrastructure.Persistence.Providers;
+using Nexora.Printing;
 
 namespace Nexora.Tests.Infrastructure;
 
@@ -25,6 +26,8 @@ public sealed class SqliteTestDatabase : IAsyncDisposable
         services.AddLogging(b => b.SetMinimumLevel(LogLevel.Warning));
         services.AddNexoraApplication();
         services.AddNexoraAccounting();
+        services.AddNexoraPrinting();
+        services.AddSingleton<Nexora.Printing.IPrinterGateway>(Printers);
         services.AddNexoraInfrastructure(new SqliteDatabaseProvider(DatabasePath));
         services.AddSingleton<IPasswordHasher>(new Pbkdf2PasswordHasher(1_000));
         services.AddSingleton<IClock>(Clock);
@@ -34,6 +37,9 @@ public sealed class SqliteTestDatabase : IAsyncDisposable
     public string DatabasePath { get; }
 
     public TestClock Clock { get; } = new();
+
+    /// <summary>The fake printer layer used by the print centre in tests.</summary>
+    public Nexora.Tests.Printing.FakePrinterGateway Printers { get; } = new();
 
     public ServiceProvider Services { get; }
 
