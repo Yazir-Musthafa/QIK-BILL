@@ -39,7 +39,8 @@ public sealed record ServiceJobView(Guid Id, string Number, DateOnly ReceivedOn,
     public string StatusLabel => Status.Label();
 }
 
-public sealed record ServicePartInput(Guid ProductId, decimal Quantity, DateOnly Date, Guid? UnitId = null, Guid? BatchId = null, string? SerialNumber = null);
+public sealed record ServicePartInput(Guid ProductId, decimal Quantity, DateOnly Date, Guid? UnitId = null, Guid? BatchId = null, string? SerialNumber = null,
+    string? BatchNumber = null);
 
 public sealed record ServiceLabourInput(string Description, decimal Quantity, decimal Rate, string SacCode = "", Guid? TaxCategoryId = null);
 
@@ -238,7 +239,7 @@ public sealed class ServiceJobService(IUnitOfWorkFactory units, IAuthorizer auth
         var number = $"{job.Number}/P{issued + 1}";
         var baseQuantity = await BaseQuantityAsync(unit, product, input.Quantity, input.UnitId, cancellationToken);
         var posted = await stock.PostCoreAsync(unit, session, new StockDocumentInput(StockDocumentType.ServiceIssue, input.Date, job.WarehouseId,
-            $"Parts for job {job.Number}", [new StockLineInput(product.Id, input.Quantity, input.UnitId, BatchId: input.BatchId, SerialNumber: input.SerialNumber)]),
+            $"Parts for job {job.Number}", [new StockLineInput(product.Id, input.Quantity, input.UnitId, BatchId: input.BatchId, BatchNumber: input.BatchNumber, SerialNumber: input.SerialNumber)]),
             number, cancellationToken);
         var line = posted.Lines[0];
         var cost = -line.StockValue;

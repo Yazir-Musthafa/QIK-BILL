@@ -16,7 +16,9 @@
                     xmlns:evm="clr-namespace:Nexora.Desktop.ViewModels.Expenses"
                     xmlns:eviews="clr-namespace:Nexora.Desktop.Views.Expenses"
                     xmlns:cvm="clr-namespace:Nexora.Desktop.ViewModels.Crm"
-                    xmlns:cviews="clr-namespace:Nexora.Desktop.Views.Crm">
+                    xmlns:cviews="clr-namespace:Nexora.Desktop.Views.Crm"
+                    xmlns:srvm="clr-namespace:Nexora.Desktop.ViewModels.Service"
+                    xmlns:srviews="clr-namespace:Nexora.Desktop.Views.Service">
   <DataTemplate DataType="{x:Type vm:SetupWizardViewModel}"><views:SetupWizardView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:LoginViewModel}"><views:LoginView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:ShellViewModel}"><views:ShellView /></DataTemplate>
@@ -47,6 +49,7 @@
   <DataTemplate DataType="{x:Type pvm:PrintCentreViewModel}"><pviews:PrintCentreView /></DataTemplate>
   <DataTemplate DataType="{x:Type evm:ExpensesViewModel}"><eviews:ExpensesView /></DataTemplate>
   <DataTemplate DataType="{x:Type cvm:CrmViewModel}"><cviews:CrmView /></DataTemplate>
+  <DataTemplate DataType="{x:Type srvm:ServiceViewModel}"><srviews:ServiceView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:HelpViewModel}"><views:HelpView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:GalleryViewModel}"><views:GalleryView /></DataTemplate>
 </ResourceDictionary>

@@ -1,0 +1,334 @@
+<UserControl x:Class="Nexora.Desktop.Views.Service.ServiceView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Nexora.Desktop.Controls">
+  <DockPanel Margin="24,20,24,24">
+    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+      <Button DockPanel.Dock="Right" Content="Refresh" Command="{Binding RefreshCommand}" />
+      <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Title}" />
+    </DockPanel>
+    <ListBox DockPanel.Dock="Top" ItemsSource="{Binding Sections}" SelectedItem="{Binding Section}" DisplayMemberPath="Label" Margin="0,0,0,16"
+             AutomationProperties.Name="Service sections">
+      <ListBox.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Orientation="Horizontal" />
+        </ItemsPanelTemplate>
+      </ListBox.ItemsPanel>
+    </ListBox>
+    <TextBlock DockPanel.Dock="Bottom" Text="{Binding Error}" Style="{StaticResource Text.Error}" TextWrapping="Wrap" Visibility="{Binding Error, Converter={StaticResource VisibleWhen}}" />
+
+    <Grid>
+      <!-- Jobs with detail -->
+      <Grid Visibility="{Binding ShowJobs, Converter={StaticResource VisibleWhen}}">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="16" />
+          <ColumnDefinition Width="460" />
+        </Grid.ColumnDefinitions>
+        <DockPanel>
+          <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+            <Button Content="New job card" Style="{StaticResource Button.Primary}" Command="{Binding NewJobCommand}" Margin="0,0,12,4" IsEnabled="{Binding CanManage}" />
+            <TextBox Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" Width="200" MaxLength="60" Margin="0,0,8,4" AutomationProperties.Name="Search jobs (number, customer, serial)" />
+            <Button Content="Search" Command="{Binding ApplySearchCommand}" Margin="0,0,12,4" />
+            <CheckBox Content="Show delivered and cancelled" IsChecked="{Binding ShowClosed}" VerticalAlignment="Center" Margin="0,0,0,4" />
+          </WrapPanel>
+          <controls:QikDataGrid LayoutKey="service.jobs" ItemsSource="{Binding Jobs}" SelectedItem="{Binding Selected}" SelectionMode="Single" AutomationProperties.Name="Service jobs">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Received" Binding="{Binding ReceivedOn, StringFormat=dd-MM-yyyy}" SortMemberPath="ReceivedOn" Width="90" />
+              <DataGridTextColumn Header="Job" Binding="{Binding Number}" Width="130" />
+              <DataGridTextColumn Header="Customer" Binding="{Binding Customer}" Width="150" />
+              <DataGridTextColumn Header="Item" Binding="{Binding Item}" Width="*" MinWidth="140" />
+              <DataGridTextColumn Header="Serial" Binding="{Binding SerialNumber}" Width="110" />
+              <DataGridTextColumn Header="Charge" Binding="{Binding Charge}" Width="90" />
+              <DataGridTextColumn Header="Technician" Binding="{Binding Technician}" Width="110" />
+              <DataGridTextColumn Header="Due" Binding="{Binding EstimatedCompletion, StringFormat=dd-MM-yyyy}" SortMemberPath="EstimatedCompletion" Width="90" />
+              <DataGridCheckBoxColumn Header="Overdue" Binding="{Binding IsOverdue}" Width="70" />
+              <DataGridTextColumn Header="Invoice" Binding="{Binding Invoice}" Width="120" />
+              <DataGridTextColumn Header="Status" Binding="{Binding StatusLabel}" Width="110" />
+            </DataGrid.Columns>
+          </controls:QikDataGrid>
+        </DockPanel>
+
+        <Border Grid.Column="2" Style="{StaticResource Panel}" Visibility="{Binding HasDetail, Converter={StaticResource VisibleWhen}}">
+          <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+            <StackPanel>
+              <StackPanel DataContext="{Binding Detail}">
+                <TextBlock Style="{StaticResource Text.Section}">
+                  <Run Text="{Binding Number, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding StatusLabel, Mode=OneWay}" />
+                </TextBlock>
+                <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap">
+                  <Run Text="{Binding Customer, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding CustomerPhone, Mode=OneWay}" />
+                </TextBlock>
+                <TextBlock Style="{StaticResource Text.Body}" TextWrapping="Wrap" Margin="0,8,0,0">
+                  <Run Text="{Binding Item, Mode=OneWay}" /><Run Text=" · serial " /><Run Text="{Binding SerialNumber, Mode=OneWay}" />
+                </TextBlock>
+                <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap">
+                  <Run Text="Fault: " /><Run Text="{Binding Fault, Mode=OneWay}" />
+                </TextBlock>
+                <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Visibility="{Binding Diagnosis, Converter={StaticResource VisibleWhen}}">
+                  <Run Text="Diagnosis: " /><Run Text="{Binding Diagnosis, Mode=OneWay}" />
+                </TextBlock>
+                <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap">
+                  <Run Text="Technician: " /><Run Text="{Binding Technician, Mode=OneWay}" /><Run Text=" · due " /><Run Text="{Binding EstimatedCompletion, StringFormat=dd-MM-yyyy, Mode=OneWay}" />
+                </TextBlock>
+                <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Visibility="{Binding WarrantyUntil, Converter={StaticResource VisibleWhen}}">
+                  <Run Text="Warranty until " /><Run Text="{Binding WarrantyUntil, StringFormat=dd-MM-yyyy, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding WarrantySource, Mode=OneWay}" />
+                </TextBlock>
+                <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Visibility="{Binding InvoiceNumber, Converter={StaticResource VisibleWhen}}">
+                  <Run Text="Invoice " /><Run Text="{Binding InvoiceNumber, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding InvoiceState, Mode=OneWay}" />
+                </TextBlock>
+                <TextBlock Text="{Binding CancelReason}" Style="{StaticResource Text.Error}" TextWrapping="Wrap" Visibility="{Binding CancelReason, Converter={StaticResource VisibleWhen}}" />
+              </StackPanel>
+
+              <WrapPanel Margin="0,8,0,0">
+                <Button Content="Edit" Command="{Binding EditSelectedCommand}" Margin="0,0,8,4" Visibility="{Binding DetailCanChange, Converter={StaticResource VisibleWhen}}" />
+                <Button Content="Preview job card" Command="{Binding PreviewJobCardCommand}" Margin="0,0,8,4" />
+                <Button Content="Print job card" Command="{Binding PrintJobCardCommand}" Margin="0,0,8,4" />
+                <Button Content="Save as PDF" Command="{Binding ExportJobCardCommand}" Margin="0,0,8,4" />
+                <Button Content="Print invoice" Command="{Binding PrintInvoiceCommand}" Margin="0,0,8,4" Visibility="{Binding DetailInvoicePosted, Converter={StaticResource VisibleWhen}}" />
+              </WrapPanel>
+
+              <StackPanel Visibility="{Binding DetailCanChange, Converter={StaticResource VisibleWhen}}">
+                <TextBlock Text="Date for the next action" Style="{StaticResource Text.Label}" Margin="0,12,0,0" />
+                <TextBox Text="{Binding ActionDate, UpdateSourceTrigger=PropertyChanged}" Width="110" MaxLength="10" HorizontalAlignment="Left" AutomationProperties.Name="Action date (dd-mm-yyyy)" />
+
+                <TextBlock Text="Move to" Style="{StaticResource Text.Label}" Margin="0,8,0,0" />
+                <StackPanel Orientation="Horizontal">
+                  <ComboBox ItemsSource="{Binding NextStatuses}" SelectedItem="{Binding NextStatus}" Width="150" Margin="0,0,8,0" AutomationProperties.Name="Next status" />
+                  <TextBox Text="{Binding MoveReason, UpdateSourceTrigger=PropertyChanged}" Width="150" MaxLength="300" Margin="0,0,8,0" AutomationProperties.Name="Reason (for cancelling)" />
+                  <Button Content="Move" Style="{StaticResource Button.Primary}" Command="{Binding MoveCommand}" />
+                </StackPanel>
+
+                <TextBlock Text="Charge" Style="{StaticResource Text.Label}" Margin="0,8,0,0" />
+                <StackPanel Orientation="Horizontal">
+                  <ComboBox ItemsSource="{Binding Charges}" SelectedItem="{Binding Charge}" Width="150" Margin="0,0,8,0" AutomationProperties.Name="Charge" />
+                  <Button Content="Set charge" Command="{Binding SetChargeCommand}" />
+                </StackPanel>
+              </StackPanel>
+
+              <TextBlock Text="Spare parts" Style="{StaticResource Text.Section}" Margin="0,16,0,4" />
+              <controls:QikDataGrid LayoutKey="service.parts" ItemsSource="{Binding Detail.Parts}" SelectedItem="{Binding SelectedPart}" SelectionMode="Single" MaxHeight="180"
+                                    AutomationProperties.Name="Spare parts">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Header="Date" Binding="{Binding Date, StringFormat=dd-MM-yyyy}" SortMemberPath="Date" Width="80" />
+                  <DataGridTextColumn Header="Part" Binding="{Binding Sku}" Width="*" />
+                  <DataGridTextColumn Header="Qty" Binding="{Binding Quantity}" Width="50" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+                  <DataGridTextColumn Header="Batch" Binding="{Binding Batch}" Width="70" />
+                  <DataGridTextColumn Header="Serial" Binding="{Binding SerialNumber}" Width="90" />
+                  <DataGridTextColumn Header="Cost" Binding="{Binding Cost, Converter={StaticResource Amount}}" SortMemberPath="Cost" Width="80"
+                                      HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+                  <DataGridCheckBoxColumn Header="Returned" Binding="{Binding IsReturned}" Width="70" />
+                  <DataGridCheckBoxColumn Header="Billed" Binding="{Binding IsBilled}" Width="60" />
+                </DataGrid.Columns>
+              </controls:QikDataGrid>
+              <StackPanel Visibility="{Binding DetailCanChange, Converter={StaticResource VisibleWhen}}" Margin="0,4,0,0">
+                <ComboBox ItemsSource="{Binding PartChoices}" SelectedItem="{Binding PartProduct}" DisplayMemberPath="Name" Margin="0,0,0,4" AutomationProperties.Name="Part" />
+                <StackPanel Orientation="Horizontal">
+                  <TextBox Text="{Binding PartQuantity, UpdateSourceTrigger=PropertyChanged}" Width="60" MaxLength="10" Margin="0,0,8,0" AutomationProperties.Name="Part quantity" />
+                  <TextBox Text="{Binding PartBatch, UpdateSourceTrigger=PropertyChanged}" Width="100" MaxLength="40" Margin="0,0,8,0" AutomationProperties.Name="Batch number (batch-tracked parts)" />
+                  <TextBox Text="{Binding PartSerial, UpdateSourceTrigger=PropertyChanged}" Width="110" MaxLength="60" Margin="0,0,8,0" AutomationProperties.Name="Serial number (serial-tracked parts)" />
+                  <Button Content="Issue" Command="{Binding IssuePartCommand}" />
+                </StackPanel>
+                <Button Content="Return selected part" Command="{Binding ReturnPartCommand}" HorizontalAlignment="Left" Margin="0,4,0,0" />
+              </StackPanel>
+
+              <TextBlock Text="Labour" Style="{StaticResource Text.Section}" Margin="0,16,0,4" />
+              <controls:QikDataGrid LayoutKey="service.labour" ItemsSource="{Binding Detail.Labour}" SelectedItem="{Binding SelectedLabour}" SelectionMode="Single" MaxHeight="150"
+                                    AutomationProperties.Name="Labour">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Header="Work" Binding="{Binding Description}" Width="*" />
+                  <DataGridTextColumn Header="SAC" Binding="{Binding SacCode}" Width="70" />
+                  <DataGridTextColumn Header="Qty" Binding="{Binding Quantity}" Width="50" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+                  <DataGridTextColumn Header="Rate" Binding="{Binding Rate, Converter={StaticResource Amount}}" Width="80" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+                  <DataGridTextColumn Header="Amount" Binding="{Binding Amount, Converter={StaticResource Amount}}" SortMemberPath="Amount" Width="90"
+                                      controls:Table.Total="True" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+                </DataGrid.Columns>
+              </controls:QikDataGrid>
+              <StackPanel Visibility="{Binding DetailCanChange, Converter={StaticResource VisibleWhen}}" Margin="0,4,0,0">
+                <TextBox Text="{Binding LabourDescription, UpdateSourceTrigger=PropertyChanged}" MaxLength="200" Margin="0,0,0,4" AutomationProperties.Name="Labour description" />
+                <StackPanel Orientation="Horizontal">
+                  <TextBox Text="{Binding LabourQuantity, UpdateSourceTrigger=PropertyChanged}" Width="50" MaxLength="8" Margin="0,0,8,0" AutomationProperties.Name="Labour quantity" />
+                  <TextBox Text="{Binding LabourRate, UpdateSourceTrigger=PropertyChanged}" Width="80" MaxLength="12" Margin="0,0,8,0" AutomationProperties.Name="Labour rate" />
+                  <TextBox Text="{Binding LabourSac, UpdateSourceTrigger=PropertyChanged}" Width="70" MaxLength="8" Margin="0,0,8,0" AutomationProperties.Name="SAC code" />
+                  <ComboBox ItemsSource="{Binding TaxCategories}" SelectedItem="{Binding LabourTax}" DisplayMemberPath="Name" Width="110" Margin="0,0,8,0" AutomationProperties.Name="Labour tax category" />
+                  <Button Content="Add" Command="{Binding AddLabourCommand}" />
+                </StackPanel>
+                <WrapPanel Margin="0,4,0,0">
+                  <Button Content="Remove selected labour" Command="{Binding RemoveLabourCommand}" Margin="0,0,8,4" />
+                  <Button Content="Create service invoice" Style="{StaticResource Button.Primary}" Command="{Binding CreateInvoiceCommand}" Margin="0,0,8,4"
+                          Visibility="{Binding CanInvoice, Converter={StaticResource VisibleWhen}}" />
+                </WrapPanel>
+                <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap"
+                           Text="Warranty jobs are not invoiced; their parts cost goes to Warranty and Service Costs. The invoice is created as a draft to post in Sales invoices." />
+              </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
+        </Border>
+      </Grid>
+
+      <!-- Job card editor -->
+      <Border Style="{StaticResource Panel}" Visibility="{Binding ShowEditor, Converter={StaticResource VisibleWhen}}" IsEnabled="{Binding CanManage}" MaxWidth="760" HorizontalAlignment="Left">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+          <StackPanel>
+            <TextBlock Text="{Binding EditorTitle}" Style="{StaticResource Text.Section}" Margin="0,0,0,12" />
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="Received on" Style="{StaticResource Text.Label}" />
+                <TextBox Text="{Binding ReceivedOn, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" Width="110" HorizontalAlignment="Left" Margin="0,0,0,8"
+                         AutomationProperties.Name="Received on (dd-mm-yyyy)" />
+                <TextBlock Text="Customer" Style="{StaticResource Text.Label}" />
+                <ComboBox ItemsSource="{Binding CustomerChoices}" SelectedItem="{Binding JobCustomer}" DisplayMemberPath="Name" IsEditable="True" IsTextSearchEnabled="True" Margin="0,0,0,8"
+                          AutomationProperties.Name="Customer" />
+                <TextBlock Text="Serial number" Style="{StaticResource Text.Label}" />
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                  <TextBox Text="{Binding JobSerial, UpdateSourceTrigger=PropertyChanged}" Width="200" MaxLength="60" Margin="0,0,8,0" AutomationProperties.Name="Serial number" />
+                  <Button Content="Check warranty" Command="{Binding CheckWarrantyCommand}" />
+                </StackPanel>
+                <TextBlock Text="{Binding WarrantyText}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                <TextBlock Text="Product (if it is one of ours)" Style="{StaticResource Text.Label}" />
+                <ComboBox ItemsSource="{Binding ProductChoices}" SelectedItem="{Binding JobProduct}" DisplayMemberPath="Name" Margin="0,0,0,8" AutomationProperties.Name="Product" />
+                <TextBlock Text="Item" Style="{StaticResource Text.Label}" />
+                <TextBox Text="{Binding JobItem, UpdateSourceTrigger=PropertyChanged}" MaxLength="200" Margin="0,0,0,8" AutomationProperties.Name="Item description" />
+                <TextBlock Text="Accessories received" Style="{StaticResource Text.Label}" />
+                <TextBox Text="{Binding JobAccessories, UpdateSourceTrigger=PropertyChanged}" MaxLength="300" Margin="0,0,0,8" AutomationProperties.Name="Accessories" />
+              </StackPanel>
+              <StackPanel Grid.Column="2">
+                <TextBlock Text="Fault reported" Style="{StaticResource Text.Label}" />
+                <TextBox Text="{Binding JobFault, UpdateSourceTrigger=PropertyChanged}" MaxLength="1000" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" Margin="0,0,0,8"
+                         AutomationProperties.Name="Fault" />
+                <TextBlock Text="Diagnosis" Style="{StaticResource Text.Label}" />
+                <TextBox Text="{Binding JobDiagnosis, UpdateSourceTrigger=PropertyChanged}" MaxLength="1000" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" Margin="0,0,0,8"
+                         AutomationProperties.Name="Diagnosis" />
+                <TextBlock Text="Technician" Style="{StaticResource Text.Label}" />
+                <ComboBox ItemsSource="{Binding Technicians}" SelectedItem="{Binding JobTechnician}" DisplayMemberPath="Name" Margin="0,0,0,8" AutomationProperties.Name="Technician" />
+                <TextBlock Text="Estimated completion" Style="{StaticResource Text.Label}" />
+                <TextBox Text="{Binding JobEstimate, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" Width="110" HorizontalAlignment="Left" Margin="0,0,0,8"
+                         AutomationProperties.Name="Estimated completion (dd-mm-yyyy)" />
+                <TextBlock Text="Parts warehouse" Style="{StaticResource Text.Label}" />
+                <ComboBox ItemsSource="{Binding Warehouses}" SelectedItem="{Binding JobWarehouse}" DisplayMemberPath="Name" Margin="0,0,0,8" AutomationProperties.Name="Parts warehouse" />
+              </StackPanel>
+            </Grid>
+            <WrapPanel Margin="0,8,0,0">
+              <Button Content="Save job card" Style="{StaticResource Button.Primary}" Command="{Binding SaveJobCommand}" Margin="0,0,8,4" />
+              <Button Content="Cancel" Command="{Binding CancelEditCommand}" Margin="0,0,8,4" />
+            </WrapPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+
+      <!-- Maintenance schedules -->
+      <Grid Visibility="{Binding ShowMaintenance, Converter={StaticResource VisibleWhen}}">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="16" />
+          <ColumnDefinition Width="380" />
+        </Grid.ColumnDefinitions>
+        <DockPanel>
+          <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+            <Button Content="New schedule" Style="{StaticResource Button.Primary}" Command="{Binding NewScheduleCommand}" Margin="0,0,8,4" IsEnabled="{Binding CanManage}" />
+            <Button Content="Create due reminders" Command="{Binding GenerateRemindersCommand}" Margin="0,0,8,4" IsEnabled="{Binding CanManage}" />
+          </WrapPanel>
+          <controls:QikDataGrid LayoutKey="service.maintenance" ItemsSource="{Binding Schedules}" SelectedItem="{Binding SelectedSchedule}" SelectionMode="Single"
+                                AutomationProperties.Name="Maintenance schedules">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Customer" Binding="{Binding Customer}" Width="150" />
+              <DataGridTextColumn Header="Item" Binding="{Binding Item}" Width="*" />
+              <DataGridTextColumn Header="Serial" Binding="{Binding SerialNumber}" Width="110" />
+              <DataGridTextColumn Header="Every (months)" Binding="{Binding IntervalMonths}" Width="100" />
+              <DataGridTextColumn Header="Next due" Binding="{Binding NextDueDate, StringFormat=dd-MM-yyyy}" SortMemberPath="NextDueDate" Width="90" />
+              <DataGridTextColumn Header="Assignee" Binding="{Binding Assignee}" Width="110" />
+              <DataGridCheckBoxColumn Header="Active" Binding="{Binding IsActive}" Width="60" />
+            </DataGrid.Columns>
+          </controls:QikDataGrid>
+        </DockPanel>
+        <Border Grid.Column="2" Style="{StaticResource Panel}" IsEnabled="{Binding CanManage}">
+          <StackPanel>
+            <TextBlock Text="Schedule" Style="{StaticResource Text.Section}" Margin="0,0,0,8" />
+            <TextBlock Text="Customer" Style="{StaticResource Text.Label}" />
+            <ComboBox ItemsSource="{Binding CustomerChoices}" SelectedItem="{Binding ScheduleCustomer}" DisplayMemberPath="Name" Margin="0,0,0,8" AutomationProperties.Name="Schedule customer" />
+            <TextBlock Text="Item" Style="{StaticResource Text.Label}" />
+            <TextBox Text="{Binding ScheduleItem, UpdateSourceTrigger=PropertyChanged}" MaxLength="200" Margin="0,0,0,8" AutomationProperties.Name="Schedule item" />
+            <TextBlock Text="Serial number" Style="{StaticResource Text.Label}" />
+            <TextBox Text="{Binding ScheduleSerial, UpdateSourceTrigger=PropertyChanged}" MaxLength="60" Margin="0,0,0,8" AutomationProperties.Name="Schedule serial" />
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="Every (months)" Style="{StaticResource Text.Label}" />
+                <TextBox Text="{Binding ScheduleInterval, UpdateSourceTrigger=PropertyChanged}" MaxLength="3" AutomationProperties.Name="Interval in months" />
+              </StackPanel>
+              <StackPanel Grid.Column="2">
+                <TextBlock Text="Next due" Style="{StaticResource Text.Label}" />
+                <TextBox Text="{Binding ScheduleNextDue, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" AutomationProperties.Name="Next due (dd-mm-yyyy)" />
+              </StackPanel>
+            </Grid>
+            <TextBlock Text="Assignee" Style="{StaticResource Text.Label}" />
+            <ComboBox ItemsSource="{Binding Technicians}" SelectedItem="{Binding ScheduleAssignee}" DisplayMemberPath="Name" Margin="0,0,0,8" AutomationProperties.Name="Schedule assignee" />
+            <TextBlock Text="Notes" Style="{StaticResource Text.Label}" />
+            <TextBox Text="{Binding ScheduleNotes, UpdateSourceTrigger=PropertyChanged}" MaxLength="500" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="48" Margin="0,0,0,8"
+                     AutomationProperties.Name="Schedule notes" />
+            <WrapPanel>
+              <Button Content="Save" Style="{StaticResource Button.Primary}" Command="{Binding SaveScheduleCommand}" Margin="0,0,8,4" />
+              <Button Content="Pause or resume" Command="{Binding ToggleScheduleCommand}" Margin="0,0,8,4" />
+            </WrapPanel>
+            <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
+                       Text="Due reminders become follow-up tasks (once per due date), shown on the dashboard and in notifications." />
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- History -->
+      <DockPanel Visibility="{Binding ShowHistory, Converter={StaticResource VisibleWhen}}">
+        <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+          <StackPanel Width="240" Margin="0,0,8,4">
+            <TextBlock Text="Customer" Style="{StaticResource Text.Label}" />
+            <ComboBox ItemsSource="{Binding CustomerChoices}" SelectedItem="{Binding HistoryCustomer}" DisplayMemberPath="Name" AutomationProperties.Name="History customer" />
+          </StackPanel>
+          <StackPanel Width="180" Margin="0,0,8,4">
+            <TextBlock Text="or serial number" Style="{StaticResource Text.Label}" />
+            <TextBox Text="{Binding HistorySerial, UpdateSourceTrigger=PropertyChanged}" MaxLength="60" AutomationProperties.Name="History serial number" />
+          </StackPanel>
+          <Button Content="Show" Command="{Binding ShowHistoryCommand}" VerticalAlignment="Bottom" Margin="0,0,0,4" />
+        </WrapPanel>
+        <controls:QikDataGrid LayoutKey="service.history" ItemsSource="{Binding History}" AutomationProperties.Name="Service history">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Received" Binding="{Binding ReceivedOn, StringFormat=dd-MM-yyyy}" SortMemberPath="ReceivedOn" Width="90" />
+            <DataGridTextColumn Header="Job" Binding="{Binding Number}" Width="130" />
+            <DataGridTextColumn Header="Customer" Binding="{Binding Customer}" Width="150" />
+            <DataGridTextColumn Header="Item" Binding="{Binding Item}" Width="*" />
+            <DataGridTextColumn Header="Serial" Binding="{Binding SerialNumber}" Width="110" />
+            <DataGridTextColumn Header="Fault" Binding="{Binding Fault}" Width="180" />
+            <DataGridTextColumn Header="Charge" Binding="{Binding Charge}" Width="90" />
+            <DataGridTextColumn Header="Status" Binding="{Binding StatusLabel}" Width="110" />
+            <DataGridTextColumn Header="Delivered" Binding="{Binding DeliveredOn, StringFormat=dd-MM-yyyy}" SortMemberPath="DeliveredOn" Width="90" />
+          </DataGrid.Columns>
+        </controls:QikDataGrid>
+      </DockPanel>
+
+      <!-- Settings -->
+      <Border Style="{StaticResource Panel}" Visibility="{Binding ShowSettings, Converter={StaticResource VisibleWhen}}" IsEnabled="{Binding CanManage}" MaxWidth="520" HorizontalAlignment="Left"
+              VerticalAlignment="Top">
+        <StackPanel>
+          <TextBlock Text="Service settings" Style="{StaticResource Text.Section}" Margin="0,0,0,8" />
+          <TextBlock Text="Default SAC code for labour" Style="{StaticResource Text.Label}" />
+          <TextBox Text="{Binding DefaultLabourSac, UpdateSourceTrigger=PropertyChanged}" MaxLength="8" Width="120" HorizontalAlignment="Left" Margin="0,0,0,4"
+                   AutomationProperties.Name="Default labour SAC code" />
+          <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
+                     Text="Used when a labour line has no SAC code. QIK Suite does not choose one for you; confirm it with your tax adviser." />
+          <TextBlock Text="Remind this many days before maintenance is due" Style="{StaticResource Text.Label}" />
+          <TextBox Text="{Binding ReminderLeadDays, UpdateSourceTrigger=PropertyChanged}" MaxLength="3" Width="80" HorizontalAlignment="Left" Margin="0,0,0,12"
+                   AutomationProperties.Name="Reminder lead days" />
+          <Button Content="Save settings" Style="{StaticResource Button.Primary}" Command="{Binding SaveSettingsCommand}" HorizontalAlignment="Left" />
+        </StackPanel>
+      </Border>
+    </Grid>
+  </DockPanel>
+</UserControl>

@@ -293,6 +293,7 @@ public sealed partial class ShellViewModel : ObservableObject
         ["printing"] = typeof(Printing.PrintCentreViewModel),
         ["accounts.expenses"] = typeof(Expenses.ExpensesViewModel),
         ["crm"] = typeof(Crm.CrmViewModel),
+        ["service"] = typeof(Service.ServiceViewModel),
     };
 
     private void RefreshPalette()

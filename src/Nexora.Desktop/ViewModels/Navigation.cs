@@ -35,7 +35,7 @@ public static class NavCatalog
         new("accounts.opening", "Opening balances", "\uE81C", "Accounts", null, "Balances brought into QIK Suite at the start of a year.", Nexora.Domain.Security.Permissions.AccountsManage),
         new("accounts.expenses", "Expenses", "", "Accounts", null, "Expense vouchers, categories, approvals and recurring expenses.", Nexora.Domain.Security.Permissions.ExpensesView),
         new("crm", "CRM", "", "Relationships", null, "Leads, follow-ups, activity timeline and communication history.", Nexora.Domain.Security.Permissions.CrmView),
-        new("service", "Service jobs", "", "Relationships", 7, "Service tickets, job cards, warranty and spare-part consumption.", Nexora.Domain.Security.Permissions.ServiceView),
+        new("service", "Service jobs", "", "Relationships", null, "Service tickets, job cards, warranty and spare-part consumption.", Nexora.Domain.Security.Permissions.ServiceView),
         new("reports", "Reports", "", "Insights", 8, "Sales, purchase, stock, GST and financial reports.", Nexora.Domain.Security.Permissions.ReportsView),
         new("printing", "Print centre", "", "System", null, "Printers, verified test pages, print preferences, labels, print history and settings.", Nexora.Domain.Security.Permissions.PrintingManage),
         new(Settings, "Settings", "", "System", null, "Appearance, company profile, users, roles and the audit trail."),

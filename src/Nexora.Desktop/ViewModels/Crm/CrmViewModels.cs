@@ -7,7 +7,6 @@ using Nexora.Application.Billing;
 using Nexora.Application.Crm;
 using Nexora.Application.Inventory;
 using Nexora.Application.Security;
-using Nexora.Domain.Billing;
 using Nexora.Domain.Crm;
 using Nexora.Domain.Security;
 using Nexora.Desktop.Services;
@@ -75,7 +74,7 @@ public sealed partial class CrmViewModel : PageViewModel, ILoadable
 
     public ObservableCollection<Choice> ProductChoices { get; } = [];
 
-    public ObservableCollection<PartyRow> Customers { get; } = [];
+    public ObservableCollection<PartyChoice> Customers { get; } = [];
 
     public ObservableCollection<ContactRow> Contacts { get; } = [];
 
@@ -120,7 +119,7 @@ public sealed partial class CrmViewModel : PageViewModel, ILoadable
     [ObservableProperty] private EnquiryStatus _enquiryStatus = EnquiryStatus.Open;
 
     // Customer view
-    [ObservableProperty] private PartyRow? _selectedCustomer;
+    [ObservableProperty] private PartyChoice? _selectedCustomer;
     [ObservableProperty] private CustomerOverview? _overview;
     [ObservableProperty] private string _contactName = string.Empty;
     [ObservableProperty] private string _contactRole = string.Empty;
@@ -185,7 +184,7 @@ public sealed partial class CrmViewModel : PageViewModel, ILoadable
         EnquiryProduct = ProductChoices.FirstOrDefault(p => p.Id == value.ProductId) ?? ProductChoices.FirstOrDefault();
     }
 
-    partial void OnSelectedCustomerChanged(PartyRow? value) => _ = LoadOverviewAsync();
+    partial void OnSelectedCustomerChanged(PartyChoice? value) => _ = LoadOverviewAsync();
 
     partial void OnSelectedContactChanged(ContactRow? value)
     {
@@ -215,28 +214,18 @@ public sealed partial class CrmViewModel : PageViewModel, ILoadable
             case "customers":
                 var selected = SelectedCustomer?.Id;
                 Customers.Clear();
-                foreach (var row in await CustomersAsync()) Customers.Add(row);
+                foreach (var row in await _parties.CustomerChoicesAsync()) Customers.Add(row);
                 SelectedCustomer = Customers.FirstOrDefault(c => c.Id == selected);
                 break;
         }
     });
-
-    private async Task<IReadOnlyList<PartyRow>> CustomersAsync()
-    {
-        if (_authorizer.Has(Permissions.SalesView)) return await _parties.ListAsync(PartyKind.Customer);
-        // Without sales access, names come from the CRM records (no balances).
-        var rows = new List<PartyRow>();
-        foreach (var c in CustomerChoices.Where(c => c.Id is not null)) rows.Add((await _crm.CustomerAsync(c.Id!.Value)).Customer);
-        return rows;
-    }
 
     private async Task LoadReferenceDataAsync()
     {
         Members.Add(new Choice(null, "(nobody)"));
         foreach (var m in await _crm.MembersAsync()) Members.Add(new Choice(m.UserId, m.DisplayName));
         CustomerChoices.Add(new Choice(null, "(none)"));
-        if (_authorizer.Has(Permissions.SalesView))
-            foreach (var p in await _parties.ListAsync(PartyKind.Customer)) CustomerChoices.Add(new Choice(p.Id, p.Name));
+        foreach (var p in await _parties.CustomerChoicesAsync()) CustomerChoices.Add(new Choice(p.Id, p.Name));
         ProductChoices.Add(new Choice(null, "(none)"));
         if (_authorizer.Has(Permissions.InventoryView))
             foreach (var p in (await _catalogue.ListProductsAsync()).Where(p => !p.HasVariants)) ProductChoices.Add(new Choice(p.Id, $"{p.Sku} · {p.DisplayName}"));

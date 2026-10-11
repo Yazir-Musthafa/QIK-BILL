@@ -34,9 +34,26 @@ public sealed record StatementLine(DateOnly Date, string Voucher, string Particu
 public sealed record PartyStatement(PartyRow Party, DateOnly From, DateOnly To, decimal Opening, IReadOnlyList<StatementLine> Lines, decimal Closing,
     IReadOnlyList<OpenItemRow> OpenItems);
 
+/// <summary>A customer to pick on a CRM or service screen: name and phone only, no balances.</summary>
+public sealed record PartyChoice(Guid Id, string Name, string Phone);
+
 /// <summary>Customers and suppliers. Creating a party creates its ledger under Sundry Debtors or Sundry Creditors.</summary>
 public sealed class PartyService(IUnitOfWorkFactory units, IAuthorizer authorizer, ILedgerPoster ledger)
 {
+    /// <summary>
+    /// Active customers by name for picking on a job, lead or follow-up. Open to sales, CRM and service users, who may not
+    /// see sales; balances stay behind <see cref="ListAsync"/>.
+    /// </summary>
+    public async Task<IReadOnlyList<PartyChoice>> CustomerChoicesAsync(CancellationToken cancellationToken = default)
+    {
+        authorizer.RequireSession();
+        if (!authorizer.Has(Permissions.SalesView) && !authorizer.Has(Permissions.CrmView) && !authorizer.Has(Permissions.ServiceView))
+            authorizer.Demand(Permissions.SalesView);
+        await using var unit = await units.BeginAsync(readOnly: true, cancellationToken);
+        return (await unit.ListAsync<Party>(p => p.Kind == PartyKind.Customer && p.IsActive, cancellationToken))
+            .OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase).Select(p => new PartyChoice(p.Id, p.Name, p.Phone)).ToList();
+    }
+
     public async Task<IReadOnlyList<PartyRow>> ListAsync(PartyKind kind, bool includeInactive = false, CancellationToken cancellationToken = default)
     {
         authorizer.Demand(ViewPermission(kind));

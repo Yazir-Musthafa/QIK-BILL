@@ -192,6 +192,24 @@ public sealed class ServicePartsAndBillingTests : ServiceTestBase
     }
 
     [Fact]
+    public async Task Batch_parts_are_issued_from_an_existing_batch_by_number()
+    {
+        var gasket = await Catalogue.SaveProductAsync(new ProductInput(null, new ProductDetails("GASKET", "Gasket", TaxCategoryId: Gst18, PurchasePrice: 40, SellingPrice: 60),
+            Units["PCS"], TrackingMode.Batch, false));
+        await BuyAsync("PW/11", new BillingLineInput(gasket, 5, BatchNumber: "G-1"));
+        var id = await JobAsync();
+
+        await Assert.ThrowsAsync<WorkspaceValidationException>(() => Service.IssuePartAsync(id, new ServicePartInput(gasket, 1, October)));   // batch needed
+        await Assert.ThrowsAsync<WorkspaceValidationException>(() => Service.IssuePartAsync(id, new ServicePartInput(gasket, 1, October, BatchNumber: "G-9")));   // issues never create batches
+        await Service.IssuePartAsync(id, new ServicePartInput(gasket, 2, October, BatchNumber: "g-1"));
+
+        var part = Assert.Single((await Service.GetAsync(id)).Parts);
+        Assert.Equal(("G-1", 2m, 80m), (part.Batch, part.Quantity, part.Cost!.Value));
+        Assert.Equal(3m, (await Stock.BalancesAsync()).Single(b => b.ProductId == gasket).Quantity);
+        Assert.True((await Stock.ReconcileAsync(October)).IsReconciled);
+    }
+
+    [Fact]
     public async Task Labour_cannot_change_once_the_job_is_invoiced()
     {
         var id = await JobAsync();
@@ -262,6 +280,19 @@ public sealed class ServiceAccessTests : ServiceTestBase
         await SignInAsAsync("bina", "Billing Operator");
         await Assert.ThrowsAsync<AccessDeniedException>(() => Service.ListAsync());
         await Assert.ThrowsAsync<AccessDeniedException>(() => JobAsync());
+    }
+
+    [Fact]
+    public async Task Service_staff_can_pick_customers_without_seeing_sales_balances()
+    {
+        await SignInAsAsync("sam", "Service Staff");
+        var choices = await Parties.CustomerChoicesAsync();
+        Assert.Contains(choices, c => c.Id == Local && c.Name == "Meera Electricals");
+        await Assert.ThrowsAsync<AccessDeniedException>(() => Parties.ListAsync(PartyKind.Customer));
+
+        await SignInAsAdministratorAsync();
+        await SignInAsAsync("ivan", "Inventory Manager");
+        await Assert.ThrowsAsync<AccessDeniedException>(() => Parties.CustomerChoicesAsync());
     }
 
     [Fact]
