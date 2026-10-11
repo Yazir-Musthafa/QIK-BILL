@@ -412,6 +412,9 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
         if (Preview is not { State: BillingStatus.Draft } draft) return;
         await RunAsync(async () =>
         {
+            // The editor handles goods lines only; service and issued-part lines are changed where they came from.
+            if (draft.Lines.Any(l => l.LineType != BillingLineType.Goods))
+                throw new WorkspaceValidationException("This draft has service or issued-part lines, which this editor cannot change. Post it as it is, or change it on its service job.");
             if (Products.Count == 0) await LoadReferenceDataAsync();
             EditingId = draft.Id;
             OriginalId = draft.OriginalDocumentId;

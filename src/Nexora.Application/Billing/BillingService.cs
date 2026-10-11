@@ -123,6 +123,9 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
             document = await unit.FindAsync<BillingDocument>(id, cancellationToken) ?? throw new WorkspaceValidationException("That draft no longer exists.");
             if (document.Kind != input.Kind) throw new WorkspaceValidationException("The document type cannot be changed.");
             Guard(document.EnsureDraft);
+            // A service job's invoice carries its issued parts (already out of stock) and labour; it changes on the job only.
+            if ((await unit.ListAsync<Domain.Service.ServiceJob>(j => j.InvoiceId == id, cancellationToken)).FirstOrDefault() is { } job)
+                throw new WorkspaceValidationException($"This draft belongs to service job {job.Number}. Change its parts and labour on the job, or delete the draft and create it again from the job.");
             foreach (var line in await unit.ListAsync<BillingLine>(l => l.DocumentId == id, cancellationToken)) unit.Remove(line);
         }
         else

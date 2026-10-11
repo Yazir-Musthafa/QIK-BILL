@@ -141,6 +141,24 @@ public sealed class ServicePartsAndBillingTests : ServiceTestBase
     }
 
     [Fact]
+    public async Task A_service_invoice_draft_cannot_be_resaved_as_ordinary_goods()
+    {
+        var id = await JobAsync();
+        await Service.IssuePartAsync(id, new ServicePartInput(Led, 2, October));
+        var invoiceId = await Service.CreateInvoiceAsync(id);
+
+        // Re-saving the issued part as a goods line would take the part out of stock a second time on posting.
+        var resave = new BillingDraftInput(invoiceId, BillingDocumentKind.SalesInvoice, October, Local, Main, SettlementMode.Credit, [new BillingLineInput(Led, 2)]);
+        var refused = await Assert.ThrowsAsync<WorkspaceValidationException>(() => Billing.SaveDraftAsync(resave));
+        Assert.Contains("service job", refused.Message, StringComparison.Ordinal);
+        Assert.Equal(BillingLineType.IssuedPart, Assert.Single((await Billing.GetAsync(invoiceId)).Lines).LineType);
+
+        await Billing.PostAsync(invoiceId);
+        Assert.Equal(18m, await OnHandAsync(Led));
+        await AssertBooksBalanceAsync();
+    }
+
+    [Fact]
     public async Task Warranty_job_charges_nothing_but_parts_still_leave_stock_into_warranty_costs()
     {
         var id = await JobAsync("IMEI-1");
