@@ -12,6 +12,8 @@ public static class DependencyInjection
         services.AddSingleton<ChartOfAccountsService>();
         services.AddSingleton<VoucherService>();
         services.AddSingleton<LedgerService>();
+        services.AddSingleton<CostCentreService>();
+        services.AddSingleton<BankReconciliationService>();
         services.AddSingleton<Nexora.Application.Abstractions.ILedgerPoster, LedgerPoster>();
         return services;
     }

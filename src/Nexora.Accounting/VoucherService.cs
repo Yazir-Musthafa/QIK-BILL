@@ -13,7 +13,8 @@ namespace Nexora.Accounting;
 
 public sealed record VoucherInput(Guid? Id, VoucherType Type, DateOnly Date, string Narration, IReadOnlyList<VoucherLineInput> Lines);
 
-public sealed record VoucherLineRow(int LineNumber, Guid AccountId, string AccountCode, string AccountName, decimal Debit, decimal Credit, string? Narration);
+public sealed record VoucherLineRow(int LineNumber, Guid AccountId, string AccountCode, string AccountName, decimal Debit, decimal Credit, string? Narration,
+    Guid? CostCentreId = null);
 
 public sealed record VoucherDetails(Guid Id, VoucherType Type, string? Number, DateOnly Date, string Narration, VoucherStatus Status,
     decimal Total, Guid? ReversesVoucherId, Guid? ReversedById, string? ReversedByNumber, IReadOnlyList<VoucherLineRow> Lines);
@@ -67,7 +68,7 @@ public sealed class VoucherService(
         return new VoucherDetails(voucher.Id, voucher.Type, voucher.Number, voucher.Date, voucher.Narration, voucher.Status,
             lines.Sum(l => l.Debit), voucher.ReversesVoucherId, reversal?.Id, reversal?.Number,
             lines.OrderBy(l => l.LineNumber)
-                .Select(l => new VoucherLineRow(l.LineNumber, l.AccountId, accounts[l.AccountId].Code, accounts[l.AccountId].Name, l.Debit, l.Credit, l.Narration))
+                .Select(l => new VoucherLineRow(l.LineNumber, l.AccountId, accounts[l.AccountId].Code, accounts[l.AccountId].Name, l.Debit, l.Credit, l.Narration, l.CostCentreId))
                 .ToList());
     }
 
@@ -254,6 +255,19 @@ public sealed class VoucherService(
             if (!account.IsActive) throw new WorkspaceValidationException($"Line {line.LineNumber}: {account.Name} is inactive.");
             if (!system && account.Kind == AccountKind.Inventory)
                 throw new WorkspaceValidationException($"Line {line.LineNumber}: {account.Name} is kept by stock documents. Record stock changes under Stock so stock value and the ledger stay equal.");
+        }
+
+        var centreIds = voucher.Lines.Where(l => l.CostCentreId is not null).Select(l => l.CostCentreId!.Value).Distinct().ToList();
+        if (centreIds.Count > 0)
+        {
+            var centres = (await unit.ListAsync<CostCentre>(c => centreIds.Contains(c.Id), cancellationToken)).ToDictionary(c => c.Id);
+            foreach (var line in voucher.Lines.Where(l => l.CostCentreId is not null))
+            {
+                if (!centres.TryGetValue(line.CostCentreId!.Value, out var centre)) throw new WorkspaceValidationException($"Line {line.LineNumber}: that cost centre no longer exists.");
+                if (!centre.IsActive && voucher.ReversesVoucherId is null) throw new WorkspaceValidationException($"Line {line.LineNumber}: cost centre {centre.Name} is inactive.");
+                if (accounts[line.AccountId].Nature is not (AccountNature.Income or AccountNature.Expense))
+                    throw new WorkspaceValidationException($"Line {line.LineNumber}: only income and expense lines can have a cost centre.");
+            }
         }
 
         VoucherRules.Check(voucher, accounts);
