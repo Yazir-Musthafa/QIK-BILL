@@ -291,6 +291,8 @@ public sealed partial class ShellViewModel : ObservableObject
         ["purchases.invoices"] = typeof(Billing.PurchaseBillingViewModel),
         ["purchases.suppliers"] = typeof(Billing.SuppliersViewModel),
         ["printing"] = typeof(Printing.PrintCentreViewModel),
+        ["accounts.expenses"] = typeof(Expenses.ExpensesViewModel),
+        ["crm"] = typeof(Crm.CrmViewModel),
     };
 
     private void RefreshPalette()

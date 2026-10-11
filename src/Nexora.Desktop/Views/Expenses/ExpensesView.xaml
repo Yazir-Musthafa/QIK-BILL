@@ -1,0 +1,378 @@
+<UserControl x:Class="Nexora.Desktop.Views.Expenses.ExpensesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Nexora.Desktop.Controls">
+  <DockPanel Margin="24,20,24,24">
+    <TextBlock DockPanel.Dock="Top" Text="{Binding Title}" Style="{StaticResource Text.Title}" Margin="0,0,0,12" />
+    <ListBox DockPanel.Dock="Top" ItemsSource="{Binding Sections}" SelectedItem="{Binding Section}" DisplayMemberPath="Label" Margin="0,0,0,16"
+             AutomationProperties.Name="Expense sections">
+      <ListBox.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Orientation="Horizontal" />
+        </ItemsPanelTemplate>
+      </ListBox.ItemsPanel>
+    </ListBox>
+    <TextBlock DockPanel.Dock="Bottom" Text="{Binding Error}" Style="{StaticResource Text.Error}" TextWrapping="Wrap" Visibility="{Binding Error, Converter={StaticResource VisibleWhen}}" />
+
+    <Grid>
+      <!-- List with filters and detail -->
+      <Grid Visibility="{Binding ShowList, Converter={StaticResource VisibleWhen}}">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="16" />
+          <ColumnDefinition Width="420" />
+        </Grid.ColumnDefinitions>
+        <DockPanel>
+          <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+            <StackPanel Width="110" Margin="0,0,8,4">
+              <TextBlock Text="From" Style="{StaticResource Text.Label}" />
+              <TextBox Text="{Binding FromDate, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" AutomationProperties.Name="From date (dd-mm-yyyy)" />
+            </StackPanel>
+            <StackPanel Width="110" Margin="0,0,8,4">
+              <TextBlock Text="To" Style="{StaticResource Text.Label}" />
+              <TextBox Text="{Binding ToDate, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" AutomationProperties.Name="To date (dd-mm-yyyy)" />
+            </StackPanel>
+            <StackPanel Width="140" Margin="0,0,8,4">
+              <TextBlock Text="Status" Style="{StaticResource Text.Label}" />
+              <ComboBox ItemsSource="{Binding StatusFilters}" SelectedItem="{Binding StatusFilter}" AutomationProperties.Name="Status filter" />
+            </StackPanel>
+            <StackPanel Width="160" Margin="0,0,8,4">
+              <TextBlock Text="Category" Style="{StaticResource Text.Label}" />
+              <ComboBox ItemsSource="{Binding CategoryFilters}" SelectedItem="{Binding CategoryFilter}" DisplayMemberPath="Name" AutomationProperties.Name="Category filter" />
+            </StackPanel>
+            <StackPanel Width="130" Margin="0,0,8,4">
+              <TextBlock Text="Department" Style="{StaticResource Text.Label}" />
+              <TextBox Text="{Binding DepartmentFilter, UpdateSourceTrigger=PropertyChanged}" MaxLength="60" AutomationProperties.Name="Department filter" />
+            </StackPanel>
+            <Button Content="Apply" Command="{Binding ApplyFilterCommand}" VerticalAlignment="Bottom" Margin="0,0,0,4" />
+          </WrapPanel>
+          <controls:QikDataGrid LayoutKey="expenses" ItemsSource="{Binding Rows}" SelectedItem="{Binding Selected}" SelectionMode="Single" AutomationProperties.Name="Expenses">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Date" Binding="{Binding Date, StringFormat=dd-MM-yyyy}" SortMemberPath="Date" Width="90" />
+              <DataGridTextColumn Header="Number" Binding="{Binding Number}" Width="130" />
+              <DataGridTextColumn Header="Category" Binding="{Binding Categories}" Width="*" MinWidth="120" />
+              <DataGridTextColumn Header="Supplier" Binding="{Binding Supplier}" Width="120" />
+              <DataGridTextColumn Header="Employee" Binding="{Binding Employee}" Width="110" />
+              <DataGridTextColumn Header="Paid from" Binding="{Binding PaidFrom}" Width="110" />
+              <DataGridTextColumn Header="Method" Binding="{Binding Method}" Width="90" />
+              <DataGridTextColumn Header="Branch" Binding="{Binding Branch}" Width="100" />
+              <DataGridTextColumn Header="Department" Binding="{Binding Department}" Width="100" />
+              <DataGridTextColumn Header="Amount" Binding="{Binding Taxable, Converter={StaticResource Amount}}" SortMemberPath="Taxable" Width="100"
+                                  controls:Table.Total="True" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+              <DataGridTextColumn Header="GST" Binding="{Binding Tax, Converter={StaticResource Amount}}" SortMemberPath="Tax" Width="90"
+                                  controls:Table.Total="True" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+              <DataGridTextColumn Header="Total" Binding="{Binding Total, Converter={StaticResource Amount}}" SortMemberPath="Total" Width="100"
+                                  controls:Table.Total="True" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+              <DataGridTextColumn Header="Status" Binding="{Binding StatusLabel}" Width="120" />
+            </DataGrid.Columns>
+          </controls:QikDataGrid>
+        </DockPanel>
+
+        <Border Grid.Column="2" Style="{StaticResource Panel}" Visibility="{Binding HasDetail, Converter={StaticResource VisibleWhen}}">
+          <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+            <StackPanel>
+              <StackPanel DataContext="{Binding Detail}">
+                <TextBlock Style="{StaticResource Text.Section}">
+                  <Run Text="{Binding Number, Mode=OneWay, TargetNullValue=Draft expense}" /><Run Text=" · " /><Run Text="{Binding Status, Mode=OneWay}" />
+                </TextBlock>
+                <TextBlock Style="{StaticResource Text.Caption}">
+                  <Run Text="{Binding Date, StringFormat=dd-MM-yyyy, Mode=OneWay}" /><Run Text=" · paid from " /><Run Text="{Binding PaidFrom, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Method, Mode=OneWay}" />
+                </TextBlock>
+                <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap">
+                  <Run Text="Created by " /><Run Text="{Binding CreatedBy, Mode=OneWay}" /><Run Text=" · submitted by " /><Run Text="{Binding SubmittedBy, Mode=OneWay}" /><Run Text=" · decided by " /><Run Text="{Binding DecidedBy, Mode=OneWay}" />
+                </TextBlock>
+                <TextBlock Text="{Binding RejectionReason}" Style="{StaticResource Text.Error}" TextWrapping="Wrap" Visibility="{Binding RejectionReason, Converter={StaticResource VisibleWhen}}" />
+                <TextBlock Text="{Binding ReversalReason}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Visibility="{Binding ReversalReason, Converter={StaticResource VisibleWhen}}" />
+                <ItemsControl ItemsSource="{Binding Lines}" Margin="0,8,0,0" Focusable="False">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <DockPanel Margin="0,0,0,4">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding Amount, Converter={StaticResource Amount}}" Style="{StaticResource Text.Amount}" />
+                        <StackPanel>
+                          <TextBlock Text="{Binding Category}" Style="{StaticResource Text.Body}" />
+                          <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap">
+                            <Run Text="{Binding Description, Mode=OneWay}" /><Run Text=" · GST " /><Run Text="{Binding TaxRatePercent, Mode=OneWay}" /><Run Text="% · claimable " /><Run Text="{Binding InputTaxEligible, Mode=OneWay}" />
+                          </TextBlock>
+                        </StackPanel>
+                      </DockPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <DockPanel Margin="0,8,0,0">
+                  <TextBlock DockPanel.Dock="Right" Text="{Binding Total, Converter={StaticResource Amount}}" Style="{StaticResource Text.Amount}" />
+                  <TextBlock Text="Total (GST included)" Style="{StaticResource Text.Section}" />
+                </DockPanel>
+                <TextBlock Text="Attachments" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
+              </StackPanel>
+              <ListBox ItemsSource="{Binding Detail.Attachments}" SelectedItem="{Binding SelectedAttachment}" DisplayMemberPath="FileName" MaxHeight="120"
+                       AutomationProperties.Name="Attachments" />
+              <WrapPanel Margin="0,4,0,0">
+                <Button Content="Open" Command="{Binding OpenAttachmentCommand}" Margin="0,0,8,4" />
+                <Button Content="Attach a receipt" Command="{Binding AddAttachmentCommand}" Margin="0,0,8,4" Visibility="{Binding DetailEditable, Converter={StaticResource VisibleWhen}}" />
+                <Button Content="Remove" Command="{Binding RemoveAttachmentCommand}" Margin="0,0,8,4" Visibility="{Binding DetailEditable, Converter={StaticResource VisibleWhen}}" />
+              </WrapPanel>
+              <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Text="PDF, PNG or JPEG up to 5 MB, at most 5 per expense." />
+
+              <TextBlock Text="Reason (for rejecting or reversing)" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
+              <TextBox Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}" MaxLength="300" AutomationProperties.Name="Reason" />
+              <WrapPanel Margin="0,8,0,0">
+                <Button Content="Edit" Command="{Binding EditSelectedCommand}" Margin="0,0,8,4" Visibility="{Binding DetailEditable, Converter={StaticResource VisibleWhen}}" />
+                <Button Content="Submit for approval" Style="{StaticResource Button.Primary}" Command="{Binding SubmitCommand}" Margin="0,0,8,4"
+                        Visibility="{Binding DetailEditable, Converter={StaticResource VisibleWhen}}" />
+                <Button Content="Delete draft" Style="{StaticResource Button.Danger}" Command="{Binding DeleteCommand}" Margin="0,0,8,4"
+                        Visibility="{Binding DetailEditable, Converter={StaticResource VisibleWhen}}" />
+                <Button Content="Approve" Style="{StaticResource Button.Primary}" Command="{Binding ApproveCommand}" Margin="0,0,8,4"
+                        Visibility="{Binding DetailCanDecide, Converter={StaticResource VisibleWhen}}" />
+                <Button Content="Reject" Command="{Binding RejectCommand}" Margin="0,0,8,4" Visibility="{Binding DetailCanDecide, Converter={StaticResource VisibleWhen}}" />
+                <Button Content="Post" Style="{StaticResource Button.Primary}" Command="{Binding PostCommand}" Margin="0,0,8,4"
+                        Visibility="{Binding DetailCanPost, Converter={StaticResource VisibleWhen}}" />
+              </WrapPanel>
+              <StackPanel Orientation="Horizontal" Margin="0,4,0,0" Visibility="{Binding DetailCanReverse, Converter={StaticResource VisibleWhen}}">
+                <TextBox Text="{Binding ActionDate, UpdateSourceTrigger=PropertyChanged}" Width="100" MaxLength="10" Margin="0,0,8,0" AutomationProperties.Name="Reversal date (dd-mm-yyyy)" />
+                <Button Content="Reverse" Style="{StaticResource Button.Danger}" Command="{Binding ReverseCommand}" />
+              </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
+        </Border>
+      </Grid>
+
+      <!-- Editor -->
+      <Border Style="{StaticResource Panel}" Visibility="{Binding ShowEditor, Converter={StaticResource VisibleWhen}}" IsEnabled="{Binding CanManage}">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" Text="{Binding EditorHeading}" Style="{StaticResource Text.Section}" Margin="0,0,0,12" />
+          <WrapPanel DockPanel.Dock="Top">
+            <StackPanel Width="110" Margin="0,0,12,8">
+              <TextBlock Text="Date" Style="{StaticResource Text.Label}" />
+              <TextBox Text="{Binding Date, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" AutomationProperties.Name="Date (dd-mm-yyyy)" />
+            </StackPanel>
+            <StackPanel Width="190" Margin="0,0,12,8">
+              <TextBlock Text="Paid from (cash or bank)" Style="{StaticResource Text.Label}" />
+              <ComboBox ItemsSource="{Binding CashAccounts}" SelectedItem="{Binding PaidFrom}" DisplayMemberPath="Name" AutomationProperties.Name="Paid from" />
+            </StackPanel>
+            <StackPanel Width="130" Margin="0,0,12,8">
+              <TextBlock Text="Method" Style="{StaticResource Text.Label}" />
+              <ComboBox ItemsSource="{Binding Methods}" SelectedItem="{Binding Method}" AutomationProperties.Name="Payment method" />
+            </StackPanel>
+            <StackPanel Width="200" Margin="0,0,12,8">
+              <TextBlock Text="Supplier (optional)" Style="{StaticResource Text.Label}" />
+              <ComboBox ItemsSource="{Binding Suppliers}" SelectedItem="{Binding Supplier}" DisplayMemberPath="Name" AutomationProperties.Name="Supplier" />
+            </StackPanel>
+            <StackPanel Width="170" Margin="0,0,12,8">
+              <TextBlock Text="Employee (user)" Style="{StaticResource Text.Label}" />
+              <ComboBox ItemsSource="{Binding Employees}" SelectedItem="{Binding Employee}" DisplayMemberPath="Name" AutomationProperties.Name="Employee" />
+            </StackPanel>
+            <StackPanel Width="160" Margin="0,0,12,8">
+              <TextBlock Text="Or employee name" Style="{StaticResource Text.Label}" />
+              <TextBox Text="{Binding EmployeeName, UpdateSourceTrigger=PropertyChanged}" MaxLength="80" AutomationProperties.Name="Employee name" />
+            </StackPanel>
+            <StackPanel Width="160" Margin="0,0,12,8">
+              <TextBlock Text="Branch" Style="{StaticResource Text.Label}" />
+              <ComboBox ItemsSource="{Binding Branches}" SelectedItem="{Binding Branch}" DisplayMemberPath="Name" AutomationProperties.Name="Branch" />
+            </StackPanel>
+            <StackPanel Width="140" Margin="0,0,12,8">
+              <TextBlock Text="Department" Style="{StaticResource Text.Label}" />
+              <TextBox Text="{Binding Department, UpdateSourceTrigger=PropertyChanged}" MaxLength="60" AutomationProperties.Name="Department" />
+            </StackPanel>
+            <StackPanel Width="140" Margin="0,0,12,8">
+              <TextBlock Text="Bill or receipt no." Style="{StaticResource Text.Label}" />
+              <TextBox Text="{Binding Reference, UpdateSourceTrigger=PropertyChanged}" MaxLength="40" AutomationProperties.Name="Reference" />
+            </StackPanel>
+            <StackPanel Width="280" Margin="0,0,12,8">
+              <TextBlock Text="Narration" Style="{StaticResource Text.Label}" />
+              <TextBox Text="{Binding Narration, UpdateSourceTrigger=PropertyChanged}" MaxLength="300" AutomationProperties.Name="Narration" />
+            </StackPanel>
+          </WrapPanel>
+          <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,16,0,0">
+            <Button Content="Save draft" Command="{Binding SaveDraftCommand}" Margin="0,0,8,0" />
+            <Button Content="Save and submit for approval" Style="{StaticResource Button.Primary}" Command="{Binding SaveAndSubmitCommand}" Margin="0,0,8,0" />
+            <Button Content="Clear" Style="{StaticResource Button.Subtle}" Command="{Binding StartExpenseCommand}" />
+          </StackPanel>
+          <DockPanel Margin="0,8,0,0">
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,4">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="110" />
+                <ColumnDefinition />
+                <ColumnDefinition Width="150" />
+                <ColumnDefinition Width="110" />
+                <ColumnDefinition Width="36" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="Category" Style="{StaticResource Text.Label}" />
+              <TextBlock Grid.Column="1" Text="Amount (before GST)" Style="{StaticResource Text.Label}" />
+              <TextBlock Grid.Column="2" Text="Description" Style="{StaticResource Text.Label}" />
+              <TextBlock Grid.Column="3" Text="GST" Style="{StaticResource Text.Label}" />
+              <TextBlock Grid.Column="4" Text="Claim GST" Style="{StaticResource Text.Label}" />
+            </Grid>
+            <Button DockPanel.Dock="Bottom" Content="Add line" Style="{StaticResource Button.Subtle}" HorizontalAlignment="Left" Margin="0,4,0,0" Command="{Binding AddLineCommand}" />
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+              <ItemsControl ItemsSource="{Binding Lines}" Focusable="False">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Grid Margin="0,0,0,4">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="220" />
+                        <ColumnDefinition Width="110" />
+                        <ColumnDefinition />
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="110" />
+                        <ColumnDefinition Width="36" />
+                      </Grid.ColumnDefinitions>
+                      <ComboBox ItemsSource="{Binding DataContext.Categories, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Category}"
+                                DisplayMemberPath="Name" Margin="0,0,8,0" AutomationProperties.Name="Category" />
+                      <TextBox Grid.Column="1" Text="{Binding Amount, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" Margin="0,0,8,0" AutomationProperties.Name="Amount" />
+                      <TextBox Grid.Column="2" Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}" MaxLength="200" Margin="0,0,8,0" AutomationProperties.Name="Description" />
+                      <ComboBox Grid.Column="3" ItemsSource="{Binding DataContext.TaxCategories, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Tax}"
+                                DisplayMemberPath="Name" Margin="0,0,8,0" AutomationProperties.Name="GST category (blank: category default)" />
+                      <CheckBox Grid.Column="4" IsChecked="{Binding Eligible}" VerticalAlignment="Center" Content="Claimable" />
+                      <Button Grid.Column="5" Style="{StaticResource Button.Icon}" Content="&#xE711;" FontSize="{StaticResource IconSizeSmall}" ToolTip="Remove line"
+                              AutomationProperties.Name="Remove line" Command="{Binding DataContext.RemoveLineCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </DockPanel>
+        </DockPanel>
+      </Border>
+
+      <!-- Categories -->
+      <Grid Visibility="{Binding ShowCategories, Converter={StaticResource VisibleWhen}}">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="16" />
+          <ColumnDefinition Width="380" />
+        </Grid.ColumnDefinitions>
+        <controls:QikDataGrid LayoutKey="expense-categories" ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" SelectionMode="Single"
+                              AutomationProperties.Name="Expense categories">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Category" Binding="{Binding Name}" Width="*" />
+            <DataGridTextColumn Header="Posts to" Binding="{Binding Account}" Width="220" />
+            <DataGridTextColumn Header="Active" Binding="{Binding IsActive}" Width="70" />
+          </DataGrid.Columns>
+        </controls:QikDataGrid>
+        <Border Grid.Column="2" Style="{StaticResource Panel}" IsEnabled="{Binding CanManage}" VerticalAlignment="Top">
+          <StackPanel>
+            <DockPanel Margin="0,0,0,8">
+              <Button DockPanel.Dock="Right" Content="New" Style="{StaticResource Button.Subtle}" Command="{Binding NewCategoryCommand}" />
+              <TextBlock Text="Category" Style="{StaticResource Text.Section}" />
+            </DockPanel>
+            <TextBlock Text="Name" Style="{StaticResource Text.Label}" />
+            <TextBox Text="{Binding CategoryName, UpdateSourceTrigger=PropertyChanged}" MaxLength="60" AutomationProperties.Name="Category name" />
+            <TextBlock Text="Expense ledger it posts to" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
+            <ComboBox ItemsSource="{Binding LedgerChoices}" SelectedItem="{Binding CategoryLedger}" DisplayMemberPath="Name" IsEnabled="{Binding CreateLedger, Converter={StaticResource Inverse}}"
+                      MaxDropDownHeight="360" AutomationProperties.Name="Expense ledger" />
+            <CheckBox Content="Create a new ledger with this name under the group below" IsChecked="{Binding CreateLedger}" Margin="0,8,0,4" />
+            <ComboBox ItemsSource="{Binding GroupChoices}" SelectedItem="{Binding LedgerGroup}" DisplayMemberPath="Name" IsEnabled="{Binding CreateLedger}" AutomationProperties.Name="Expense group" />
+            <TextBlock Text="Default GST" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
+            <ComboBox ItemsSource="{Binding TaxCategories}" SelectedItem="{Binding CategoryTax}" DisplayMemberPath="Name" AutomationProperties.Name="Default GST category" />
+            <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+              <Button Content="Save" Style="{StaticResource Button.Primary}" Command="{Binding SaveCategoryCommand}" Margin="0,0,8,0" />
+              <Button Content="Deactivate or reactivate" Command="{Binding ToggleCategoryCommand}" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- Recurring -->
+      <Grid Visibility="{Binding ShowRecurring, Converter={StaticResource VisibleWhen}}">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="16" />
+          <ColumnDefinition Width="400" />
+        </Grid.ColumnDefinitions>
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,12,0,0" IsEnabled="{Binding CanManage}">
+            <TextBlock Text="Generate drafts due up to" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <TextBox Text="{Binding GenerateUpTo, UpdateSourceTrigger=PropertyChanged}" Width="100" MaxLength="10" Margin="0,0,8,0" AutomationProperties.Name="Generate up to (dd-mm-yyyy)" />
+            <Button Content="Generate due expenses" Style="{StaticResource Button.Primary}" Command="{Binding GenerateDueCommand}" />
+            <TextBlock Style="{StaticResource Text.Caption}" VerticalAlignment="Center" Margin="12,0,0,0" Text="Drafts still need approval and posting; nothing is posted automatically." />
+          </StackPanel>
+          <controls:QikDataGrid LayoutKey="recurring-expenses" ItemsSource="{Binding Recurring}" SelectedItem="{Binding SelectedRecurring}" SelectionMode="Single"
+                                AutomationProperties.Name="Recurring expenses">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
+              <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="140" />
+              <DataGridTextColumn Header="Every" Binding="{Binding Frequency}" Width="90" />
+              <DataGridTextColumn Header="Next due" Binding="{Binding NextDueDate, StringFormat=dd-MM-yyyy}" SortMemberPath="NextDueDate" Width="90" />
+              <DataGridTextColumn Header="Ends" Binding="{Binding EndDate, StringFormat=dd-MM-yyyy}" SortMemberPath="EndDate" Width="90" />
+              <DataGridTextColumn Header="Amount" Binding="{Binding Amount, Converter={StaticResource Amount}}" SortMemberPath="Amount" Width="100"
+                                  HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+              <DataGridTextColumn Header="Active" Binding="{Binding IsActive}" Width="70" />
+            </DataGrid.Columns>
+          </controls:QikDataGrid>
+        </DockPanel>
+        <Border Grid.Column="2" Style="{StaticResource Panel}" IsEnabled="{Binding CanManage}" VerticalAlignment="Top">
+          <StackPanel>
+            <DockPanel Margin="0,0,0,8">
+              <Button DockPanel.Dock="Right" Content="New" Style="{StaticResource Button.Subtle}" Command="{Binding NewRecurringCommand}" />
+              <TextBlock Text="Recurring expense" Style="{StaticResource Text.Section}" />
+            </DockPanel>
+            <TextBlock Text="Name" Style="{StaticResource Text.Label}" />
+            <TextBox Text="{Binding RecurringName, UpdateSourceTrigger=PropertyChanged}" MaxLength="60" AutomationProperties.Name="Name" />
+            <TextBlock Text="Category" Style="{StaticResource Text.Label}" Margin="0,8,0,4" />
+            <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding RecurringCategory}" DisplayMemberPath="Name" AutomationProperties.Name="Category" />
+            <UniformGrid Columns="2" Margin="0,8,0,0">
+              <StackPanel Margin="0,0,8,8">
+                <TextBlock Text="Amount (before GST)" Style="{StaticResource Text.Label}" />
+                <TextBox Text="{Binding RecurringAmount, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Amount" />
+              </StackPanel>
+              <StackPanel Margin="0,0,0,8">
+                <TextBlock Text="Every" Style="{StaticResource Text.Label}" />
+                <ComboBox ItemsSource="{Binding Frequencies}" SelectedItem="{Binding RecurringFrequency}" AutomationProperties.Name="Frequency" />
+              </StackPanel>
+              <StackPanel Margin="0,0,8,8">
+                <TextBlock Text="Next due" Style="{StaticResource Text.Label}" />
+                <TextBox Text="{Binding RecurringNextDue, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" AutomationProperties.Name="Next due (dd-mm-yyyy)" />
+              </StackPanel>
+              <StackPanel Margin="0,0,0,8">
+                <TextBlock Text="Ends (optional)" Style="{StaticResource Text.Label}" />
+                <TextBox Text="{Binding RecurringEnd, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" AutomationProperties.Name="End date (dd-mm-yyyy)" />
+              </StackPanel>
+            </UniformGrid>
+            <TextBlock Text="Paid from" Style="{StaticResource Text.Label}" />
+            <ComboBox ItemsSource="{Binding CashAccounts}" SelectedItem="{Binding RecurringPaidFrom}" DisplayMemberPath="Name" AutomationProperties.Name="Paid from" />
+            <TextBlock Text="GST" Style="{StaticResource Text.Label}" Margin="0,8,0,4" />
+            <ComboBox ItemsSource="{Binding TaxCategories}" SelectedItem="{Binding RecurringTax}" DisplayMemberPath="Name" AutomationProperties.Name="GST category" />
+            <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+              <Button Content="Save" Style="{StaticResource Button.Primary}" Command="{Binding SaveRecurringCommand}" Margin="0,0,8,0" />
+              <Button Content="Pause or resume" Command="{Binding ToggleRecurringCommand}" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- Totals -->
+      <DockPanel Visibility="{Binding ShowTotals, Converter={StaticResource VisibleWhen}}">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
+          <TextBlock Text="Group by" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" Margin="0,0,8,0" />
+          <ComboBox ItemsSource="{Binding Groupings}" SelectedItem="{Binding Grouping}" Width="140" Margin="0,0,8,0" AutomationProperties.Name="Group by" />
+          <Button Content="Show" Command="{Binding RefreshTotalsCommand}" />
+          <TextBlock Style="{StaticResource Text.Caption}" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap"
+                     Text="Uses the filters from the Expenses section. Reversed expenses are left out." />
+        </StackPanel>
+        <controls:QikDataGrid LayoutKey="expense-totals" ItemsSource="{Binding Totals}" AutomationProperties.Name="Expense totals">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Group" Binding="{Binding Group}" Width="*" />
+            <DataGridTextColumn Header="Expenses" Binding="{Binding Count}" Width="90" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+            <DataGridTextColumn Header="Amount" Binding="{Binding Taxable, Converter={StaticResource Amount}}" SortMemberPath="Taxable" Width="120"
+                                controls:Table.Total="True" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+            <DataGridTextColumn Header="GST" Binding="{Binding Tax, Converter={StaticResource Amount}}" SortMemberPath="Tax" Width="110"
+                                controls:Table.Total="True" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+            <DataGridTextColumn Header="Total" Binding="{Binding Total, Converter={StaticResource Amount}}" SortMemberPath="Total" Width="120"
+                                controls:Table.Total="True" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+          </DataGrid.Columns>
+        </controls:QikDataGrid>
+      </DockPanel>
+
+      <!-- Settings -->
+      <Border Style="{StaticResource Panel}" Visibility="{Binding ShowSettings, Converter={StaticResource VisibleWhen}}" VerticalAlignment="Top" HorizontalAlignment="Left" MaxWidth="640">
+        <StackPanel>
+          <CheckBox Content="Allow people to approve expenses they created or submitted" IsChecked="{Binding AllowSelfApproval}" />
+          <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="24,4,0,12"
+                     Text="Off by default, so every expense is checked by a second person. Changing it needs both Expenses: Approve and Company: Manage." />
+          <Button Content="Save" Style="{StaticResource Button.Primary}" HorizontalAlignment="Left" Command="{Binding SaveSettingsCommand}" />
+        </StackPanel>
+      </Border>
+    </Grid>
+  </DockPanel>
+</UserControl>

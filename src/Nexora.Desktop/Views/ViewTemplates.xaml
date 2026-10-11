@@ -12,7 +12,11 @@
                     xmlns:bvm="clr-namespace:Nexora.Desktop.ViewModels.Billing"
                     xmlns:bviews="clr-namespace:Nexora.Desktop.Views.Billing"
                     xmlns:pvm="clr-namespace:Nexora.Desktop.ViewModels.Printing"
-                    xmlns:pviews="clr-namespace:Nexora.Desktop.Views.Printing">
+                    xmlns:pviews="clr-namespace:Nexora.Desktop.Views.Printing"
+                    xmlns:evm="clr-namespace:Nexora.Desktop.ViewModels.Expenses"
+                    xmlns:eviews="clr-namespace:Nexora.Desktop.Views.Expenses"
+                    xmlns:cvm="clr-namespace:Nexora.Desktop.ViewModels.Crm"
+                    xmlns:cviews="clr-namespace:Nexora.Desktop.Views.Crm">
   <DataTemplate DataType="{x:Type vm:SetupWizardViewModel}"><views:SetupWizardView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:LoginViewModel}"><views:LoginView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:ShellViewModel}"><views:ShellView /></DataTemplate>
@@ -41,6 +45,8 @@
   <DataTemplate DataType="{x:Type bvm:BillingViewModel}"><bviews:BillingView /></DataTemplate>
   <DataTemplate DataType="{x:Type bvm:PartiesViewModel}"><bviews:PartiesView /></DataTemplate>
   <DataTemplate DataType="{x:Type pvm:PrintCentreViewModel}"><pviews:PrintCentreView /></DataTemplate>
+  <DataTemplate DataType="{x:Type evm:ExpensesViewModel}"><eviews:ExpensesView /></DataTemplate>
+  <DataTemplate DataType="{x:Type cvm:CrmViewModel}"><cviews:CrmView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:HelpViewModel}"><views:HelpView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:GalleryViewModel}"><views:GalleryView /></DataTemplate>
 </ResourceDictionary>
