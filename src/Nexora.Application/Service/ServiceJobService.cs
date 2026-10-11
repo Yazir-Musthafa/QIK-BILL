@@ -372,6 +372,27 @@ public sealed class ServiceJobService(IUnitOfWorkFactory units, IAuthorizer auth
         return invoiceId;
     }
 
+    // ----- Settings -----
+
+    public async Task<(string DefaultLabourSac, int ReminderLeadDays)> SettingsAsync(CancellationToken cancellationToken = default)
+    {
+        authorizer.Demand(Permissions.ServiceView);
+        await using var unit = await units.BeginAsync(readOnly: true, cancellationToken);
+        var s = (await unit.ListAsync<ServiceSettings>(cancellationToken: cancellationToken)).SingleOrDefault()
+            ?? throw new WorkspaceValidationException("Service settings are missing. Sign out and in again to finish the upgrade.");
+        return (s.DefaultLabourSac, s.ReminderLeadDays);
+    }
+
+    public async Task SaveSettingsAsync(string defaultLabourSac, int reminderLeadDays, CancellationToken cancellationToken = default)
+    {
+        authorizer.Demand(Permissions.ServiceManage);
+        await using var unit = await units.BeginAsync(cancellationToken: cancellationToken);
+        var s = (await unit.ListAsync<ServiceSettings>(cancellationToken: cancellationToken)).SingleOrDefault()
+            ?? throw new WorkspaceValidationException("Service settings are missing. Sign out and in again to finish the upgrade.");
+        Guard(() => s.Update(defaultLabourSac, reminderLeadDays));
+        await unit.CommitAsync(cancellationToken);
+    }
+
     // ----- Maintenance schedules -----
 
     public async Task<IReadOnlyList<MaintenanceRow>> SchedulesAsync(Guid? customerId = null, CancellationToken cancellationToken = default)

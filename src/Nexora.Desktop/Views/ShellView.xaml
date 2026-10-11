@@ -152,8 +152,19 @@
               <Border Style="{StaticResource Popup.Surface}" Width="300" Margin="8,4,8,12" Padding="16">
                 <StackPanel>
                   <TextBlock Text="Notifications" Style="{StaticResource Text.Section}" />
-                  <TextBlock Text="You're all caught up. Low-stock, payment and backup alerts will appear here." Style="{StaticResource Text.Secondary}"
-                             Margin="0,8,0,0" />
+                  <TextBlock Text="{Binding NotificationText}" Style="{StaticResource Text.Secondary}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                  <ItemsControl ItemsSource="{Binding Notifications}" Margin="0,8,0,0" Focusable="False">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <StackPanel Margin="0,0,0,6">
+                          <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Body}" TextWrapping="Wrap" />
+                          <TextBlock Style="{StaticResource Text.Caption}">
+                            <Run Text="{Binding State, Mode=OneWay}" /><Run Text=" · due " /><Run Text="{Binding DueDate, StringFormat=dd-MM-yyyy, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Regarding, Mode=OneWay}" />
+                          </TextBlock>
+                        </StackPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
                 </StackPanel>
               </Border>
             </Popup>

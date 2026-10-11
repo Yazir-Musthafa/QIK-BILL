@@ -166,6 +166,14 @@
                 <TextBox Text="{Binding ReorderLevel, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Reorder level" />
               </StackPanel>
             </Grid>
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+              <StackPanel Width="120">
+                <TextBlock Text="Warranty (months)" Style="{StaticResource Text.Label}" />
+                <TextBox Text="{Binding WarrantyMonths, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Warranty in months" />
+              </StackPanel>
+              <TextBlock Style="{StaticResource Text.Caption}" VerticalAlignment="Bottom" Margin="12,0,0,4" TextWrapping="Wrap" Width="220"
+                         Text="Service jobs for a serial sold by you are under warranty for this long from the sale date." />
+            </StackPanel>
             <TextBlock Style="{StaticResource Text.Caption}" Margin="0,4,0,0" TextWrapping="Wrap" Text="Purchase price is hidden from roles without the Inventory: View cost permission."
                        Visibility="{Binding CanSeeCost, Converter={StaticResource VisibleWhen}, ConverterParameter=invert}" />
             <StackPanel Orientation="Horizontal" Margin="0,16,0,0">

@@ -75,6 +75,7 @@ public sealed partial class ProductsViewModel(
     [ObservableProperty] private string _sellingPrice = string.Empty;
     [ObservableProperty] private string _mrp = string.Empty;
     [ObservableProperty] private string _reorderLevel = string.Empty;
+    [ObservableProperty] private string _warrantyMonths = string.Empty;
 
     [ObservableProperty] private string _variantSku = string.Empty;
     [ObservableProperty] private string _variantSize = string.Empty;
@@ -106,6 +107,7 @@ public sealed partial class ProductsViewModel(
         (Tracking, TracksExpiry) = (value.Tracking, value.TracksExpiry);
         PurchasePrice = value.PurchasePrice is { } cost ? NumberText.Format(cost) : string.Empty;
         (SellingPrice, Mrp, ReorderLevel) = (NumberText.Format(value.SellingPrice), NumberText.Format(value.Mrp), NumberText.Format(value.ReorderLevel));
+        WarrantyMonths = value.WarrantyMonths == 0 ? string.Empty : value.WarrantyMonths.ToString(CultureInfo.InvariantCulture);
         _ = LoadConversionsAsync(value.Id);
     }
 
@@ -168,7 +170,7 @@ public sealed partial class ProductsViewModel(
         Selected = null;
         IsNew = true;
         (Sku, Name, Description, Category, Brand, Barcode, QrCode, HsnCode) = (string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty);
-        (PurchasePrice, SellingPrice, Mrp, ReorderLevel) = (string.Empty, string.Empty, string.Empty, string.Empty);
+        (PurchasePrice, SellingPrice, Mrp, ReorderLevel, WarrantyMonths) = (string.Empty, string.Empty, string.Empty, string.Empty, string.Empty);
         (Tracking, TracksExpiry, TaxCategory) = (TrackingMode.None, false, null);
         Unit = Units.FirstOrDefault(u => u.Code == "PCS");
         Conversions.Clear();
@@ -184,7 +186,8 @@ public sealed partial class ProductsViewModel(
                 var details = new ProductDetails(Sku, Name, Description, Category, Brand, Barcode, QrCode, HsnCode, TaxCategory?.Id,
                     NumberText.Parse(PurchasePrice, "Purchase price"), NumberText.Parse(SellingPrice, "Selling price"), NumberText.Parse(Mrp, "MRP"),
                     NumberText.Parse(ReorderLevel, "Reorder level"),
-                    Selected?.VariantSize ?? string.Empty, Selected?.VariantColour ?? string.Empty, Selected?.VariantModel ?? string.Empty);
+                    Selected?.VariantSize ?? string.Empty, Selected?.VariantColour ?? string.Empty, Selected?.VariantModel ?? string.Empty,
+                    (int)NumberText.Parse(WarrantyMonths, "Warranty months"));
                 saved = await catalogue.SaveProductAsync(new ProductInput(Selected?.Id, details, Unit.Id, Tracking, TracksExpiry));
             }, "Product saved."))
         {

@@ -363,7 +363,7 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
                 "Posting moves stock and posts the accounting voucher in one step. A posted document cannot be edited; it can only be cancelled or returned.",
                 "Post"))
             return;
-        if (await RunAsync(async () => number = await _billing.PostAsync(EditingId!.Value)))
+        if (await RunAsync(async () => number = await PostCheckingCreditAsync(EditingId!.Value)) && number.Length > 0)
         {
             Toasts.Show($"Posted {number}.", ToastKind.Success);
             var posted = IsReturnEditor;
@@ -492,7 +492,7 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
                 "Everything is recalculated with the current prices and tax rates, stock moves and the voucher is posted.", "Post"))
             return;
         string number = string.Empty;
-        if (await RunAsync(async () => number = await _billing.PostAsync(draft.Id)))
+        if (await RunAsync(async () => number = await PostCheckingCreditAsync(draft.Id)) && number.Length > 0)
         {
             Toasts.Show($"Posted {number}.", ToastKind.Success);
             Products.Clear();
@@ -606,6 +606,25 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
             CancelReason = string.Empty;
             await LoadOpenItemsAsync();
             await LoadAsync();
+        }
+    }
+
+    /// <summary>
+    /// Posts a draft. When the customer's credit limit would be exceeded, asks whether to override; the service then
+    /// checks the Sales: Override credit limit permission and records the override. Returns empty when not posted.
+    /// </summary>
+    private async Task<string> PostCheckingCreditAsync(Guid id)
+    {
+        try
+        {
+            return await _billing.PostAsync(id);
+        }
+        catch (CreditLimitExceededException ex)
+        {
+            if (!await _dialogs.ConfirmAsync("Credit limit exceeded", ex.Message + " Post anyway? This needs the permission to override credit limits and is recorded in the audit trail.",
+                    "Post anyway", true))
+                return string.Empty;
+            return await _billing.PostAsync(id, overrideCreditLimit: true);
         }
     }
 

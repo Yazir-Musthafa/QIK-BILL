@@ -22,7 +22,8 @@ public sealed record StockRow(string Sku, string Name, string Available, string 
 public sealed partial class DashboardViewModel(
     IWorkspaceService workspace,
     ILogger<DashboardViewModel> logger,
-    Action<string> navigate) : ObservableObject
+    Action<string> navigate,
+    Nexora.Application.Crm.CrmService? crm = null) : ObservableObject
 {
     public string Title => "Dashboard";
 
@@ -47,6 +48,11 @@ public sealed partial class DashboardViewModel(
     [ObservableProperty] private IReadOnlyList<TopProductRow> _topProducts = [];
     [ObservableProperty] private IReadOnlyList<ActivityRow> _activity = [];
     [ObservableProperty] private IReadOnlyList<StockRow> _lowStock = [];
+    [ObservableProperty] private IReadOnlyList<Nexora.Application.Crm.FollowUpRow> _followUps = [];
+    [ObservableProperty] private string _followUpSummary = string.Empty;
+
+    /// <summary>The follow-ups panel shows only for users who can see CRM.</summary>
+    [ObservableProperty] private bool _showFollowUps;
 
     [RelayCommand]
     public async Task LoadAsync()
@@ -60,6 +66,7 @@ public sealed partial class DashboardViewModel(
                 : $"{session.CompanyName} · FY {new Nexora.Domain.Companies.FinancialYear(session.FinancialYearStartYear).Label}";
             var snapshot = await workspace.GetDashboardAsync();
             Apply(snapshot);
+            await LoadFollowUpsAsync();
         }
         catch (Exception exception)
         {
@@ -74,6 +81,24 @@ public sealed partial class DashboardViewModel(
 
     [RelayCommand]
     private void Open(string key) => navigate(key);
+
+    /// <summary>The signed-in user's overdue and due-today follow-ups (real data, also for real companies).</summary>
+    private async Task LoadFollowUpsAsync()
+    {
+        if (crm is null) return;
+        try
+        {
+            var summary = await crm.MySummaryAsync();
+            ShowFollowUps = workspace.CurrentSession?.Has(Nexora.Domain.Security.Permissions.CrmView) == true;
+            FollowUps = summary.Items;
+            FollowUpSummary = summary.Overdue + summary.DueToday == 0 ? "Nothing due today." : $"{summary.Overdue} overdue · {summary.DueToday} due today";
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning("Follow-ups failed to load; error type {ErrorType}", exception.GetType().FullName);
+            ShowFollowUps = false;
+        }
+    }
 
     private void Apply(DashboardSnapshot snapshot)
     {

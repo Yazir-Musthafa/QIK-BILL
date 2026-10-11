@@ -175,7 +175,28 @@ public sealed partial class ShellViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ToggleNotifications() => IsNotificationsOpen = !IsNotificationsOpen;
+    private async Task ToggleNotificationsAsync()
+    {
+        IsNotificationsOpen = !IsNotificationsOpen;
+        if (!IsNotificationsOpen) return;
+        try
+        {
+            var crm = _services.GetService(typeof(Nexora.Application.Crm.CrmService)) as Nexora.Application.Crm.CrmService;
+            var summary = crm is null ? null : await crm.MySummaryAsync();
+            Notifications = summary?.Items ?? [];
+            NotificationText = summary is null || summary.Items.Count == 0
+                ? "You're all caught up. Follow-ups due today or overdue will appear here."
+                : $"{summary.Overdue} overdue and {summary.DueToday} due today. Open CRM → Follow-ups to work on them.";
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning("Notifications failed to load; error type {ErrorType}", exception.GetType().FullName);
+            NotificationText = "Notifications could not be loaded.";
+        }
+    }
+
+    [ObservableProperty] private IReadOnlyList<Nexora.Application.Crm.FollowUpRow> _notifications = [];
+    [ObservableProperty] private string _notificationText = "You're all caught up.";
 
     [RelayCommand]
     private void ToggleUserMenu() => IsUserMenuOpen = !IsUserMenuOpen;
@@ -227,7 +248,8 @@ public sealed partial class ShellViewModel : ObservableObject
         switch (item.Key)
         {
             case NavCatalog.Dashboard:
-                var dashboard = new DashboardViewModel(_workspace, _loggers.CreateLogger<DashboardViewModel>(), Navigate);
+                var dashboard = new DashboardViewModel(_workspace, _loggers.CreateLogger<DashboardViewModel>(), Navigate,
+                    _services.GetService(typeof(Nexora.Application.Crm.CrmService)) as Nexora.Application.Crm.CrmService);
                 _ = dashboard.LoadAsync();
                 return dashboard;
             case NavCatalog.Settings:

@@ -214,6 +214,29 @@
           </Border>
         </Grid>
 
+        <!-- My follow-ups (real data from CRM, for users who can see CRM) -->
+        <Border Style="{StaticResource Panel}" Margin="0,16,0,0" Visibility="{Binding ShowFollowUps, Converter={StaticResource VisibleWhen}}">
+          <StackPanel>
+            <DockPanel>
+              <Button DockPanel.Dock="Right" Content="Open CRM" Style="{StaticResource Button.Link}" Command="{Binding OpenCommand}" CommandParameter="crm" />
+              <TextBlock Text="My follow-ups" Style="{StaticResource PanelTitle}" />
+            </DockPanel>
+            <TextBlock Text="{Binding FollowUpSummary}" Style="{StaticResource Text.Secondary}" Margin="0,0,0,8" />
+            <ItemsControl ItemsSource="{Binding FollowUps}" Focusable="False">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <DockPanel Margin="0,0,0,6">
+                    <Border DockPanel.Dock="Right" Style="{StaticResource Badge.Danger}" Visibility="{Binding IsOverdue, Converter={StaticResource VisibleWhen}}"><TextBlock Text="Overdue" /></Border>
+                    <TextBlock Style="{StaticResource Text.Body}" TextTrimming="CharacterEllipsis">
+                      <Run Text="{Binding DueDate, StringFormat=dd-MM-yyyy, Mode=OneWay}" /><Run Text="  " /><Run Text="{Binding Title, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Regarding, Mode=OneWay}" />
+                    </TextBlock>
+                  </DockPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+
         <!-- Lists row -->
         <Grid Margin="0,16,0,0">
           <Grid.ColumnDefinitions>
