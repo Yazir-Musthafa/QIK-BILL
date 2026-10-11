@@ -103,7 +103,7 @@ public sealed class Expense : ICompanyOwned, IAudited
 
     public ExpenseStatus Status { get; private set; }
 
-    /// <summary>The supplier the expense was bought from (optional; required when it is on credit).</summary>
+    /// <summary>The supplier the expense was bought from (optional, for reference and tax: the expense is always paid from cash or bank).</summary>
     public Guid? SupplierId { get; private set; }
 
     /// <summary>The employee who spent or claims the money (a company user), if any.</summary>
@@ -112,7 +112,7 @@ public sealed class Expense : ICompanyOwned, IAudited
     /// <summary>A free-text employee name when the person has no user account.</summary>
     public string EmployeeName { get; private set; }
 
-    /// <summary>Cash or bank account paid from; null when on credit from the supplier.</summary>
+    /// <summary>Cash or bank account paid from (required before saving; nullable only for the private constructor).</summary>
     public Guid? PaidFromAccountId { get; private set; }
 
     public Billing.PaymentMethod Method { get; private set; }
@@ -172,7 +172,7 @@ public sealed class Expense : ICompanyOwned, IAudited
         Guid? branchId, string department, string reference, string narration, bool interState)
     {
         EnsureEditable();
-        if (paidFromAccountId is null && supplierId is null) throw new DomainException("Choose the cash or bank account it was paid from, or the supplier it is owed to.");
+        if (paidFromAccountId is null) throw new DomainException("Choose the cash or bank account the expense was paid from.");
         Date = date;
         SupplierId = supplierId;
         EmployeeUserId = employeeUserId;
@@ -463,7 +463,7 @@ public sealed class RecurringExpense : ICompanyOwned, IAudited
         if (clean.Length is 0 or > 60) throw new DomainException("Enter a name of up to 60 characters.");
         if (amount <= 0) throw new DomainException("Enter an amount more than zero.");
         Money.EnsureValid(amount);
-        if (paidFromAccountId is null && supplierId is null) throw new DomainException("Choose the account it is paid from, or the supplier it is owed to.");
+        if (paidFromAccountId is null) throw new DomainException("Choose the cash or bank account it is paid from.");
         if (endDate is { } end && end < nextDueDate) throw new DomainException("The end date must be on or after the next due date.");
         var text = (description ?? string.Empty).Trim();
         if (text.Length > 200) throw new DomainException("Descriptions can have up to 200 characters.");

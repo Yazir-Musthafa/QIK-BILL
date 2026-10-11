@@ -129,17 +129,7 @@ public sealed class PartyService(IUnitOfWorkFactory units, IAuthorizer authorize
             }
             else
             {
-                var details = input.Details;
-                // Validate before creating the ledger, so a bad GSTIN does not leave a stray account behind.
-                _ = new Party(Guid.NewGuid(), session.CompanyId, input.Kind, Guid.NewGuid(), details);
-                var group = await GroupAsync(unit, input.Kind, cancellationToken);
-                var code = await NextCodeAsync(unit, group, cancellationToken);
-                var ledgerName = await LedgerNameAsync(unit, name, input.Kind, Guid.Empty, cancellationToken);
-                var account = new Account(Guid.NewGuid(), session.CompanyId, code, ledgerName, group.Nature,
-                    input.Kind == PartyKind.Customer ? AccountKind.Receivable : AccountKind.Payable, group.Id, null);
-                unit.Add(account);
-                party = new Party(Guid.NewGuid(), session.CompanyId, input.Kind, account.Id, details);
-                unit.Add(party);
+                party = await CreateCoreAsync(unit, session, input.Kind, input.Details, cancellationToken);
             }
         }
         catch (DomainException ex)
@@ -149,6 +139,36 @@ public sealed class PartyService(IUnitOfWorkFactory units, IAuthorizer authorize
 
         await unit.CommitAsync(cancellationToken);
         return party.Id;
+    }
+
+    /// <summary>
+    /// Adds a new party and its ledger to the caller's unit of work (used by lead conversion, so the customer and the
+    /// lead change commit together). The caller checks permissions. Refuses a duplicate name of the same kind.
+    /// </summary>
+    internal async Task<Party> CreateCoreAsync(IUnitOfWork unit, SessionInfo session, PartyKind kind, PartyDetails details, CancellationToken cancellationToken)
+    {
+        var name = (details.Name ?? string.Empty).Trim();
+        if (await unit.AnyAsync<Party>(p => p.Kind == kind && p.Name == name, cancellationToken))
+            throw new WorkspaceValidationException($"A {Noun(kind)} named \"{name}\" already exists.");
+        try
+        {
+            // Validate before creating the ledger, so a bad GSTIN does not leave a stray account behind.
+            _ = new Party(Guid.NewGuid(), session.CompanyId, kind, Guid.NewGuid(), details);
+        }
+        catch (DomainException ex)
+        {
+            throw new WorkspaceValidationException(ex.Message);
+        }
+
+        var group = await GroupAsync(unit, kind, cancellationToken);
+        var code = await NextCodeAsync(unit, group, cancellationToken);
+        var ledgerName = await LedgerNameAsync(unit, name, kind, Guid.Empty, cancellationToken);
+        var account = new Account(Guid.NewGuid(), session.CompanyId, code, ledgerName, group.Nature,
+            kind == PartyKind.Customer ? AccountKind.Receivable : AccountKind.Payable, group.Id, null);
+        unit.Add(account);
+        var party = new Party(Guid.NewGuid(), session.CompanyId, kind, account.Id, details);
+        unit.Add(party);
+        return party;
     }
 
     public async Task SetActiveAsync(Guid id, bool active, CancellationToken cancellationToken = default)

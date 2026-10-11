@@ -30,6 +30,11 @@ public static class DependencyInjection
         services.AddSingleton<Billing.PartyService>();
         services.AddSingleton<Billing.BillingService>();
         services.AddSingleton<Billing.SettlementService>();
+        services.AddSingleton<ICompanySeedContributor, Expenses.ExpenseSeedContributor>();
+        services.AddSingleton<ICompanySeedContributor, Expenses.ServiceSeedContributor>();
+        services.AddSingleton<Expenses.ExpenseService>();
+        services.AddSingleton<Crm.CrmService>();
+        services.AddSingleton<Service.ServiceJobService>();
         return services;
     }
 }
