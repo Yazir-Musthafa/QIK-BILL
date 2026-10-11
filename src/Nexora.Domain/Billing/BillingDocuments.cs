@@ -263,7 +263,7 @@ public sealed class BillingDocument : ICompanyOwned, IAudited
     }
 
     /// <summary>Called once, inside the posting transaction.</summary>
-    public void MarkPosted(string number, Guid? voucherId, Guid stockDocumentId, decimal costOfGoods, DateTime postedUtc, Guid postedBy)
+    public void MarkPosted(string number, Guid? voucherId, Guid? stockDocumentId, decimal costOfGoods, DateTime postedUtc, Guid postedBy)
     {
         EnsureDraft();
         if (string.IsNullOrWhiteSpace(number)) throw new DomainException("A posted document needs a number.");
@@ -283,6 +283,19 @@ public sealed class BillingDocument : ICompanyOwned, IAudited
     }
 }
 
+/// <summary>What a billing line sells or buys, which decides whether it moves stock when the document is posted.</summary>
+public enum BillingLineType
+{
+    /// <summary>A stock product; posting moves stock and (for sales) posts its cost.</summary>
+    Goods,
+
+    /// <summary>A service such as labour: no product, no stock. Only on sales invoices and their credit notes.</summary>
+    Service,
+
+    /// <summary>A part already issued from stock by a service job (its cost was posted then); billed here without moving stock again.</summary>
+    IssuedPart,
+}
+
 /// <summary>
 /// One line of a billing document. Amounts are calculated by <see cref="BillingCalculator"/>; the tax rate used is
 /// stored on the line, so a posted document keeps the rate that applied when it was posted. Locked when posted.
@@ -294,11 +307,14 @@ public sealed class BillingLine : ICompanyOwned
         Description = HsnCode = BatchNumber = string.Empty;
     }
 
-    public BillingLine(Guid id, Guid companyId, Guid documentId, int lineNumber, Guid productId, string description, string hsnCode,
-        Guid unitId, decimal quantity, decimal baseQuantity, decimal rate, decimal discountPercent, Guid? taxCategoryId, decimal taxRatePercent,
-        LineAmounts amounts, Guid? batchId, string batchNumber, DateOnly? expiresOn, string? serialNumber, Guid? originalLineId) : this()
+    public BillingLine(Guid id, Guid companyId, Guid documentId, int lineNumber, Guid? productId, string description, string hsnCode,
+        Guid? unitId, decimal quantity, decimal baseQuantity, decimal rate, decimal discountPercent, Guid? taxCategoryId, decimal taxRatePercent,
+        LineAmounts amounts, Guid? batchId, string batchNumber, DateOnly? expiresOn, string? serialNumber, Guid? originalLineId,
+        BillingLineType lineType = BillingLineType.Goods, Guid? sourceId = null) : this()
     {
         if (lineNumber < 1) throw new DomainException("Line numbers start at 1.");
+        if (lineType != BillingLineType.Service && (productId is null || unitId is null)) throw new DomainException("Each goods line needs a product and a unit.");
+        if (lineType == BillingLineType.Service && productId is not null) throw new DomainException("A service line has no product.");
         if (quantity <= 0 || baseQuantity <= 0) throw new DomainException("Quantity must be more than zero.");
         var text = (description ?? string.Empty).Trim();
         if (text.Length is 0 or > 200) throw new DomainException("Each line needs a description of up to 200 characters.");
@@ -327,6 +343,8 @@ public sealed class BillingLine : ICompanyOwned
         ExpiresOn = expiresOn;
         SerialNumber = string.IsNullOrWhiteSpace(serialNumber) ? null : serialNumber.Trim().ToUpperInvariant();
         OriginalLineId = originalLineId;
+        LineType = lineType;
+        SourceId = sourceId;
     }
 
     public Guid Id { get; private set; }
@@ -337,14 +355,23 @@ public sealed class BillingLine : ICompanyOwned
 
     public int LineNumber { get; private set; }
 
-    public Guid ProductId { get; private set; }
+    public BillingLineType LineType { get; private set; }
+
+    /// <summary>For an issued part, the service job part it bills.</summary>
+    public Guid? SourceId { get; private set; }
+
+    /// <summary>Null for service lines.</summary>
+    public Guid? ProductId { get; private set; }
+
+    /// <summary>Moves stock when posted.</summary>
+    public bool MovesStock => LineType == BillingLineType.Goods;
 
     public string Description { get; private set; }
 
     public string HsnCode { get; private set; }
 
-    /// <summary>The unit the quantity and rate are entered in.</summary>
-    public Guid UnitId { get; private set; }
+    /// <summary>The unit the quantity and rate are entered in; null for service lines.</summary>
+    public Guid? UnitId { get; private set; }
 
     public decimal Quantity { get; private set; }
 

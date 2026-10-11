@@ -60,7 +60,7 @@ public sealed partial class Party : ICompanyOwned, IAudited
 
     public string Pincode { get; private set; }
 
-    /// <summary>Informational in Phase 5: shown with the balance, not enforced.</summary>
+    /// <summary>Credit sales that would take the receivable above this need sales.credit-override (Phase 7). Zero means no limit.</summary>
     public decimal CreditLimit { get; private set; }
 
     /// <summary>The party's own ledger under Sundry Debtors or Sundry Creditors.</summary>
@@ -115,4 +115,36 @@ public sealed partial class Party : ICompanyOwned, IAudited
 
     [GeneratedRegex("^[1-9][0-9]{5}$")]
     private static partial Regex PincodePattern();
+}
+
+/// <summary>
+/// A customer-specific selling price for one product, per base unit. Sales to that customer default to this price
+/// instead of the product's selling price (so it is not a price override).
+/// </summary>
+public sealed class CustomerPrice : ICompanyOwned, IAudited
+{
+    private CustomerPrice()
+    {
+    }
+
+    public CustomerPrice(Guid id, Guid companyId, Guid partyId, Guid productId, decimal price)
+    {
+        Id = id;
+        CompanyId = companyId;
+        PartyId = partyId;
+        ProductId = productId;
+        SetPrice(price);
+    }
+
+    public Guid Id { get; private set; }
+
+    public Guid CompanyId { get; private set; }
+
+    public Guid PartyId { get; private set; }
+
+    public Guid ProductId { get; private set; }
+
+    public decimal Price { get; private set; }
+
+    public void SetPrice(decimal price) => Price = Money.EnsureValid(price, "Price");
 }

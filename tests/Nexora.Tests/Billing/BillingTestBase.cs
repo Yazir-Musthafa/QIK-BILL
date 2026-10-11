@@ -89,7 +89,7 @@ public abstract class BillingTestBase : StockTestBase
         var inputs = lines.Select(l =>
         {
             var source = original.Lines.Single(x => x.LineNumber == l.Line);
-            return new BillingLineInput(source.ProductId, l.Quantity, source.UnitId, OriginalLineId: source.Id, SerialNumber: source.SerialNumber, BatchId: source.BatchId);
+            return new BillingLineInput(source.ProductId ?? Guid.Empty, l.Quantity, source.UnitId, OriginalLineId: source.Id, SerialNumber: source.SerialNumber, BatchId: source.BatchId);
         }).ToArray();
         var id = await Billing.SaveDraftAsync(new BillingDraftInput(null, kind, October, original.PartyId, Main, original.Mode, inputs,
             CashAccountId: original.CashAccountId, OriginalDocumentId: originalId));

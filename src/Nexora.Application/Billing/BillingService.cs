@@ -15,10 +15,26 @@ namespace Nexora.Application.Billing;
 /// One line as entered. Quantity and <see cref="Rate"/> are in <see cref="UnitId"/> (the product's base unit when null).
 /// Rate null means the product's selling price (sales) or purchase price (purchases). Returns name the
 /// <see cref="OriginalLineId"/> and a quantity; their price, discount and tax come from the original line.
+/// A <see cref="BillingLineType.Service"/> line (sales only) has no product (<see cref="ProductId"/> empty): it needs a
+/// description, a rate and optionally a tax category and SAC code. An <see cref="BillingLineType.IssuedPart"/> line
+/// bills a part a service job already issued (<see cref="SourceId"/>): priced like goods, but posting does not move stock.
 /// </summary>
 public sealed record BillingLineInput(Guid ProductId, decimal Quantity, Guid? UnitId = null, decimal? Rate = null, decimal DiscountPercent = 0,
     decimal DiscountAmount = 0, Guid? BatchId = null, string? BatchNumber = null, DateOnly? ExpiresOn = null, string? SerialNumber = null,
-    Guid? OriginalLineId = null, string? Description = null);
+    Guid? OriginalLineId = null, string? Description = null, BillingLineType LineType = BillingLineType.Goods, Guid? TaxCategoryId = null,
+    string? HsnCode = null, Guid? SourceId = null);
+
+/// <summary>
+/// Posting a credit sale would take the customer's receivable above the credit limit. Posting again with the override
+/// needs sales.credit-override.
+/// </summary>
+public sealed class CreditLimitExceededException(string message, decimal limit, decimal exposure) : WorkspaceValidationException(message)
+{
+    public decimal Limit { get; } = limit;
+
+    /// <summary>The receivable after this invoice.</summary>
+    public decimal Exposure { get; } = exposure;
+}
 
 /// <summary>
 /// A draft document. For returns, party, mode, place of supply and prices come from <see cref="OriginalDocumentId"/>.
@@ -54,9 +70,10 @@ public sealed record BillingDocumentRow(Guid Id, BillingDocumentKind Kind, strin
     };
 }
 
-public sealed record BillingLineView(Guid Id, int LineNumber, Guid ProductId, string Sku, string Description, string HsnCode, Guid UnitId, string Unit,
+public sealed record BillingLineView(Guid Id, int LineNumber, Guid? ProductId, string Sku, string Description, string HsnCode, Guid? UnitId, string Unit,
     decimal Quantity, decimal Rate, decimal DiscountPercent, decimal Gross, decimal Discount, decimal Taxable, decimal TaxRatePercent, decimal Cgst,
-    decimal Sgst, decimal Igst, decimal Total, Guid? BatchId, string Batch, DateOnly? ExpiresOn, string? SerialNumber, Guid? OriginalLineId, decimal? Cost);
+    decimal Sgst, decimal Igst, decimal Total, Guid? BatchId, string Batch, DateOnly? ExpiresOn, string? SerialNumber, Guid? OriginalLineId, decimal? Cost,
+    BillingLineType LineType = BillingLineType.Goods, Guid? TaxCategoryId = null, Guid? SourceId = null);
 
 public sealed record AllocationView(Guid OtherId, string OtherType, string OtherNumber, DateOnly Date, decimal Amount);
 
@@ -73,7 +90,7 @@ public sealed record BillingDocumentView(Guid Id, BillingDocumentKind Kind, Bill
 }
 
 /// <summary>What can still be returned of one invoice or bill line.</summary>
-public sealed record ReturnableLine(Guid OriginalLineId, Guid ProductId, string Sku, string Description, Guid UnitId, string Unit, decimal Quantity,
+public sealed record ReturnableLine(Guid OriginalLineId, Guid? ProductId, string Sku, string Description, Guid? UnitId, string Unit, decimal Quantity,
     decimal Returned, decimal Rate, Guid? BatchId, string Batch, string? SerialNumber)
 {
     public decimal Remaining => Quantity - Returned;
@@ -137,7 +154,7 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
         await using var unit = await units.BeginAsync(readOnly: true, cancellationToken);
         var original = await unit.FindAsync<BillingDocument>(originalId, cancellationToken) ?? throw new WorkspaceValidationException("That document no longer exists.");
         var kind = original.Kind == BillingDocumentKind.SalesInvoice ? BillingDocumentKind.SalesReturn : BillingDocumentKind.PurchaseReturn;
-        var open = lines.Where(l => l.Remaining > 0).Select(l => new BillingLineInput(l.ProductId, l.Remaining, l.UnitId, OriginalLineId: l.OriginalLineId,
+        var open = lines.Where(l => l.Remaining > 0).Select(l => new BillingLineInput(l.ProductId ?? Guid.Empty, l.Remaining, l.UnitId, OriginalLineId: l.OriginalLineId,
             BatchId: l.BatchId, SerialNumber: l.SerialNumber)).ToList();
         if (open.Count == 0) throw new WorkspaceValidationException($"Everything on {original.Number} has already been returned.");
         return new BillingDraftInput(null, kind, date, original.PartyId, original.WarehouseId, original.Mode, open, original.CashAccountId, original.Id);
@@ -149,7 +166,7 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
     /// Posts a draft. Posting the same draft twice is refused, so a repeated click cannot post twice. Everything is
     /// recalculated from the stored quantities and rates with the tax rates configured now.
     /// </summary>
-    public async Task<string> PostAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<string> PostAsync(Guid id, bool overrideCreditLimit = false, CancellationToken cancellationToken = default)
     {
         using var lockHandle = await ledger.AcquireAsync(cancellationToken);
         await using var unit = await units.BeginAsync(cancellationToken: cancellationToken);
@@ -160,14 +177,16 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
         // Rebuild the lines from what was entered, re-checking permissions, prices, tax and return limits now.
         var stored = (await unit.ListAsync<BillingLine>(l => l.DocumentId == id, cancellationToken)).OrderBy(l => l.LineNumber).ToList();
         var input = new BillingDraftInput(id, document.Kind, document.Date, document.PartyId, document.WarehouseId, document.Mode,
-            stored.Select(l => new BillingLineInput(l.ProductId, l.Quantity, l.UnitId, l.Rate, l.DiscountPercent,
-                l.DiscountPercent == 0 ? l.DiscountAmount : 0, l.BatchId, l.BatchNumber, l.ExpiresOn, l.SerialNumber, l.OriginalLineId, l.Description)).ToList(),
+            stored.Select(l => new BillingLineInput(l.ProductId ?? Guid.Empty, l.Quantity, l.UnitId, l.Rate, l.DiscountPercent,
+                l.DiscountPercent == 0 ? l.DiscountAmount : 0, l.BatchId, l.BatchNumber, l.ExpiresOn, l.SerialNumber, l.OriginalLineId, l.Description,
+                l.LineType, l.TaxCategoryId, l.HsnCode, l.SourceId)).ToList(),
             document.CashAccountId, document.OriginalDocumentId, document.Reference, document.Narration, document.PricesIncludeTax, document.RoundToRupee,
             document.PartyId is null ? document.PartyName : null);
         foreach (var line in stored) unit.Remove(line);
         var lines = await ComposeAsync(unit, session, document, input, cancellationToken);
         if (lines.Count == 0) throw new WorkspaceValidationException("Add at least one line.");
         await EnsureNotDuplicateBillAsync(unit, document, cancellationToken);
+        await EnsureCreditLimitAsync(unit, session, document, overrideCreditLimit, cancellationToken);
 
         var year = FinancialYear.Containing(document.Date);
         var kind = document.Kind;
@@ -179,11 +198,17 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
             ? (await unit.ListAsync<BillingLine>(l => l.DocumentId == originalId, cancellationToken)).ToDictionary(l => l.Id)
             : [];
         var priorReturns = await PriorReturnsAsync(unit, document, cancellationToken);
-        var stockLines = lines.Select(l => StockLine(document.Kind, l, originalLines, priorReturns)).ToList();
-        var posted = await stock.PostCoreAsync(unit, session,
-            new StockDocumentInput(kind.StockType(), document.Date, document.WarehouseId, $"{kind.Label()} {number}", stockLines), number, cancellationToken);
+        // Only goods move stock: services have no stock, and parts issued by a service job left stock (with their cost) already.
+        var stockBacked = lines.Where(l => l.MovesStock).ToList();
+        StockCoreResult? posted = null;
+        if (stockBacked.Count > 0)
+        {
+            var stockLines = stockBacked.Select(l => StockLine(document.Kind, l, originalLines, priorReturns)).ToList();
+            posted = await stock.PostCoreAsync(unit, session,
+                new StockDocumentInput(kind.StockType(), document.Date, document.WarehouseId, $"{kind.Label()} {number}", stockLines), number, cancellationToken);
+        }
 
-        var voucherLines = await VoucherLinesAsync(unit, document, lines, posted.Lines, cancellationToken);
+        var voucherLines = await VoucherLinesAsync(unit, document, lines, posted?.Lines ?? [], cancellationToken);
         Guid? voucherId = null;
         if (voucherLines.Count > 0)
         {
@@ -194,15 +219,16 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
 
         // Line cost: what goods came in at (bills, returns) or the stock value that left (sales, debit notes).
         decimal cost = 0;
-        for (var i = 0; i < lines.Count; i++)
+        foreach (var line in lines.Where(l => !l.MovesStock)) line.Lock(0, null);
+        for (var i = 0; i < stockBacked.Count; i++)
         {
-            var value = posted.Lines[i];
+            var value = posted!.Lines[i];
             var lineCost = Math.Abs(kind is BillingDocumentKind.PurchaseBill or BillingDocumentKind.SalesReturn ? value.EnteredValue : value.StockValue);
-            lines[i].Lock(lineCost, value.BatchId);
+            stockBacked[i].Lock(lineCost, value.BatchId);
             cost += lineCost;
         }
 
-        Guard(() => document.MarkPosted(number, voucherId, posted.Document.Id, cost, clock.UtcNow, session.UserId));
+        Guard(() => document.MarkPosted(number, voucherId, posted?.Document.Id, cost, clock.UtcNow, session.UserId));
         await AutoAllocateReturnAsync(unit, session, document, cancellationToken);
         unit.Record(new AuditEvent("Posted", nameof(BillingDocument), document.Id.ToString(),
             $"Posted {kind.Label().ToLowerInvariant()} {number} for {document.Total:N2}" + (document.PartyName.Length > 0 ? $" ({document.PartyName})" : string.Empty)));
@@ -297,7 +323,7 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
         var showCost = authorizer.Has(Permissions.InventoryViewCost);
         var company = await unit.FindAsync<Company>(d.CompanyId, cancellationToken) ?? throw new WorkspaceValidationException("Sign in again.");
         var lines = (await unit.ListAsync<BillingLine>(l => l.DocumentId == id, cancellationToken)).OrderBy(l => l.LineNumber).ToList();
-        var productIds = lines.Select(l => l.ProductId).Distinct().ToList();
+        var productIds = lines.Where(l => l.ProductId != null).Select(l => l.ProductId!.Value).Distinct().ToList();
         var products = (await unit.ListAsync<Product>(p => productIds.Contains(p.Id), cancellationToken)).ToDictionary(p => p.Id);
         var unitNames = (await unit.ListAsync<Unit>(cancellationToken: cancellationToken)).ToDictionary(u => u.Id, u => u.Code);
         var batchIds = lines.Where(l => l.BatchId != null).Select(l => l.BatchId!.Value).ToList();
@@ -328,11 +354,11 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
             warehouse?.Name ?? "?", d.OriginalDocumentId, original?.Number, d.Reference, d.Narration, d.PricesIncludeTax, d.RoundToRupee,
             d.GrossAmount, d.DiscountAmount, d.TaxableAmount, d.Cgst, d.Sgst, d.Igst, d.RoundOff, d.Total, showCost ? d.CostOfGoods : null,
             outstanding, StatusOf(d, cancellation is not null, outstanding), cancellation?.Reason,
-            lines.Select(l => new BillingLineView(l.Id, l.LineNumber, l.ProductId, products.TryGetValue(l.ProductId, out var p) ? p.Sku : "?", l.Description,
-                l.HsnCode, l.UnitId, unitNames.GetValueOrDefault(l.UnitId, "?"), l.Quantity, l.Rate, l.DiscountPercent, l.GrossAmount, l.DiscountAmount,
+            lines.Select(l => new BillingLineView(l.Id, l.LineNumber, l.ProductId, l.ProductId is { } pid && products.TryGetValue(pid, out var p) ? p.Sku : string.Empty, l.Description,
+                l.HsnCode, l.UnitId, l.UnitId is { } uid ? unitNames.GetValueOrDefault(uid, "?") : string.Empty, l.Quantity, l.Rate, l.DiscountPercent, l.GrossAmount, l.DiscountAmount,
                 l.TaxableAmount, l.TaxRatePercent, l.Cgst, l.Sgst, l.Igst, l.Total, l.BatchId,
                 l.BatchId is { } b && batches.TryGetValue(b, out var batch) ? batch.Number : l.BatchNumber, l.ExpiresOn, l.SerialNumber, l.OriginalLineId,
-                showCost && l.IsLocked ? l.CostValue : null)).ToList(),
+                showCost && l.IsLocked ? l.CostValue : null, l.LineType, l.TaxCategoryId, l.SourceId)).ToList(),
             allocations, returns, company.LegalName.Length > 0 ? company.LegalName : company.Name, company.Gstin, company.StateCode);
     }
 
@@ -344,11 +370,12 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
         if (original.Kind.IsReturn()) throw new WorkspaceValidationException("A return cannot itself be returned.");
         var lines = (await unit.ListAsync<BillingLine>(l => l.DocumentId == originalId, cancellationToken)).OrderBy(l => l.LineNumber).ToList();
         var returned = await ReturnedAsync(unit, lines.Select(l => l.Id).ToList(), null, cancellationToken);
-        var productIds = lines.Select(l => l.ProductId).ToList();
+        var productIds = lines.Where(l => l.ProductId != null).Select(l => l.ProductId!.Value).ToList();
         var products = (await unit.ListAsync<Product>(p => productIds.Contains(p.Id), cancellationToken)).ToDictionary(p => p.Id);
         var unitNames = (await unit.ListAsync<Unit>(cancellationToken: cancellationToken)).ToDictionary(u => u.Id, u => u.Code);
         var batches = (await unit.ListAsync<Batch>(b => productIds.Contains(b.ProductId), cancellationToken)).ToDictionary(b => b.Id, b => b.Number);
-        return lines.Select(l => new ReturnableLine(l.Id, l.ProductId, products[l.ProductId].Sku, l.Description, l.UnitId, unitNames.GetValueOrDefault(l.UnitId, "?"),
+        return lines.Select(l => new ReturnableLine(l.Id, l.ProductId, l.ProductId is { } pid ? products[pid].Sku : string.Empty, l.Description, l.UnitId,
+                l.UnitId is { } uid ? unitNames.GetValueOrDefault(uid, "?") : string.Empty,
                 l.Quantity, returned.GetValueOrDefault(l.Id).Quantity, l.Rate, l.BatchId, l.BatchId is { } b ? batches.GetValueOrDefault(b, l.BatchNumber) : l.BatchNumber,
                 l.SerialNumber))
             .ToList();
@@ -428,7 +455,11 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
         Guard(() => document.UpdateDraft(input.Date, partyId, name, party?.Gstin ?? string.Empty, placeOfSupply, interState, mode, cashAccountId,
             warehouse.Id, original?.Id, input.Reference, input.Narration, pricesIncludeTax, roundToRupee));
 
-        var productIds = input.Lines.Select(l => l.ProductId).Concat(originalLines.Values.Select(l => l.ProductId)).Distinct().ToList();
+        var productIds = input.Lines.Where(l => l.LineType != BillingLineType.Service).Select(l => l.ProductId)
+            .Concat(originalLines.Values.Where(l => l.ProductId != null).Select(l => l.ProductId!.Value)).Distinct().ToList();
+        var customerPrices = input.Kind == BillingDocumentKind.SalesInvoice && partyId is { } priceParty
+            ? (await unit.ListAsync<CustomerPrice>(c => c.PartyId == priceParty, cancellationToken)).ToDictionary(c => c.ProductId, c => c.Price)
+            : [];
         var products = (await unit.ListAsync<Product>(p => productIds.Contains(p.Id), cancellationToken)).ToDictionary(p => p.Id);
         var conversions = await unit.ListAsync<UnitConversion>(c => productIds.Contains(c.ProductId), cancellationToken);
         var unitRows = (await unit.ListAsync<Unit>(cancellationToken: cancellationToken)).ToDictionary(u => u.Id);
@@ -457,10 +488,28 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
                 var baseQuantity = source.BaseQuantity == source.Quantity ? quantity : BaseOf(source, quantity, unitRows, products, lineNumber);
                 line = new BillingLine(Guid.NewGuid(), session.CompanyId, document.Id, lineNumber, source.ProductId, source.Description, source.HsnCode,
                     source.UnitId, quantity, baseQuantity, source.Rate, source.DiscountPercent, source.TaxCategoryId, source.TaxRatePercent, amounts,
-                    source.BatchId, source.BatchNumber, source.ExpiresOn, source.SerialNumber, source.Id);
+                    source.BatchId, source.BatchNumber, source.ExpiresOn, source.SerialNumber, source.Id, source.LineType, source.SourceId);
+            }
+            else if (entry.LineType == BillingLineType.Service)
+            {
+                if (input.Kind != BillingDocumentKind.SalesInvoice) throw new WorkspaceValidationException($"Line {lineNumber}: service lines are only for sales invoices.");
+                if (string.IsNullOrWhiteSpace(entry.Description)) throw new WorkspaceValidationException($"Line {lineNumber}: describe the service.");
+                if (entry.Rate is not { } rate) throw new WorkspaceValidationException($"Line {lineNumber}: enter the rate of the service.");
+                var quantity = Quantity(entry.Quantity, lineNumber);
+                TaxCategory? tax = null;
+                if (entry.TaxCategoryId is { } t && !taxCategories.TryGetValue(t, out tax)) throw new WorkspaceValidationException($"Line {lineNumber}: that tax category no longer exists.");
+                var amounts = Guard(() => BillingCalculator.Line(quantity, rate, entry.DiscountPercent, entry.DiscountAmount, tax?.ReferenceRatePercent ?? 0,
+                    interState, pricesIncludeTax), lineNumber);
+                EnforceSalesLimits(session, entry.Description.Trim(), rate, rate, amounts, lineNumber);
+                var sac = (entry.HsnCode ?? string.Empty).Trim();
+                if (sac.Length > 8) throw new WorkspaceValidationException($"Line {lineNumber}: the SAC code can have at most 8 characters.");
+                line = Guard(() => new BillingLine(Guid.NewGuid(), session.CompanyId, document.Id, lineNumber, null, entry.Description, sac, null, quantity, quantity,
+                    rate, entry.DiscountPercent, tax?.Id, tax?.ReferenceRatePercent ?? 0, amounts, null, string.Empty, null, null, null, BillingLineType.Service), lineNumber);
             }
             else
             {
+                if (entry.LineType == BillingLineType.IssuedPart && (input.Kind != BillingDocumentKind.SalesInvoice || entry.SourceId is null))
+                    throw new WorkspaceValidationException($"Line {lineNumber}: issued parts are billed from their service job.");
                 if (!products.TryGetValue(entry.ProductId, out var product)) throw new WorkspaceValidationException($"Line {lineNumber}: choose a product.");
                 if (product.IsArchived) throw new WorkspaceValidationException($"Line {lineNumber}: {product.Sku} is archived.");
                 var unitId = entry.UnitId ?? product.UnitId;
@@ -470,16 +519,18 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
                 var baseUnit = unitRows[product.UnitId];
                 if (decimal.Round(baseQuantity, baseUnit.DecimalPlaces) != baseQuantity)
                     throw new WorkspaceValidationException($"Line {lineNumber}: {quantity:0.###} is not a valid quantity of {product.Sku} in {baseUnit.Code}.");
-                var listPrice = Money.Round((input.Kind.IsSales() ? product.SellingPrice : product.PurchasePrice) * factor);
+                // A customer-specific price (per base unit) replaces the selling price for that customer.
+                var basePrice = input.Kind.IsSales() ? customerPrices.GetValueOrDefault(product.Id, product.SellingPrice) : product.PurchasePrice;
+                var listPrice = Money.Round(basePrice * factor);
                 var rate = entry.Rate ?? listPrice;
                 var tax = product.TaxCategoryId is { } t && taxCategories.TryGetValue(t, out var category) ? category : null;
                 var amounts = Guard(() => BillingCalculator.Line(quantity, rate, entry.DiscountPercent, entry.DiscountAmount, tax?.ReferenceRatePercent ?? 0,
                     interState, pricesIncludeTax), lineNumber);
-                if (input.Kind.IsSales()) EnforceSalesLimits(session, product, rate, listPrice, amounts, lineNumber);
+                if (input.Kind.IsSales()) EnforceSalesLimits(session, product.Sku, rate, listPrice, amounts, lineNumber);
                 var description = string.IsNullOrWhiteSpace(entry.Description) ? product.DisplayName : entry.Description.Trim();
                 line = Guard(() => new BillingLine(Guid.NewGuid(), session.CompanyId, document.Id, lineNumber, product.Id, description, product.HsnCode, unitId,
                     quantity, baseQuantity, rate, entry.DiscountPercent, tax?.Id, tax?.ReferenceRatePercent ?? 0, amounts, entry.BatchId, entry.BatchNumber ?? string.Empty,
-                    entry.ExpiresOn, entry.SerialNumber, null), lineNumber);
+                    entry.ExpiresOn, entry.SerialNumber, null, entry.LineType, entry.SourceId), lineNumber);
             }
 
             unit.Add(line);
@@ -492,10 +543,10 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
     }
 
     /// <summary>Price override and discount limits, checked on every save and again when posting (as the poster).</summary>
-    private static void EnforceSalesLimits(SessionInfo session, Product product, decimal rate, decimal listPrice, LineAmounts amounts, int lineNumber)
+    private static void EnforceSalesLimits(SessionInfo session, string item, decimal rate, decimal listPrice, LineAmounts amounts, int lineNumber)
     {
         if (rate != listPrice && !session.Has(Permissions.SalesPriceOverride))
-            throw new WorkspaceValidationException($"Line {lineNumber}: you may not change the price of {product.Sku} ({listPrice:N2}).");
+            throw new WorkspaceValidationException($"Line {lineNumber}: you may not change the price of {item} ({listPrice:N2}).");
         if (amounts.Discount <= 0) return;
         if (!session.Has(Permissions.SalesDiscount)) throw new WorkspaceValidationException($"Line {lineNumber}: you may not give discounts.");
         if (amounts.Gross > 0 && amounts.Discount * 100m > session.MaxDiscountPercent * amounts.Gross)
@@ -508,7 +559,7 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
         switch (kind)
         {
             case BillingDocumentKind.PurchaseBill:
-                return new StockLineInput(line.ProductId, line.Quantity, line.UnitId, BatchId: line.BatchId, BatchNumber: NullIfEmpty(line.BatchNumber),
+                return new StockLineInput(line.ProductId!.Value, line.Quantity, line.UnitId, BatchId: line.BatchId, BatchNumber: NullIfEmpty(line.BatchNumber),
                     ExpiresOn: line.ExpiresOn, SerialNumber: line.SerialNumber, LineValue: line.TaxableAmount);
             case BillingDocumentKind.SalesReturn:
             {
@@ -517,11 +568,11 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
                 var prior = priorReturns.GetValueOrDefault(source.Id);
                 var cost = BillingCalculator.PortionOf(source.CostValue, source.Quantity, prior.Cost, prior.Quantity, line.Quantity);
                 priorReturns[source.Id] = (prior.Quantity + line.Quantity, prior.Cost + cost);
-                return new StockLineInput(line.ProductId, line.Quantity, line.UnitId, BatchId: line.BatchId, SerialNumber: line.SerialNumber, LineValue: cost);
+                return new StockLineInput(line.ProductId!.Value, line.Quantity, line.UnitId, BatchId: line.BatchId, SerialNumber: line.SerialNumber, LineValue: cost);
             }
 
             default:
-                return new StockLineInput(line.ProductId, line.Quantity, line.UnitId, BatchId: line.BatchId, BatchNumber: line.BatchId is null ? NullIfEmpty(line.BatchNumber) : null,
+                return new StockLineInput(line.ProductId!.Value, line.Quantity, line.UnitId, BatchId: line.BatchId, BatchNumber: line.BatchId is null ? NullIfEmpty(line.BatchNumber) : null,
                     SerialNumber: line.SerialNumber);
         }
     }
@@ -601,6 +652,28 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
                 clock.UtcNow, session.UserId));
     }
 
+    /// <summary>
+    /// Credit sales may not take the customer's receivable (its ledger balance) above a non-zero credit limit unless the
+    /// poster overrides it, which needs sales.credit-override and is recorded in the audit trail.
+    /// </summary>
+    private async Task EnsureCreditLimitAsync(IUnitOfWork unit, SessionInfo session, BillingDocument d, bool overrideLimit, CancellationToken cancellationToken)
+    {
+        if (d.Kind != BillingDocumentKind.SalesInvoice || d.Mode != SettlementMode.Credit || d.PartyId is not { } partyId) return;
+        var party = await unit.FindAsync<Party>(partyId, cancellationToken);
+        if (party is null || party.CreditLimit <= 0) return;
+        var balance = (await unit.ListAsync<LedgerEntry>(e => e.AccountId == party.AccountId, cancellationToken)).Sum(e => e.Debit - e.Credit);
+        var exposure = balance + d.Total;
+        if (exposure <= party.CreditLimit) return;
+        if (!overrideLimit)
+            throw new CreditLimitExceededException(
+                $"{party.Name}'s credit limit is {party.CreditLimit:N2}. With this invoice the receivable would be {exposure:N2}, which is {exposure - party.CreditLimit:N2} over the limit.",
+                party.CreditLimit, exposure);
+        if (!session.Has(Permissions.SalesCreditOverride))
+            throw new AccessDeniedException($"Posting above {party.Name}'s credit limit needs the permission \"Sales: Override credit limit\".");
+        unit.Record(new AuditEvent("CreditLimitOverridden", nameof(BillingDocument), d.Id.ToString(),
+            $"Credit limit {party.CreditLimit:N2} of {party.Name} overridden: receivable after posting {exposure:N2}"));
+    }
+
     /// <summary>A supplier's bill number may be recorded once per supplier (cancelled bills excepted).</summary>
     private static async Task EnsureNotDuplicateBillAsync(IUnitOfWork unit, BillingDocument d, CancellationToken cancellationToken)
     {
@@ -666,7 +739,7 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
     private static decimal BaseOf(BillingLine source, decimal quantity, Dictionary<Guid, Unit> unitRows, Dictionary<Guid, Product> products, int lineNumber)
     {
         var baseQuantity = source.BaseQuantity * quantity / source.Quantity;
-        var decimals = products.TryGetValue(source.ProductId, out var p) && unitRows.TryGetValue(p.UnitId, out var u) ? u.DecimalPlaces : 3;
+        var decimals = source.ProductId is { } pid && products.TryGetValue(pid, out var p) && unitRows.TryGetValue(p.UnitId, out var u) ? u.DecimalPlaces : 3;
         if (decimal.Round(baseQuantity, decimals) != baseQuantity)
             throw new WorkspaceValidationException($"Line {lineNumber}: {quantity:0.###} does not convert to a whole base quantity.");
         return baseQuantity;

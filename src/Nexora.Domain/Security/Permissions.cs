@@ -32,6 +32,7 @@ public static class Permissions
     public const string SalesCancel = "sales.cancel";
     public const string SalesPriceOverride = "sales.price-override";
     public const string SalesDiscount = "sales.discount";
+    public const string SalesCreditOverride = "sales.credit-override";
     public const string PurchasesView = "purchases.view";
     public const string PurchasesCreate = "purchases.create";
     public const string PurchasesCancel = "purchases.cancel";
@@ -41,6 +42,7 @@ public static class Permissions
     public const string InventoryViewCost = "inventory.view-cost";
     public const string ExpensesView = "expenses.view";
     public const string ExpensesManage = "expenses.manage";
+    public const string ExpensesApprove = "expenses.approve";
     public const string CrmView = "crm.view";
     public const string CrmManage = "crm.manage";
     public const string ServiceView = "service.view";
@@ -71,6 +73,7 @@ public static class Permissions
         new(SalesCancel, "Sales", "Cancel", "Cancel sales documents."),
         new(SalesPriceOverride, "Sales", "Override price", "Change the selling price on a document."),
         new(SalesDiscount, "Sales", "Discount", "Give discounts up to the role's discount limit."),
+        new(SalesCreditOverride, "Sales", "Override credit limit", "Post a credit sale that takes the customer above its credit limit."),
         new(PurchasesView, "Purchases", "View", "See purchase documents."),
         new(PurchasesCreate, "Purchases", "Create", "Create purchase documents."),
         new(PurchasesCancel, "Purchases", "Cancel", "Cancel purchase documents."),
@@ -79,7 +82,8 @@ public static class Permissions
         new(InventoryAdjust, "Inventory", "Adjust", "Record stock adjustments and transfers."),
         new(InventoryViewCost, "Inventory", "View cost", "See purchase cost and stock valuation."),
         new(ExpensesView, "Expenses", "View", "See expenses."),
-        new(ExpensesManage, "Expenses", "Manage", "Record and approve expenses."),
+        new(ExpensesManage, "Expenses", "Manage", "Record, submit and post expenses, and manage categories and recurring expenses."),
+        new(ExpensesApprove, "Expenses", "Approve", "Approve or reject expenses submitted for approval."),
         new(CrmView, "CRM", "View", "See leads and contacts."),
         new(CrmManage, "CRM", "Manage", "Edit leads, contacts and follow-ups."),
         new(ServiceView, "Service", "View", "See service jobs."),

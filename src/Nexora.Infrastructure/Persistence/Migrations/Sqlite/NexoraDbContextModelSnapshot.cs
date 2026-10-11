@@ -647,10 +647,17 @@ namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
                     b.Property<int>("LineNumber")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("LineType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(12)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("Goods");
+
                     b.Property<Guid?>("OriginalLineId")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("ProductId")
+                    b.Property<Guid?>("ProductId")
                         .HasColumnType("TEXT");
 
                     b.Property<long>("Quantity")
@@ -669,6 +676,9 @@ namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
                         .HasColumnType("INTEGER")
                         .HasColumnName("SgstPaise");
 
+                    b.Property<Guid?>("SourceId")
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid?>("TaxCategoryId")
                         .HasColumnType("TEXT");
 
@@ -680,7 +690,7 @@ namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
                         .HasColumnType("INTEGER")
                         .HasColumnName("TaxableAmountPaise");
 
-                    b.Property<Guid>("UnitId")
+                    b.Property<Guid?>("UnitId")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -723,6 +733,36 @@ namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
                         .IsUnique();
 
                     b.ToTable("BillingSettings", (string)null);
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Billing.CustomerPrice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PartyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Price")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("PricePaise");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("CompanyId", "ProductId");
+
+                    b.HasIndex("CompanyId", "PartyId", "ProductId")
+                        .IsUnique();
+
+                    b.ToTable("CustomerPrices", (string)null);
                 });
 
             modelBuilder.Entity("Nexora.Domain.Billing.Party", b =>
@@ -2210,8 +2250,7 @@ namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
                         .WithMany()
                         .HasForeignKey("CompanyId", "ProductId")
                         .HasPrincipalKey("CompanyId", "Id")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("Nexora.Domain.Inventory.TaxCategory", null)
                         .WithMany()
@@ -2223,8 +2262,7 @@ namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
                         .WithMany()
                         .HasForeignKey("CompanyId", "UnitId")
                         .HasPrincipalKey("CompanyId", "Id")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.NoAction);
                 });
 
             modelBuilder.Entity("Nexora.Domain.Billing.BillingSettings", b =>
@@ -2233,6 +2271,29 @@ namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
                         .WithMany()
                         .HasForeignKey("CompanyId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Billing.CustomerPrice", b =>
+                {
+                    b.HasOne("Nexora.Domain.Companies.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Billing.Party", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "PartyId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Inventory.Product", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "ProductId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
                 });
 

@@ -97,11 +97,13 @@ internal sealed class BillingLineConfiguration : IEntityTypeConfiguration<Billin
 
         builder.Ignore(l => l.Amounts);
         builder.Ignore(l => l.Total);
+        builder.Ignore(l => l.MovesStock);
+        builder.Property(l => l.LineType).HasConversion<string>().HasMaxLength(12).HasDefaultValue(BillingLineType.Goods).HasSentinel(BillingLineType.Goods);
         builder.HasIndex(l => new { l.CompanyId, l.DocumentId, l.LineNumber }).IsUnique();
         builder.HasIndex(l => new { l.CompanyId, l.OriginalLineId });
         CompanyKeys.References<BillingLine, BillingDocument>(builder, l => new { l.CompanyId, l.DocumentId }, required: true);
-        CompanyKeys.References<BillingLine, Product>(builder, l => new { l.CompanyId, l.ProductId }, required: true);
-        CompanyKeys.References<BillingLine, Unit>(builder, l => new { l.CompanyId, l.UnitId }, required: true);
+        CompanyKeys.References<BillingLine, Product>(builder, l => new { l.CompanyId, l.ProductId }, required: false);
+        CompanyKeys.References<BillingLine, Unit>(builder, l => new { l.CompanyId, l.UnitId }, required: false);
         CompanyKeys.References<BillingLine, TaxCategory>(builder, l => new { l.CompanyId, l.TaxCategoryId }, required: false);
         CompanyKeys.References<BillingLine, Batch>(builder, l => new { l.CompanyId, l.BatchId }, required: false);
         CompanyKeys.References<BillingLine, BillingLine>(builder, l => new { l.CompanyId, l.OriginalLineId }, required: false);
@@ -188,5 +190,19 @@ internal sealed class BillingSettingsConfiguration : IEntityTypeConfiguration<Bi
         builder.HasKey(s => s.Id);
         builder.Property(s => s.Id).ValueGeneratedNever();
         builder.HasIndex(s => s.CompanyId).IsUnique();
+    }
+}
+
+internal sealed class CustomerPriceConfiguration : IEntityTypeConfiguration<CustomerPrice>
+{
+    public void Configure(EntityTypeBuilder<CustomerPrice> builder)
+    {
+        builder.ToTable("CustomerPrices");
+        builder.HasKey(c => c.Id);
+        builder.Property(c => c.Id).ValueGeneratedNever();
+        builder.Property(c => c.Price).HasConversion(PaiseConverter.Instance).HasColumnName("PricePaise");
+        builder.HasIndex(c => new { c.CompanyId, c.PartyId, c.ProductId }).IsUnique();
+        CompanyKeys.References<CustomerPrice, Party>(builder, c => new { c.CompanyId, c.PartyId }, required: true);
+        CompanyKeys.References<CustomerPrice, Product>(builder, c => new { c.CompanyId, c.ProductId }, required: true);
     }
 }

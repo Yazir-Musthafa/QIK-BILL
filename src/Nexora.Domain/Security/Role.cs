@@ -149,7 +149,7 @@ public static class RoleTemplates
             Security.Permissions.VouchersView, Security.Permissions.VouchersCreate, Security.Permissions.VouchersPost, Security.Permissions.VouchersReverse,
             Security.Permissions.FinancialYearsManage, Security.Permissions.ReportsView, Security.Permissions.DataExport,
             Security.Permissions.SalesView, Security.Permissions.PurchasesView, Security.Permissions.InventoryView, Security.Permissions.InventoryViewCost,
-            Security.Permissions.ExpensesView, Security.Permissions.ExpensesManage,
+            Security.Permissions.ExpensesView, Security.Permissions.ExpensesManage, Security.Permissions.ExpensesApprove,
         ], 0m),
         new("billing-operator", "Billing Operator", "Sales entry with limited discounts. No cost prices.",
         [
