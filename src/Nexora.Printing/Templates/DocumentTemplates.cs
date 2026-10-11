@@ -326,7 +326,10 @@ public static class InvoiceTemplate
             return;
         }
 
-        // Tax summary (left) and totals (right), side by side when they fit.
+        // Tax summary (left) and totals (right), side by side, kept on one page with the amount in words and the
+        // signature block, so a page never holds only the signature.
+        var keep = (Math.Max(TaxGroups(d).Count + 2, TotalRows(d).Count) + 2) * Blocks.Lh(c, f + 1) + Blocks.Lh(c, f) * 8;
+        c.Ensure(keep);
         var startY = c.Y;
         TaxSummary(c, d, c.Width * 0.55);
         var afterSummary = c.Y;

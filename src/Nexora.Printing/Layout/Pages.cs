@@ -99,6 +99,6 @@ public sealed record PageSetup(PaperKind Paper, PageOrientation Orientation, Mar
         if (ScalePercent is < 25 or > 200) throw new ArgumentException("Scale must be between 25% and 200%.");
         if (FontSize is < 6 or > 16) throw new ArgumentException("Font size must be between 6 and 16 points.");
         if (new[] { MarginsMm.Top, MarginsMm.Right, MarginsMm.Bottom, MarginsMm.Left }.Any(m => m is < 0 or > 50)) throw new ArgumentException("Margins must be between 0 and 50 mm.");
-        if (ContentWidth < 30 * PointsPerMm / Scale * 0.5) throw new ArgumentException("The margins leave too little room on this paper.");
+        if (PageWidth - (MarginsMm.Left + MarginsMm.Right) * PointsPerMm < 20 * PointsPerMm) throw new ArgumentException("The margins leave less than 20 mm of width on this paper.");
     }
 }
