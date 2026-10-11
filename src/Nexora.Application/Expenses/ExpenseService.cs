@@ -634,12 +634,13 @@ public static class AttachmentRules
         var type = Detect(content) ?? throw new WorkspaceValidationException("Only PDF, PNG and JPEG files can be attached.");
         var name = Path.GetFileName((fileName ?? string.Empty).Replace('\\', '/'));
         var invalid = Path.GetInvalidFileNameChars().Concat(['/', '\\', ':', '*', '?', '"', '<', '>', '|']).ToHashSet();
-        name = new string(name.Where(c => !invalid.Contains(c) && !char.IsControl(c)).ToArray()).Trim().TrimStart('.');
+        name = new string(name.Where(c => !invalid.Contains(c) && !char.IsControl(c)).ToArray()).Trim();
         var extension = Path.GetExtension(name).ToLowerInvariant();
+        var stem = Path.GetFileNameWithoutExtension(name).Trim().TrimStart('.');
+        name = (stem.Length > 0 ? stem : "attachment") + extension;
         var expected = type switch { "application/pdf" => new[] { ".pdf" }, "image/png" => [".png"], _ => [".jpg", ".jpeg"] };
         if (!expected.Contains(extension)) throw new WorkspaceValidationException($"The file's content is {type}, but its name ends in \"{extension}\". Rename it or choose the right file.");
         if (name.Length > 120) name = name[..(120 - extension.Length)] + extension;
-        if (Path.GetFileNameWithoutExtension(name).Length == 0) name = "attachment" + extension;
         return (name, type);
     }
 

@@ -512,7 +512,12 @@ public sealed class CrmService(IUnitOfWorkFactory units, IAuthorizer authorizer,
 
     private static string Name(Dictionary<Guid, string> names, Guid? id) => id is { } u ? names.GetValueOrDefault(u, "?") : string.Empty;
 
-    private static string Digits(string text) => new([.. (text ?? string.Empty).Where(char.IsAsciiDigit)]);
+    /// <summary>Digits of a phone number; the last 10 for longer numbers, so +91 and leading-zero forms of the same Indian number match.</summary>
+    private static string Digits(string text)
+    {
+        var digits = new string([.. (text ?? string.Empty).Where(char.IsAsciiDigit)]);
+        return digits.Length > 10 ? digits[^10..] : digits;
+    }
 
     private static void Guard(Action action)
     {

@@ -143,6 +143,8 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
         authorizer.Demand(CreatePermission(document.Kind));
         Guard(document.EnsureDraft);
         foreach (var line in await unit.ListAsync<BillingLine>(l => l.DocumentId == id, cancellationToken)) unit.Remove(line);
+        // A service job may point at this draft as its invoice; it is released so a new invoice can be raised.
+        foreach (var job in await unit.ListAsync<Domain.Service.ServiceJob>(j => j.InvoiceId == id, cancellationToken)) job.LinkInvoice(null);
         unit.Remove(document);
         await unit.CommitAsync(cancellationToken);
     }

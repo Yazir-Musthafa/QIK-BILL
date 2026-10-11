@@ -44,6 +44,9 @@ public interface ILedgerPoster
 
     Task<Guid> AccountAsync(IUnitOfWork unit, LedgerAccountRole role, CancellationToken cancellationToken);
 
+    /// <summary>Creates a system account that older companies lack (call before starting the posting transaction).</summary>
+    Task EnsureAccountAsync(LedgerAccountRole role, CancellationToken cancellationToken);
+
     /// <summary>Posts the entry as a numbered journal voucher and returns its id.</summary>
     Task<Guid> PostAsync(IUnitOfWork unit, LedgerPosting posting, CancellationToken cancellationToken);
 

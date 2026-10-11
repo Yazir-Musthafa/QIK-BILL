@@ -15,7 +15,7 @@ internal static class PostingLock
 /// Posts other modules' accounting entries through the same engine as manual vouchers: same balance checks, financial
 /// year checks, numbering and audit, inside the caller's transaction. The voucher records its source document.
 /// </summary>
-internal sealed class LedgerPoster(VoucherService vouchers, IAuthorizer authorizer, IClock clock) : ILedgerPoster
+internal sealed class LedgerPoster(VoucherService vouchers, IAuthorizer authorizer, IClock clock, IUnitOfWorkFactory units) : ILedgerPoster
 {
     public async Task<IDisposable> AcquireAsync(CancellationToken cancellationToken)
     {
@@ -47,8 +47,20 @@ internal sealed class LedgerPoster(VoucherService vouchers, IAuthorizer authoriz
             _ => throw new ArgumentOutOfRangeException(nameof(role)),
         };
         var account = (await unit.ListAsync<Account>(a => a.SystemKey == key, cancellationToken)).SingleOrDefault();
-        if (account is null && role == LedgerAccountRole.WarrantyExpense) account = await AddWarrantyAccountAsync(unit, cancellationToken);
         return account?.Id ?? throw new WorkspaceValidationException($"The system account \"{key}\" is missing from the chart of accounts.");
+    }
+
+    /// <summary>
+    /// Makes sure an account added after a company was created exists, in its own short transaction (so later postings
+    /// can see it). Today only Warranty and Service Costs (Phase 7) is added this way.
+    /// </summary>
+    public async Task EnsureAccountAsync(LedgerAccountRole role, CancellationToken cancellationToken)
+    {
+        if (role != LedgerAccountRole.WarrantyExpense) return;
+        await using var unit = await units.BeginAsync(cancellationToken: cancellationToken);
+        if (await unit.AnyAsync<Account>(a => a.SystemKey == SystemAccounts.WarrantyExpense, cancellationToken)) return;
+        await AddWarrantyAccountAsync(unit, cancellationToken);
+        await unit.CommitAsync(cancellationToken);
     }
 
     /// <summary>

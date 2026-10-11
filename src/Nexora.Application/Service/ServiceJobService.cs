@@ -227,6 +227,7 @@ public sealed class ServiceJobService(IUnitOfWorkFactory units, IAuthorizer auth
     public async Task<Guid> IssuePartAsync(Guid jobId, ServicePartInput input, CancellationToken cancellationToken = default)
     {
         var session = authorizer.Demand(Permissions.ServiceManage);
+        await ledger.EnsureAccountAsync(LedgerAccountRole.WarrantyExpense, cancellationToken);
         using var lockHandle = await ledger.AcquireAsync(cancellationToken);
         await using var unit = await units.BeginAsync(cancellationToken: cancellationToken);
         var job = await JobAsync(unit, jobId, cancellationToken);
@@ -265,6 +266,7 @@ public sealed class ServiceJobService(IUnitOfWorkFactory units, IAuthorizer auth
     public async Task ReturnPartAsync(Guid partId, DateOnly date, CancellationToken cancellationToken = default)
     {
         var session = authorizer.Demand(Permissions.ServiceManage);
+        await ledger.EnsureAccountAsync(LedgerAccountRole.WarrantyExpense, cancellationToken);
         using var lockHandle = await ledger.AcquireAsync(cancellationToken);
         await using var unit = await units.BeginAsync(cancellationToken: cancellationToken);
         var part = await unit.FindAsync<ServicePart>(partId, cancellationToken) ?? throw new WorkspaceValidationException("That part no longer exists.");
