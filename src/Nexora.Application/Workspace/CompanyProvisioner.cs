@@ -35,7 +35,15 @@ public sealed class CompanyProvisioner(IEnumerable<ICompanySeedContributor> cont
         foreach (var company in companies)
         {
             var entities = new List<object>();
-            if (!await store.CompanyHasAsync(company.Id, typeof(Role), cancellationToken)) entities.AddRange(CoreSeed(company, userIds, nowUtc));
+            var hadRoles = await store.CompanyHasAsync(company.Id, typeof(Role), cancellationToken);
+            if (!hadRoles) entities.AddRange(CoreSeed(company, userIds, nowUtc));
+            else if (!await store.CompanyHasAsync(company.Id, typeof(Domain.Reports.ReportSettings), cancellationToken))
+            {
+                // First start on Phase 8: roles created from older templates get the permissions added to them since.
+                foreach (var group in RoleTemplates.Additions.GroupBy(a => a.TemplateKey))
+                    await store.GrantRolePermissionsAsync(company.Id, group.Key, group.Select(a => a.Permission).ToList(), cancellationToken);
+            }
+
             foreach (var contributor in contributors)
             {
                 if (!await store.CompanyHasAsync(company.Id, contributor.MarkerType, cancellationToken))

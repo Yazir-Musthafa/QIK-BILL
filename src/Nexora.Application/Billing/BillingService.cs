@@ -543,6 +543,17 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
         }
 
         var totals = BillingCalculator.Totals(lines.Select(l => l.Amounts), roundToRupee);
+        if (original is { RoundToRupee: true } && ReturnsEverything(originalLines.Values, returned, lines))
+        {
+            // The return that completes the document takes the round-off that makes all its returns add up to the original's total.
+            var earlier = (await unit.ListAsync<BillingDocument>(d => d.OriginalDocumentId == original.Id && d.Id != document.Id && d.Status == BillingStatus.Posted,
+                cancellationToken)).Select(d => (d.Id, d.Total)).ToList();
+            var earlierIds = earlier.Select(e => e.Id).ToList();
+            var cancelled = (await unit.ListAsync<BillingCancellation>(c => earlierIds.Contains(c.DocumentId), cancellationToken)).Select(c => c.DocumentId).ToHashSet();
+            var earlierTotal = earlier.Where(e => !cancelled.Contains(e.Id)).Sum(e => e.Total);
+            totals = totals with { RoundOff = original.Total - earlierTotal - (totals.Taxable + totals.Tax) };
+        }
+
         Guard(() => document.SetTotals(totals));
         return lines;
     }
@@ -695,6 +706,10 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
     }
 
     /// <summary>Quantity, amounts and cost already returned per original line by posted, uncancelled returns (other than <paramref name="exclude"/>).</summary>
+    private static bool ReturnsEverything(IEnumerable<BillingLine> originalLines, Dictionary<Guid, (decimal Quantity, LineAmounts Amounts, decimal Cost)> returned,
+        List<BillingLine> thisReturn) =>
+        originalLines.All(o => (returned.TryGetValue(o.Id, out var r) ? r.Quantity : 0) + thisReturn.Where(l => l.OriginalLineId == o.Id).Sum(l => l.Quantity) == o.Quantity);
+
     private static async Task<Dictionary<Guid, (decimal Quantity, LineAmounts Amounts, decimal Cost)>> ReturnedAsync(IUnitOfWork unit, List<Guid> originalLineIds,
         Guid? exclude, CancellationToken cancellationToken)
     {

@@ -96,7 +96,7 @@ internal sealed class LedgerPoster(VoucherService vouchers, IAuthorizer authoriz
         var voucher = new Voucher(Guid.NewGuid(), session.CompanyId, type, posting.Date, posting.Narration, clock.UtcNow, session.UserId);
         voucher.MarkSource(posting.SourceType, posting.SourceId);
         voucher.UpdateDraft(posting.Date, posting.Narration,
-            posting.Lines.Select(l => new VoucherLineInput(l.AccountId, l.Debit, l.Credit, l.Narration)).ToList());
+            posting.Lines.Select(l => new VoucherLineInput(l.AccountId, l.Debit, l.Credit, l.Narration, l.CostCentreId)).ToList());
         unit.Add(voucher);
         foreach (var line in voucher.Lines) unit.Add(line);
         await vouchers.PostCoreAsync(unit, voucher, session, cancellationToken, system: true);

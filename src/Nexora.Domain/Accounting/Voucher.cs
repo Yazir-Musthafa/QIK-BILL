@@ -54,7 +54,7 @@ public static class VoucherTypeExtensions
 }
 
 /// <summary>Input for one voucher line. Exactly one of debit or credit is positive.</summary>
-public sealed record VoucherLineInput(Guid AccountId, decimal Debit, decimal Credit, string? Narration = null);
+public sealed record VoucherLineInput(Guid AccountId, decimal Debit, decimal Credit, string? Narration = null, Guid? CostCentreId = null);
 
 /// <summary>
 /// A double-entry voucher. Drafts can be edited freely; posting checks that the voucher balances and freezes it.
@@ -137,7 +137,7 @@ public sealed class Voucher : ICompanyOwned, IAudited
         for (var i = 0; i < lines.Count; i++)
         {
             var input = lines[i];
-            _lines.Add(new VoucherLine(Guid.NewGuid(), CompanyId, Id, i + 1, input.AccountId, input.Debit, input.Credit, input.Narration));
+            _lines.Add(new VoucherLine(Guid.NewGuid(), CompanyId, Id, i + 1, input.AccountId, input.Debit, input.Credit, input.Narration, input.CostCentreId));
         }
     }
 
@@ -207,7 +207,7 @@ public sealed class Voucher : ICompanyOwned, IAudited
             SourceId = SourceId,
         };
         reversal.UpdateDraft(date, reversal.Narration,
-            _lines.Select(l => new VoucherLineInput(l.AccountId, l.Credit, l.Debit, l.Narration)).ToList());
+            _lines.Select(l => new VoucherLineInput(l.AccountId, l.Credit, l.Debit, l.Narration, l.CostCentreId)).ToList());
         return reversal;
     }
 
@@ -230,7 +230,8 @@ public sealed class VoucherLine : ICompanyOwned, IAudited
     {
     }
 
-    internal VoucherLine(Guid id, Guid companyId, Guid voucherId, int lineNumber, Guid accountId, decimal debit, decimal credit, string? narration)
+    internal VoucherLine(Guid id, Guid companyId, Guid voucherId, int lineNumber, Guid accountId, decimal debit, decimal credit, string? narration,
+        Guid? costCentreId = null)
     {
         if (accountId == Guid.Empty) throw new DomainException($"Line {lineNumber}: choose an account.");
         Money.EnsureValid(debit, $"Line {lineNumber} debit");
@@ -246,6 +247,7 @@ public sealed class VoucherLine : ICompanyOwned, IAudited
         Debit = debit;
         Credit = credit;
         Narration = text;
+        CostCentreId = costCentreId;
     }
 
     public Guid Id { get; private set; }
@@ -257,6 +259,9 @@ public sealed class VoucherLine : ICompanyOwned, IAudited
     public int LineNumber { get; private set; }
 
     public Guid AccountId { get; private set; }
+
+    /// <summary>Optional cost or profit centre of an income or expense line (Phase 8).</summary>
+    public Guid? CostCentreId { get; private set; }
 
     public decimal Debit { get; private set; }
 

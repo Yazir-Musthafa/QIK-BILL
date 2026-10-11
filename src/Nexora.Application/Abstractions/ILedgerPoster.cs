@@ -24,7 +24,7 @@ public enum LedgerAccountRole
     WarrantyExpense,
 }
 
-public sealed record LedgerPostingLine(Guid AccountId, decimal Debit, decimal Credit, string? Narration = null);
+public sealed record LedgerPostingLine(Guid AccountId, decimal Debit, decimal Credit, string? Narration = null, Guid? CostCentreId = null);
 
 /// <summary>
 /// An accounting entry requested by another module, for example a stock receipt. Without a <see cref="Type"/>, the

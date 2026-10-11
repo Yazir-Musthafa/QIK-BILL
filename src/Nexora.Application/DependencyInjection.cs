@@ -32,6 +32,7 @@ public static class DependencyInjection
         services.AddSingleton<Billing.SettlementService>();
         services.AddSingleton<ICompanySeedContributor, Expenses.ExpenseSeedContributor>();
         services.AddSingleton<ICompanySeedContributor, Expenses.ServiceSeedContributor>();
+        services.AddSingleton<ICompanySeedContributor, Reports.ReportSeedContributor>();
         services.AddSingleton<Expenses.ExpenseService>();
         services.AddSingleton<Crm.CrmService>();
         services.AddSingleton<Service.ServiceJobService>();

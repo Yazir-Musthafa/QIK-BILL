@@ -50,6 +50,17 @@ internal sealed class EfUnitOfWork(NexoraDbContext context, IDbContextTransactio
     public Task<bool> AnyAsync<T>(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default) where T : class =>
         Query<T>().AnyAsync(predicate, cancellationToken);
 
+    public Task<List<TResult>> QueryAsync<TResult>(Func<IQuerySource, IQueryable<TResult>> shape, CancellationToken cancellationToken = default) =>
+        shape(new Source(context)).ToListAsync(cancellationToken);
+
+    public IAsyncEnumerable<TResult> StreamAsync<TResult>(Func<IQuerySource, IQueryable<TResult>> shape, CancellationToken cancellationToken = default) =>
+        shape(new Source(context)).AsAsyncEnumerable();
+
+    private sealed class Source(NexoraDbContext context) : IQuerySource
+    {
+        public IQueryable<T> Set<T>() where T : class => context.Set<T>().AsNoTracking();
+    }
+
     public void Add<T>(T entity) where T : class
     {
         EnsureWritable();

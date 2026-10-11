@@ -73,6 +73,87 @@ namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
                     b.ToTable("Accounts", (string)null);
                 });
 
+            modelBuilder.Entity("Nexora.Domain.Accounting.BankClearing", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ClearedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("ClearedOn")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ClearedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("LedgerEntryId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StatementReference")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("CompanyId", "Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("CompanyId", "LedgerEntryId")
+                        .IsUnique();
+
+                    b.HasIndex("CompanyId", "AccountId", "ClearedOn");
+
+                    b.ToTable("BankClearings", (string)null);
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Accounting.CostCentre", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("CompanyId", "Code")
+                        .IsUnique();
+
+                    b.HasIndex("CompanyId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("CostCentres", (string)null);
+                });
+
             modelBuilder.Entity("Nexora.Domain.Accounting.FinancialYearPeriod", b =>
                 {
                     b.Property<Guid>("Id")
@@ -228,6 +309,9 @@ namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
                     b.Property<Guid>("CompanyId")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("CostCentreId")
+                        .HasColumnType("TEXT");
+
                     b.Property<long>("Credit")
                         .HasColumnType("INTEGER")
                         .HasColumnName("CreditPaise");
@@ -254,6 +338,8 @@ namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
                     b.HasIndex("CompanyId");
 
                     b.HasIndex("CompanyId", "AccountId");
+
+                    b.HasIndex("CompanyId", "CostCentreId");
 
                     b.HasIndex("CompanyId", "VoucherId", "LineNumber")
                         .IsUnique();
@@ -2620,6 +2706,29 @@ namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
                     b.ToTable("PrinterTests", (string)null);
                 });
 
+            modelBuilder.Entity("Nexora.Domain.Reports.ReportSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AgeingBuckets")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("CompanyId", "Id");
+
+                    b.HasIndex("CompanyId")
+                        .IsUnique();
+
+                    b.ToTable("ReportSettings", (string)null);
+                });
+
             modelBuilder.Entity("Nexora.Domain.Security.CompanyMembership", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3127,6 +3236,38 @@ namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
                         .OnDelete(DeleteBehavior.NoAction);
                 });
 
+            modelBuilder.Entity("Nexora.Domain.Accounting.BankClearing", b =>
+                {
+                    b.HasOne("Nexora.Domain.Companies.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Accounting.Account", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "AccountId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Accounting.LedgerEntry", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "LedgerEntryId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Accounting.CostCentre", b =>
+                {
+                    b.HasOne("Nexora.Domain.Companies.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Nexora.Domain.Accounting.FinancialYearPeriod", b =>
                 {
                     b.HasOne("Nexora.Domain.Companies.Company", null)
@@ -3188,6 +3329,12 @@ namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
                         .HasPrincipalKey("CompanyId", "Id")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
+
+                    b.HasOne("Nexora.Domain.Accounting.CostCentre", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId", "CostCentreId")
+                        .HasPrincipalKey("CompanyId", "Id")
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("Nexora.Domain.Accounting.Voucher", null)
                         .WithMany("Lines")
@@ -3994,6 +4141,15 @@ namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
                 });
 
             modelBuilder.Entity("Nexora.Domain.Printing.PrinterTest", b =>
+                {
+                    b.HasOne("Nexora.Domain.Companies.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Nexora.Domain.Reports.ReportSettings", b =>
                 {
                     b.HasOne("Nexora.Domain.Companies.Company", null)
                         .WithMany()

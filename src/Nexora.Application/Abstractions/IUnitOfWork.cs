@@ -21,6 +21,15 @@ public interface IUnitOfWork : IAsyncDisposable
 
     Task<bool> AnyAsync<T>(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default) where T : class;
 
+    /// <summary>
+    /// Runs a query shaped by the caller in the database (filters, joins, grouping, sums, paging), for reports over large
+    /// data. Every set is limited to the signed-in company, like the other queries.
+    /// </summary>
+    Task<List<TResult>> QueryAsync<TResult>(Func<IQuerySource, IQueryable<TResult>> shape, CancellationToken cancellationToken = default);
+
+    /// <summary>Streams a database-shaped query row by row, so a large result never sits in memory at once.</summary>
+    IAsyncEnumerable<TResult> StreamAsync<TResult>(Func<IQuerySource, IQueryable<TResult>> shape, CancellationToken cancellationToken = default);
+
     void Add<T>(T entity) where T : class;
 
     void Remove<T>(T entity) where T : class;
@@ -29,6 +38,12 @@ public interface IUnitOfWork : IAsyncDisposable
     void Record(AuditEvent auditEvent);
 
     Task CommitAsync(CancellationToken cancellationToken = default);
+}
+
+/// <summary>Company-filtered, untracked sets to compose a database query from.</summary>
+public interface IQuerySource
+{
+    IQueryable<T> Set<T>() where T : class;
 }
 
 public interface IUnitOfWorkFactory

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Nexora.Application.Abstractions;
 using Nexora.Domain.Common;
 using Nexora.Domain.Companies;
+using Nexora.Domain.Security;
 using Nexora.Domain.Settings;
 using Nexora.Domain.Users;
 using Nexora.Infrastructure.Persistence.Providers;
@@ -136,6 +137,19 @@ public sealed class EfWorkspaceStore(
         foreach (var entity in entities) context.Add(entity);
         await context.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Company upgraded; company {CompanyId}; rows added {Count}", companyId, entities.Count);
+    }
+
+    public async Task GrantRolePermissionsAsync(Guid companyId, string templateKey, IReadOnlyList<string> permissions, CancellationToken cancellationToken)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
+        context.SystemScope = true;
+        context.Audit.ActorOverride = (null, "system upgrade");
+        context.Audit.CompanyOverride = companyId;
+        var role = await context.Set<Role>().IgnoreQueryFilters().FirstOrDefaultAsync(r => r.CompanyId == companyId && r.SystemKey == templateKey, cancellationToken);
+        if (role is null || permissions.All(role.Has)) return;
+        role.Grant(permissions);
+        await context.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Built-in role upgraded; company {CompanyId}; role {TemplateKey}", companyId, templateKey);
     }
 
     private static Task<bool> CompanyHasCoreAsync<T>(NexoraDbContext context, Guid companyId, CancellationToken cancellationToken)

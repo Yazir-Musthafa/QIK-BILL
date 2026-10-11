@@ -54,6 +54,9 @@ public interface IWorkspaceStore
     /// <summary>Adds rows to an existing company outside a session, recorded in its audit trail as a system upgrade.</summary>
     Task AddToCompanyAsync(Guid companyId, IReadOnlyList<object> entities, CancellationToken cancellationToken);
 
+    /// <summary>Adds permissions to the company's built-in role with the given template key (no-op if it has none).</summary>
+    Task GrantRolePermissionsAsync(Guid companyId, string templateKey, IReadOnlyList<string> permissions, CancellationToken cancellationToken);
+
     Task<string?> GetSettingAsync(string key, CancellationToken cancellationToken);
 
     Task SetSettingsAsync(IReadOnlyDictionary<string, string> values, CancellationToken cancellationToken);

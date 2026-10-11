@@ -73,6 +73,13 @@ public sealed class Role : ICompanyOwned, IAudited
         ApplyPermissions(permissions);
     }
 
+    /// <summary>Adds permissions to a built-in role during an upgrade; never removes any.</summary>
+    public void Grant(IEnumerable<string> permissions)
+    {
+        if (IsAdministrator) return;
+        ApplyPermissions(_permissions.Concat(permissions));
+    }
+
     public void SetMaxDiscountPercent(decimal percent)
     {
         if (percent is < 0 or > 100) throw new DomainException("Discount limit must be between 0 and 100 percent.");
@@ -137,6 +144,15 @@ public sealed class CompanyMembership : ICompanyOwned, IAudited
 public static class RoleTemplates
 {
     public sealed record Template(string Key, string Name, string Description, IReadOnlyList<string> Permissions, decimal MaxDiscountPercent);
+
+    /// <summary>
+    /// Permissions added to a built-in template after companies were already created with it. An upgrade grants each
+    /// one once to the company's role with that template (the Phase 8 upgrade marker records that it ran).
+    /// </summary>
+    public static IReadOnlyList<(string TemplateKey, string Permission)> Additions { get; } =
+    [
+        ("accountant", Security.Permissions.ExpensesApprove),
+    ];
 
     public static IReadOnlyList<Template> All { get; } =
     [

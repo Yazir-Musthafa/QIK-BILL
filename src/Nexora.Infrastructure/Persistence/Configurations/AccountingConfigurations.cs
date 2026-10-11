@@ -100,7 +100,7 @@ internal sealed class VoucherLineConfiguration : IEntityTypeConfiguration<Vouche
         builder.HasOne<Account>().WithMany()
             .HasForeignKey(l => new { l.CompanyId, l.AccountId })
             .HasPrincipalKey(a => new { a.CompanyId, a.Id })
-            .OnDelete(DeleteBehavior.NoAction);
+            .OnDelete(DeleteBehavior.NoAction);        CompanyKeys.References<VoucherLine, CostCentre>(builder, l => new { l.CompanyId, l.CostCentreId }, required: false);
     }
 }
 
