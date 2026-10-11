@@ -280,6 +280,7 @@ public sealed class ExpenseAttachmentTests : ExpenseTestBase
         Assert.Equal(Pdf, content);
         await Assert.ThrowsAsync<WorkspaceValidationException>(() => Expenses.AddAttachmentAsync(id, "receipt.png", Pdf));         // name does not match content
         await Assert.ThrowsAsync<WorkspaceValidationException>(() => Expenses.AddAttachmentAsync(id, "virus.exe", "MZ\x90\x00"u8.ToArray()));
+        await Assert.ThrowsAsync<WorkspaceValidationException>(() => Expenses.AddAttachmentAsync(id, "invoice.pdf", "MZ\x90\x00 renamed program"u8.ToArray()));  // disguised file
         await Assert.ThrowsAsync<WorkspaceValidationException>(() => Expenses.AddAttachmentAsync(id, "empty.pdf", []));
         var big = new byte[ExpenseAttachment.MaxBytes + 1];
         Pdf.CopyTo(big, 0);
