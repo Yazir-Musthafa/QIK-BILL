@@ -47,6 +47,18 @@ public sealed class BarcodeTests
     }
 
     [Fact]
+    public void Ean13_decodes_for_every_leading_digit()
+    {
+        // The leading digit is encoded only in the parity pattern of the left half, so each of the ten patterns is checked.
+        for (var first = 0; first <= 9; first++)
+        {
+            var twelve = first + "12345678901";
+            var digits = twelve + Ean13.CheckDigit(twelve);
+            Assert.Equal(digits, Decode(Ean13.Encode(digits), BarcodeFormat.EAN_13));
+        }
+    }
+
+    [Fact]
     public void Code128_checksum_is_the_weighted_sum_mod_103()
     {
         // "PJJ123C" stays in code set B (the digit run is only 3): 104 + 48×1 + 42×2 + 42×3 + 17×4 + 18×5 + 19×6 + 35×7 = 879; 879 mod 103 = 55.
