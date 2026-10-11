@@ -3,6 +3,7 @@ using Nexora.Application.Abstractions;
 using Nexora.Application.Billing;
 using Nexora.Application.Inventory;
 using Nexora.Application.Security;
+using Nexora.Application.Service;
 using Nexora.Domain.Billing;
 using Nexora.Domain.Common;
 using Nexora.Domain.Companies;
@@ -23,6 +24,9 @@ public abstract record PrintSubject;
 public sealed record BillingSubject(Guid DocumentId, DocumentStyle Style = DocumentStyle.Standard) : PrintSubject;
 
 public sealed record SettlementSubject(Guid SettlementId) : PrintSubject;
+
+/// <summary>The job card of a service job (its invoice prints as a <see cref="BillingSubject"/>).</summary>
+public sealed record ServiceJobSubject(Guid JobId) : PrintSubject;
 
 public sealed record StatementSubject(Guid PartyId, DateOnly From, DateOnly To) : PrintSubject;
 
@@ -78,7 +82,8 @@ public sealed class PrintingService(
     BillingService billing,
     SettlementService settlements,
     PartyService parties,
-    InventoryCatalogueService catalogue)
+    InventoryCatalogueService catalogue,
+    ServiceJobService service)
 {
     private sealed record Prepared(RenderedDocument Document, string SourceType, Guid? SourceId, string Number, PrintPurpose Purpose, PrinterProfile Profile,
         int PrintNumber, bool Duplicate, byte[]? EscPos);
@@ -348,6 +353,22 @@ public sealed class PrintingService(
                 var (printNumber, duplicate) = await PrintNumberAsync("settlement", view.Id, settings, cancellationToken);
                 var document = ReceiptTemplate.Render(view, company, Marks(settings, duplicate ? ["DUPLICATE"] : [], null), setup, PrintFonts.Instance);
                 return new Prepared(document, "settlement", view.Id, view.Number, purpose, profile, printNumber, duplicate, null);
+            }
+
+            case ServiceJobSubject sj:
+            {
+                var job = await service.GetAsync(sj.JobId, cancellationToken);
+                var (printNumber, duplicate) = await PrintNumberAsync("service", job.Id, settings, cancellationToken);
+                PrintParty customer;
+                await using (var unit = await units.BeginAsync(readOnly: true, cancellationToken))
+                {
+                    var p = await unit.FindAsync<Party>(job.CustomerId, cancellationToken);
+                    customer = new PrintParty(job.Customer, p is null ? [] : new[] { p.Address, p.City }.Where(x => x.Length > 0).ToList(), p?.Gstin ?? string.Empty,
+                        IndianState.FromCode(p?.StateCode)?.Name ?? string.Empty, job.CustomerPhone);
+                }
+
+                var document = JobCardTemplate.Render(job, company, customer, Marks(settings, duplicate ? ["DUPLICATE"] : [], null), setup, PrintFonts.Instance);
+                return new Prepared(document, "service", job.Id, $"Job card {job.Number}", purpose, profile, printNumber, duplicate, null);
             }
 
             case StatementSubject st:

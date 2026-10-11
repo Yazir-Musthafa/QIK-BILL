@@ -311,3 +311,36 @@ public sealed class Phase7UpgradeTests : ServiceTestBase
     }
 }
 
+
+public sealed class ServicePrintTests : ServiceTestBase
+{
+    [Fact]
+    public async Task Job_card_and_service_invoice_print_through_the_print_centre()
+    {
+        var printing = Db.Get<Nexora.Printing.PrintingService>();
+        var id = await Service.CreateAsync(new ServiceJobInput(null, October, Local, "Smartphone", "Does not charge", Main, SerialNumber: "IMEI-1",
+            Accessories: "Charger, back cover"));
+        await Service.IssuePartAsync(id, new ServicePartInput(Led, 1, October));
+
+        var card = (await printing.PreviewAsync(new Nexora.Printing.ServiceJobSubject(id))).AllText;
+
+        Assert.Contains("SERVICE JOB CARD", card, StringComparison.Ordinal);
+        Assert.Contains("JOB/2026-27/0001", card, StringComparison.Ordinal);
+        Assert.Contains("Smartphone · Serial IMEI-1", card, StringComparison.Ordinal);
+        Assert.Contains("Does not charge", card, StringComparison.Ordinal);
+        Assert.Contains("Charger, back cover", card, StringComparison.Ordinal);
+        Assert.Contains("Under warranty until 10-10-2027", card, StringComparison.Ordinal);
+        await printing.PrintAsync(new Nexora.Printing.ServiceJobSubject(id));
+        Assert.Contains("DUPLICATE", (await printing.PreviewAsync(new Nexora.Printing.ServiceJobSubject(id))).AllText, StringComparison.Ordinal);
+
+        var chargeable = await JobAsync();
+        await Service.IssuePartAsync(chargeable, new ServicePartInput(Led, 1, October));
+        await Service.AddLabourAsync(chargeable, new ServiceLabourInput("Labour: driver replacement", 1, 500, "9987", Gst18));
+        var invoice = await Service.CreateInvoiceAsync(chargeable);
+        await Billing.PostAsync(invoice);
+        var text = (await printing.PreviewAsync(new Nexora.Printing.BillingSubject(invoice))).AllText;
+        Assert.Contains("Labour: driver replacement", text, StringComparison.Ordinal);
+        Assert.Contains("9987", text, StringComparison.Ordinal);
+        Assert.Contains("₹ 767.00", text, StringComparison.Ordinal);       // 150 + 500 = 650 + 18% = 767
+    }
+}

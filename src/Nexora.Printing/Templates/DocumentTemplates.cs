@@ -1,4 +1,6 @@
 using Nexora.Application.Billing;
+using Nexora.Application.Service;
+using Nexora.Domain.Service;
 using Nexora.Domain.Billing;
 using Nexora.Printing.Barcodes;
 using Nexora.Printing.Layout;
@@ -662,5 +664,74 @@ public static class TestPageTemplate
         c.Move(6);
         if (setup.IsRoll) c.Add(new RectItem(0, 0, c.Width, c.Y, false, 0.8));
         return c.Finish($"Test page {testCode}");
+    }
+}
+
+/// <summary>
+/// The service job card: customer, item and serial, fault, accessories, warranty, technician and estimate, parts issued
+/// and labour, with signatures for handing the item in and collecting it. Prices on the card are estimates; the
+/// figures that count are on the service invoice.
+/// </summary>
+public static class JobCardTemplate
+{
+    public static RenderedDocument Render(ServiceJobView job, PrintCompany company, PrintParty customer, PrintMarks marks, PageSetup setup, ITextMeasurer measure)
+    {
+        var c = new PageComposer(setup, measure);
+        var f = c.FontSize;
+        var details = new List<(string, string)>
+        {
+            ("Job", job.Number),
+            ("Received", Fmt.Date(job.ReceivedOn)),
+            ("Status", job.StatusLabel),
+            ("Estimated", job.EstimatedCompletion is { } eta ? Fmt.Date(eta) : string.Empty),
+            ("Delivered", job.DeliveredOn is { } d ? Fmt.Date(d) : string.Empty),
+        };
+        var narrow = setup.IsNarrow;
+        if (narrow) Blocks.NarrowHeader(c, company, "SERVICE JOB CARD", details);
+        else Blocks.WideHeader(c, company, "SERVICE JOB CARD", details);
+        Blocks.Banners(c, job.Status == ServiceStatus.Cancelled ? marks.Banners.Append("CANCELLED").ToList() : marks.Banners);
+
+        void Field(string label, string value)
+        {
+            if (value.Length == 0) return;
+            c.Ensure(c.LineHeight(f) * 2);
+            c.Text(0, c.Width, label, f - 1, true);
+            c.Move(c.LineHeight(f - 1));
+            c.Move(c.Wrapped(0, c.Width, value, f, false, maxLines: 8) + 3);
+        }
+
+        Field("Customer", string.Join(" · ", new[] { customer.Name, customer.Phone }.Where(s => s.Length > 0)));
+        Field("Item", job.Item + (job.SerialNumber.Length > 0 ? $" · Serial {job.SerialNumber}" : string.Empty));
+        Field("Fault reported", job.Fault);
+        Field("Accessories received", job.Accessories);
+        Field("Diagnosis", job.Diagnosis);
+        Field("Warranty", job.Charge == ServiceCharge.Warranty
+            ? $"Under warranty until {Fmt.Date(job.WarrantyUntil ?? job.ReceivedOn)} (no charge for covered repairs)"
+            : job.WarrantyUntil is { } until ? $"Chargeable. Sold by us; warranty until {Fmt.Date(until)}." : "Chargeable");
+        Field("Technician", job.Technician);
+        if (job.CancelReason.Length > 0) Field("Cancelled because", job.CancelReason);
+
+        var parts = job.Parts.Where(p => !p.IsReturned).ToList();
+        if (parts.Count > 0 || job.Labour.Count > 0)
+        {
+            Blocks.Dashes(c);
+            c.Text(0, c.Width, "Parts and labour", f, true);
+            c.Move(c.LineHeight(f) + 2);
+            foreach (var p in parts) Blocks.Pair(c, $"{p.Description}{(p.SerialNumber is { Length: > 0 } s ? $" (S/N {s})" : string.Empty)}", $"{Fmt.Quantity(p.Quantity)} {p.Unit}", f - 0.5);
+            foreach (var l in job.Labour) Blocks.Pair(c, l.Description, job.Charge == ServiceCharge.Warranty ? "Warranty" : Fmt.Money(l.Amount), f - 0.5);
+            if (job.InvoiceNumber is { } invoice) c.Move(c.Wrapped(0, c.Width, $"Invoice: {invoice}", f - 0.5, true));
+        }
+
+        if (!narrow)
+        {
+            c.Ensure(c.LineHeight(f) * 5);
+            c.Move(c.LineHeight(f) * 2);
+            c.Text(0, c.Width * 0.45, "Customer's signature (item handed in)", f - 0.5);
+            c.Text(c.Width * 0.55, c.Width * 0.45, "Customer's signature (item collected)", f - 0.5, false, TextAlign.Right);
+            c.Move(c.LineHeight(f) * 2);
+        }
+
+        Blocks.Footer(c, company, marks with { QrContent = null }, signature: !narrow, narrow: narrow);
+        return c.Finish($"Job card {job.Number}");
     }
 }
