@@ -12,6 +12,7 @@
     <ProjectReference Include="../Nexora.Infrastructure/Nexora.Infrastructure.csproj" />
     <ProjectReference Include="../Nexora.Accounting/Nexora.Accounting.csproj" />
     <ProjectReference Include="../Nexora.Printing/Nexora.Printing.csproj" />
+    <ProjectReference Include="../Nexora.Reporting/Nexora.Reporting.csproj" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Logging" />

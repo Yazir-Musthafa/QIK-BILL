@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Reports, exports (CSV, Excel, PDF), imports and the dashboard figures. Platform-neutral, tested on macOS. -->
+  <ItemGroup>
+    <ProjectReference Include="../Nexora.Domain/Nexora.Domain.csproj" />
+    <ProjectReference Include="../Nexora.Application/Nexora.Application.csproj" />
+    <ProjectReference Include="../Nexora.Accounting/Nexora.Accounting.csproj" />
+    <ProjectReference Include="../Nexora.Printing/Nexora.Printing.csproj" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="DocumentFormat.OpenXml" />
+  </ItemGroup>
+</Project>

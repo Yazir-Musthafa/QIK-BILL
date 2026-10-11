@@ -42,9 +42,27 @@ public sealed record LedgerStatement(Guid AccountId, string Code, string Name, A
 /// accounts restart at zero each year, and the net of earlier years is carried into Retained Earnings.
 /// No closing entries are posted, so reports for any date are always derived from the same postings.
 /// </summary>
+/// <summary>A ledger amount on an account and date: one entry, or the sum of an account's entries on one day.</summary>
+public sealed record Posting(Guid AccountId, DateOnly Date, decimal Debit, decimal Credit);
+
 public static class LedgerCalculator
 {
-    public static TrialBalance TrialBalance(IReadOnlyCollection<Account> accounts, IReadOnlyCollection<LedgerEntry> entries, DateOnly asOf,
+    public static IReadOnlyCollection<Posting> ToPostings(IEnumerable<LedgerEntry> entries) =>
+        entries.Select(e => new Posting(e.AccountId, e.Date, e.Debit, e.Credit)).ToList();
+
+    public static TrialBalance TrialBalance(IReadOnlyCollection<Account> accounts, IReadOnlyCollection<LedgerEntry> entries, DateOnly asOf, Guid retainedEarningsId) =>
+        TrialBalance(accounts, ToPostings(entries), asOf, retainedEarningsId);
+
+    public static ProfitAndLoss ProfitAndLoss(IReadOnlyCollection<Account> accounts, IReadOnlyCollection<LedgerEntry> entries, DateOnly from, DateOnly to) =>
+        ProfitAndLoss(accounts, ToPostings(entries), from, to);
+
+    public static BalanceSheet BalanceSheet(IReadOnlyCollection<Account> accounts, IReadOnlyCollection<LedgerEntry> entries, DateOnly asOf, Guid retainedEarningsId) =>
+        BalanceSheet(accounts, ToPostings(entries), asOf, retainedEarningsId);
+
+    public static decimal PriorYearsProfitNet(IReadOnlyCollection<Account> accounts, IReadOnlyCollection<LedgerEntry> entries, FinancialYear year) =>
+        PriorYearsProfitNet(accounts, ToPostings(entries), year);
+
+    public static TrialBalance TrialBalance(IReadOnlyCollection<Account> accounts, IReadOnlyCollection<Posting> entries, DateOnly asOf,
         Guid retainedEarningsId)
     {
         var year = FinancialYear.Containing(asOf);
@@ -62,7 +80,7 @@ public static class LedgerCalculator
         return new TrialBalance(asOf, rows, rows.Sum(r => r.Debit), rows.Sum(r => r.Credit));
     }
 
-    public static ProfitAndLoss ProfitAndLoss(IReadOnlyCollection<Account> accounts, IReadOnlyCollection<LedgerEntry> entries, DateOnly from, DateOnly to)
+    public static ProfitAndLoss ProfitAndLoss(IReadOnlyCollection<Account> accounts, IReadOnlyCollection<Posting> entries, DateOnly from, DateOnly to)
     {
         var groups = accounts.ToDictionary(a => a.Id);
         var inRange = entries.Where(e => e.Date >= from && e.Date <= to).ToList();
@@ -83,7 +101,7 @@ public static class LedgerCalculator
         return new ProfitAndLoss(from, to, income, expenses, income.Sum(l => l.Amount), expenses.Sum(l => l.Amount));
     }
 
-    public static BalanceSheet BalanceSheet(IReadOnlyCollection<Account> accounts, IReadOnlyCollection<LedgerEntry> entries, DateOnly asOf,
+    public static BalanceSheet BalanceSheet(IReadOnlyCollection<Account> accounts, IReadOnlyCollection<Posting> entries, DateOnly asOf,
         Guid retainedEarningsId)
     {
         var year = FinancialYear.Containing(asOf);
@@ -120,7 +138,7 @@ public static class LedgerCalculator
         if (account.IsGroup) throw new ArgumentException("Statements are for ledger accounts, not groups.", nameof(account));
         var year = FinancialYear.Containing(from);
         if (!year.Contains(to) || to < from) throw new ArgumentException("A statement must start and end within one financial year.");
-        var opening = BalanceAt(account, entries, from.AddDays(-1), year, sameYearOnly: !account.Nature.IsBalanceSheet()) + carriedForward;
+        var opening = BalanceAt(account, ToPostings(entries), from.AddDays(-1), year, sameYearOnly: !account.Nature.IsBalanceSheet()) + carriedForward;
         var running = opening;
         var lines = new List<LedgerLine>();
         foreach (var entry in entries.Where(e => e.AccountId == account.Id && e.Date >= from && e.Date <= to)
@@ -135,7 +153,7 @@ public static class LedgerCalculator
     }
 
     /// <summary>Net (debit − credit) of an account at a date, applying the carry-forward rule.</summary>
-    private static decimal BalanceAt(Account account, IReadOnlyCollection<LedgerEntry> entries, DateOnly asOf, FinancialYear year,
+    private static decimal BalanceAt(Account account, IReadOnlyCollection<Posting> entries, DateOnly asOf, FinancialYear year,
         bool sameYearOnly = false)
     {
         var restartsEachYear = sameYearOnly || !account.Nature.IsBalanceSheet();
@@ -145,7 +163,7 @@ public static class LedgerCalculator
     }
 
     /// <summary>Net (debit − credit) of all income and expense postings before the year: the profit carried forward.</summary>
-    public static decimal PriorYearsProfitNet(IReadOnlyCollection<Account> accounts, IReadOnlyCollection<LedgerEntry> entries, FinancialYear year)
+    public static decimal PriorYearsProfitNet(IReadOnlyCollection<Account> accounts, IReadOnlyCollection<Posting> entries, FinancialYear year)
     {
         var profitAndLossAccounts = accounts.Where(a => !a.Nature.IsBalanceSheet()).Select(a => a.Id).ToHashSet();
         return entries.Where(e => e.Date < year.StartDate && profitAndLossAccounts.Contains(e.AccountId)).Sum(e => e.Debit - e.Credit);

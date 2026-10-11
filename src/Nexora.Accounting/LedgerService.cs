@@ -26,12 +26,16 @@ public sealed class LedgerService(IUnitOfWorkFactory units, IAuthorizer authoriz
 
         var accounts = await unit.ListAsync<Account>(cancellationToken: cancellationToken);
         var isRetained = account.SystemKey == SystemAccounts.RetainedEarnings;
-        var entries = isRetained
-            ? await unit.ListAsync<LedgerEntry>(e => e.Date <= to, cancellationToken)
-            : await unit.ListAsync<LedgerEntry>(e => e.AccountId == accountId && e.Date <= to, cancellationToken);
-        var voucherIds = entries.Where(e => e.AccountId == accountId).Select(e => e.VoucherId).Distinct().ToList();
+        var entries = await unit.ListAsync<LedgerEntry>(e => e.AccountId == accountId && e.Date >= from && e.Date <= to, cancellationToken);
+        var voucherIds = entries.Select(e => e.VoucherId).Distinct().ToList();
         var vouchers = (await unit.ListAsync<Voucher>(v => voucherIds.Contains(v.Id), cancellationToken)).ToDictionary(v => v.Id);
-        var carried = isRetained ? LedgerCalculator.PriorYearsProfitNet(accounts, entries, FinancialYear.Containing(from)) : 0;
+        var year = FinancialYear.Containing(from);
+        // Opening balance summed in the database: all earlier postings for balance-sheet accounts, this year's for income and expense.
+        var openingFrom = account.Nature.IsBalanceSheet() ? DateOnly.MinValue : year.StartDate;
+        var opening = (await unit.QueryAsync(q => q.Set<LedgerEntry>().Where(e => e.AccountId == accountId && e.Date < from && e.Date >= openingFrom)
+            .GroupBy(e => 1).Select(g => g.Sum(e => e.Debit - e.Credit)), cancellationToken)).SingleOrDefault();
+        var carried = opening
+            + (isRetained ? LedgerCalculator.PriorYearsProfitNet(accounts, await DailyTotalsAsync(unit, year.StartDate.AddDays(-1), cancellationToken), year) : 0);
         return LedgerCalculator.Statement(account, entries, vouchers, from, to, carried);
     }
 
@@ -106,13 +110,19 @@ public sealed class LedgerService(IUnitOfWorkFactory units, IAuthorizer authoriz
         await unit.CommitAsync(cancellationToken);
     }
 
-    private async Task<(List<Account> Accounts, List<LedgerEntry> Entries)> LoadAsync(DateOnly asOf, CancellationToken cancellationToken)
+    private async Task<(List<Account> Accounts, List<Posting> Entries)> LoadAsync(DateOnly asOf, CancellationToken cancellationToken)
     {
         await using var unit = await units.BeginAsync(readOnly: true, cancellationToken);
         var accounts = await unit.ListAsync<Account>(cancellationToken: cancellationToken);
-        var entries = await unit.ListAsync<LedgerEntry>(e => e.Date <= asOf, cancellationToken);
-        return (accounts, entries);
+        return (accounts, await DailyTotalsAsync(unit, asOf, cancellationToken));
     }
+
+    /// <summary>Each account's debits and credits per day up to a date, summed in the database (the reports' only input).</summary>
+    internal static Task<List<Posting>> DailyTotalsAsync(IUnitOfWork unit, DateOnly asOf, CancellationToken cancellationToken, DateOnly? from = null) =>
+        unit.QueryAsync(q => q.Set<LedgerEntry>()
+            .Where(e => e.Date <= asOf && (from == null || e.Date >= from))
+            .GroupBy(e => new { e.AccountId, e.Date })
+            .Select(g => new Posting(g.Key.AccountId, g.Key.Date, g.Sum(e => e.Debit), g.Sum(e => e.Credit))), cancellationToken);
 
     private static Guid RetainedEarnings(IEnumerable<Account> accounts) =>
         accounts.Single(a => a.SystemKey == SystemAccounts.RetainedEarnings).Id;
