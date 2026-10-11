@@ -638,7 +638,12 @@ public static class TestPageTemplate
         c.Text(4, c.Width - 8, "Bold text for headings", f, true);
         c.Move(c.LineHeight(f) + 4);
         foreach (var (label, amount) in new[] { ("Taxable value", 1_000.00m), ("CGST 9%", 90.00m), ("SGST 9%", 90.00m), ("Total", 1_180.00m) })
-            Blocks.Pair(c, label, Fmt.Money(amount), f, label == "Total");
+        {
+            var bold = label == "Total";
+            c.Text(8, c.Width * 0.6, label, f, bold);
+            c.Text(c.Width * 0.6, c.Width * 0.4 - 8, Fmt.Money(amount), f, bold, TextAlign.Right);
+            c.Move(c.LineHeight(f));
+        }
         c.Move(6);
         var barcode = Code128.Encode(testCode);
         var barWidth = Math.Min(c.Width - 8, barcode.Modules.Length * 1.2);
@@ -652,7 +657,7 @@ public static class TestPageTemplate
         c.Ensure(side + 6);
         c.Add(new MatrixItem((c.Width - side) / 2, c.Y, side, qr.Modules));
         c.Move(side + 8);
-        c.Move(c.Wrapped(4, c.Width - 8, "Check: every side of the frame is visible, the scale measures correctly, all text is sharp and complete, and the codes scan. Then record the result in QIK Suite (Print centre → Printers).",
+        c.Move(c.Wrapped(4, c.Width - 8, "Check: every side of the frame is visible, the scale measures correctly, all text is sharp and complete, and the codes scan. Then record the result in QIK Suite (Print centre > Printers and test pages).",
             f - 1, false, TextAlign.Center));
         c.Move(6);
         if (setup.IsRoll) c.Add(new RectItem(0, 0, c.Width, c.Y, false, 0.8));

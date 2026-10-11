@@ -102,6 +102,7 @@ public static class LabelTemplate
             if (code is not null)
             {
                 var textSize = Math.Max(size * 0.7, 4.5);
+                y += 2; // keep the bars clear of the text above
                 var barHeight = bottom - y - LineHeight(textSize) - 1;
                 if (barHeight >= 8)
                 {
