@@ -1,6 +1,6 @@
 # Third-party licences
 
-Status: Phase 6, 11 October 2026 (Phase 6 added PDFsharp, ZXing.Net and the Noto Sans font). Generated from `packages.lock.json` and each package's `.nuspec` licence expression in the local NuGet cache. Versions are pinned in `Directory.Packages.props`.
+Status: Phase 7, 11 October 2026. Phase 6 added PDFsharp, ZXing.Net and the Noto Sans font; Phase 7 added no packages (checked against `Directory.Packages.props`, the project files and the lock files). Generated from `packages.lock.json` and each package's `.nuspec` licence expression in the local NuGet cache. Versions are pinned in `Directory.Packages.props`.
 
 **Summary:** every dependency is MIT or Apache-2.0, and the bundled font is under the SIL Open Font License. These licences allow commercial redistribution without a paid licence at any revenue level. They do require the licence and copyright notices to be included with the distributed product. Phase 9 must put those notices in the installer.
 

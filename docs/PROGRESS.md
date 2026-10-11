@@ -1,5 +1,55 @@
 # QIK Suite implementation progress
 
+## Phase 7: expenses, CRM and service management, complete on macOS (11 October 2026)
+
+**Starting point:** `b906500` (end of Phase 6) with a clean tree. Baseline: locked restore OK, build 0 warnings and 0 errors, **806 tests passed**.
+- **Windows notes:** the owner's note was left as the template placeholder, so I took it as "Phase 5 and 6 screens not tested yet". No runtime problems were reported, so none were fixed.
+- **Phase 5 and 6 gaps that Phase 7 needed**, and only those, were added:
+  - service lines (no product, no stock) and issued-part lines (no second stock movement) on sales invoices;
+  - customer-specific prices;
+  - the credit-limit check with an override permission;
+  - deleting a draft invoice clears a service job's link to it;
+  - the job card print template.
+  Quotations, orders and Phase 8 reports were not started.
+- **Commits** are prefixed `claude:`.
+
+**Windows:** the Expenses, CRM and Service jobs screens, the dashboard follow-ups and notifications, and the credit-limit question are **UI unverified at runtime**.
+
+### Verified by build or test on macOS
+
+| Area | Evidence |
+|---|---|
+| Build | 0 warnings, 0 errors after a clean build (all `bin`/`obj` deleted, locked restore). Three migrations: `ServiceLinesCreditLimitPrices` (billing lines can have no product; customer prices), `RestoreBillingLineTriggers` (EF's SQLite table rebuild dropped the billing-line triggers; they are recreated and a test checks them), and `ExpensesCrmService` (18 tables, product warranty months, immutability triggers). The model has no pending changes. |
+| Tests | **873 passed, 0 failed**: 553 behavioural (504 earlier + 49 Phase 7), 288 XAML design-rule, 31 guide-coverage, 1 binding check. |
+| Expenses | Posting debits the category ledgers and claimable input CGST/SGST (or IGST for a supplier in another state) and credits cash or bank, through the ledger poster with voucher type Expense; unclaimable GST is added to the expense. Draft → pending → approved/rejected → posted; approving needs "Expenses: Approve"; nobody approves their own expense unless the company setting allows it; a rejection needs a reason. Posted expenses cannot change (domain, data context, SQLite triggers) and are reversed once, with a reason, not before their date. The expense voucher cannot be reversed from Vouchers. Recurring templates create drafts only, once per due date (a unique index backs this). Attachments are checked by content (PDF, PNG, JPEG), name and size (5 MB, 5 per expense), stored with SHA-256 and verified on open; renamed files are refused. Totals by category, branch, department, date and method. |
+| CRM | Leads with status, source, owner and lost reason. Conversion creates the customer and its ledger in one transaction; a customer with the same name, phone (last 10 digits) or email stops it and is offered to link to instead. One primary contact per party. Enquiries for a lead or customer move to the customer on conversion. Follow-ups: open, overdue, done; "mine" covers assigned to me or unassigned ones I created; the summary drives the dashboard and the bell. Activities are append-only. The customer view reads balances, invoices, payments and service from their own records and hides sales figures without Sales: View. |
+| Credit limit and prices | A credit invoice above the limit (ledger balance plus the invoice) is refused unless the user holds "Sales: Override credit limit" and asks to override; the override is audited. A customer price replaces the selling price when the rate is blank; setting it needs "Sales: Override price". |
+| Service | Workflow transitions are enforced in the domain; closed jobs cannot change (domain and triggers). Warranty comes from the latest posted, uncancelled sale of the serial plus the product's warranty months. Parts go through the stock engine (negative stock, batch by ID or number, serial) and post Cost of Goods Sold for chargeable jobs or Warranty and Service Costs for warranty jobs. Unbilled parts return at their cost. The service invoice carries parts as issued-part lines and labour as service lines; posting it moves no stock and posts no Cost of Goods Sold again. A job's invoice draft cannot be re-saved as ordinary goods. Delivery of a chargeable job needs its invoice posted; cancelling needs a reason and no parts on the job. Maintenance schedules create one follow-up per due date. History per customer and per serial. |
+| Printing | The job card and the service invoice render to PDF through the Print centre with DUPLICATE marking on reprint. Both were rendered to images and inspected. |
+| Permissions | Service Staff run jobs and issue parts but cannot invoice; Billing Operators cannot see service; Read-only users cannot change anything. Service and CRM users can pick customers (name and phone only) without Sales: View. |
+| Isolation and immutability | Another company cannot read or change any Phase 7 row by ID. The isolation tests cover the new tables automatically. SQLite rejects changes to posted expenses, locked lines, attachments of posted expenses, reversals, activities, part movements and closed jobs. |
+| Upgrade | Existing companies receive expense and service settings and numbering at start-up, and the Warranty and Service Costs account the first time a part is issued under warranty. |
+| Mutation checks | Ten rules were broken one at a time: self-approval, unclaimable GST, recurring duplicates, conversion without the duplicate check, the credit limit, the workflow (Received → Ready), warranty parts to COGS, issued parts moving stock on the invoice, the attachment type check, and re-saving a service invoice draft as goods. Each made at least one test fail. The recurring and attachment mutations first survived; the recurring one needed both guards removed to reach the unique index, and a renamed-file test was added for the attachment check. |
+| Bindings | The binding test was checked to fail on a misspelt binding in the new Service view. |
+
+### Built but unverified (needs Windows)
+
+- **Screens:** Expenses (list, editor, categories, recurring, totals, settings), CRM (leads, follow-ups, enquiries, customers) and Service jobs (jobs, job card editor, maintenance, history, settings).
+- **Elsewhere:** the dashboard's "My follow-ups" panel, the notifications list, the credit-limit question when posting, the Products warranty field.
+- **Desktop behaviour:** opening attachments with the Windows default app, and job card printing on paper.
+
+They compile, pass the design-rule tests, and their page-level bindings resolve.
+
+### Known gaps (Phase 7)
+
+See `WORKING_GUIDE.md` section 4, "Expenses, CRM and service specifics". In short:
+- expenses are paid from cash or bank only;
+- there is one approval level;
+- no messaging (e-mail, SMS, WhatsApp);
+- service invoices are posted from Sales invoices and cannot be edited there;
+- existing companies' Accountant roles need "Expenses: Approve" ticked by hand;
+- no default labour SAC code is supplied.
+
 ## Phase 6: printing, labels, PDF, barcodes and QR, complete on macOS (11 October 2026)
 
 **Starting point:** `d405020` (end of Phase 5) with a clean tree. Baseline: locked restore OK, build 0 warnings and 0 errors, **700 tests passed**.

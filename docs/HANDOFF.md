@@ -1,4 +1,4 @@
-# Handoff: end of Phase 6 (11 October 2026)
+# Handoff: end of Phase 7 (11 October 2026)
 
 Read this first, then:
 
@@ -7,16 +7,17 @@ Read this first, then:
 - `ACCOUNTING_MAP.md`;
 - `WORKING_GUIDE.md`: screen status and the Windows test script.
 
-**Phase 6 (printing, labels, PDF, barcodes and QR) is complete on macOS. Phase 7 (expenses, CRM, service) is next; it was not started.** The owner has confirmed only that the app opens on Windows; nothing has been printed there.
+**Phase 7 (expenses, CRM, service management) is complete on macOS. Phase 8 (reports, dashboard data, import/export, backup) is next; it was not started.** The owner has confirmed only that the app opens on Windows; no Phase 5–7 screen has been tried there and nothing has been printed.
 
 **About "GPT-6 Astra":** the Phase 5 request said an agent called GPT-6 Astra had already worked on Phase 5. The repository had no trace of it: no commits, branches, stashes, worktrees or uncommitted files after the Phase 4 commit `926a72e`. Phase 5 was therefore built from that commit. The three inventory edge cases named in the request were investigated and fixed (see `PROGRESS.md`).
 
 ## State
 
 - **Build:** clean, 0 warnings. `dotnet restore --locked-mode` passes, and a `win-x64` self-contained publish produces `QIKSuite.exe`.
-- **Tests:** **806 passing** (`dotnet test tests/Nexora.Tests`): 504 behavioural, 270 XAML design-rule, 31 guide checks and 1 binding check.
-- **Migrations:** `InitialWorkspace`, `CompaniesUsersRolesAudit`, `AccountingEngine`, `Inventory`, `Billing`, `Printing`. The last four contain SQLite immutability triggers.
-- **Commits:** Phase 5 used the prefix `cla:` and Phase 6 uses `claude:` (the owner's requests).
+- **Tests:** **873 passing** (`dotnet test tests/Nexora.Tests`): 553 behavioural, 288 XAML design-rule, 31 guide checks and 1 binding check.
+- **Migrations:** `InitialWorkspace`, `CompaniesUsersRolesAudit`, `AccountingEngine`, `Inventory`, `Billing`, `Printing`, `ServiceLinesCreditLimitPrices`, `RestoreBillingLineTriggers`, `ExpensesCrmService`. From `AccountingEngine` on, most contain SQLite immutability triggers. **EF rebuilds a SQLite table when a column becomes nullable, and the rebuild drops that table's triggers.** `RestoreBillingLineTriggers` recreates them, and `MigrationTests` checks they exist. Do the same after any future rebuild.
+- **Commits:** Phase 5 used the prefix `cla:`; Phases 6 and 7 use `claude:` (the owner's requests).
+- **New packages (Phase 7):** none.
 - **New packages (Phase 6):** PDFsharp 6.2.4 (MIT) and ZXing.Net 0.16.11 (Apache-2.0), plus the bundled Noto Sans font (OFL). See `THIRD_PARTY_LICENSES.md` and `DECISIONS.md`.
 - **Not yet run:** the WPF UI, printing and the installer. Nothing has run on Windows.
 
@@ -158,14 +159,58 @@ Never mark something FULLY FUNCTIONAL unless the code is wired to a real service
 - **Preferences are per company:** printer names are per computer. Two computers in one company should use identical printer names, or the Windows default.
 - **ESC/POS** is untested on any device.
 
+## Phase 7 in brief
+
+- **Billing additions** (`Domain/Billing`, `Application/Billing`):
+  - `BillingLineType` (Goods, Service, IssuedPart); `BillingLine.ProductId`/`UnitId` are nullable and `MovesStock` is Goods only.
+  - `CustomerPrice` (per base unit).
+  - `BillingService.PostAsync(id, overrideCreditLimit)` throws `CreditLimitExceededException`; the override needs `sales.credit-override` and is audited.
+  - `SaveDraftAsync` refuses a draft linked to a service job, and `DeleteDraftAsync` clears that link.
+  - `PartyService.CustomerChoicesAsync` is a name-and-phone pick list for sales, CRM or service users; `CreateCoreAsync` is used by lead conversion.
+- **Expenses** (`Domain/Expenses`, `Application/Expenses/ExpenseService.cs`):
+  - categories → expense ledgers;
+  - `Expense` with Submit, Decide and MarkPosted; lines locked on posting;
+  - attachments checked by `AttachmentRules`;
+  - `ExpenseReversal` (append-only);
+  - `RecurringExpense` with a unique (template, due date) index;
+  - `ExpenseSettings` (seed marker, AllowSelfApproval);
+  - permissions `expenses.view`, `expenses.manage`, and the new `expenses.approve`.
+- **CRM** (`Domain/Crm`, `Application/Crm/CrmService.cs`):
+  - Lead, Contact, Enquiry, FollowUp, Activity (append-only);
+  - conversion through `PartyService.CreateCoreAsync`, with `PossibleDuplicateException` carrying the candidates;
+  - `MySummaryAsync` feeds the dashboard and the bell;
+  - `CustomerAsync` composes billing, settlements and service.
+- **Service** (`Domain/Service`, `Application/Service/ServiceJobService.cs`):
+  - `ServiceWorkflow` holds the allowed transitions;
+  - ServiceJob, ServicePart and ServicePartReturn (append-only), ServiceLabour, MaintenanceSchedule, ServiceSettings (seed marker);
+  - parts use `StockService.PostCoreAsync` with the stock types ServiceIssue and ServiceReturn (`IsSourced`, so Stock refuses manual posting and reversal);
+  - the voucher goes to COGS or Warranty and Service Costs. `ILedgerPoster.EnsureAccountAsync` adds that account (5309) to older companies in its own unit, so the voucher service can see it.
+- **Printing:** `JobCardTemplate` and `ServiceJobSubject`.
+- **Desktop:**
+  - `ViewModels/Expenses`, `ViewModels/Crm`, `ViewModels/Service` and their `Views/*`;
+  - the dashboard and the bell show follow-ups;
+  - Sales posting asks before overriding a credit limit;
+  - the Sales editor refuses drafts with non-goods lines;
+  - Products has warranty months.
+  `Choice(Guid?, string)` in the Expenses view models is reused by the CRM and Service view models.
+- **Vouchers:** reversal of a document-created voucher is refused with a message naming where to correct it (stock, billing, settlement, expense or service).
+
+## Known problems (Phase 7)
+
+- **Not verified on Windows:** the three screens and the follow-up displays. Expect XAML fixes on the long detail panels (scrolling, widths) and in the editable customer combo box on the job card.
+- **Existing companies' roles are not changed.** The Accountant template now includes `expenses.approve`, but stored roles keep what they had, so an administrator must tick it.
+- **The service invoice is posted from Sales invoices.** It cannot be edited there; delete the draft and create it again from the job.
+- **No default labour SAC.** Each labour line needs the SAC the accountant advises, or a default in Service settings.
+- **The customer view** loads every invoice and receipt of the customer; fine at small scale, slow with thousands.
+
 ## Next steps
 
-1. **Test Phases 1–6 on Windows** with `WORKING_GUIDE.md` sections 3.1–3.11. Section 3.9 is the printer script (A4, 80 mm thermal, label printer, USB scanner). Report what came out on paper, not only what the screen said.
+1. **Test Phases 1–7 on Windows** with `WORKING_GUIDE.md` sections 3.1–3.12. Section 3.9 is the printer script (A4, 80 mm thermal, label printer, USB scanner); section 3.10 covers expenses, CRM and service. Report what came out on paper, not only what the screen said.
 2. **Phase 5 leftovers.** These were not built; decide with the owner which belong in later phases:
    - quotations, orders and delivery notes (the Quotations page is still a placeholder);
    - dated GST rates, cess, reverse charge and bills of supply;
-   - POS and barcode entry, additional charges, customer prices;
+   - POS and barcode entry, additional charges;
    - a billing settings screen.
 3. **Data-table follow-ups:** per-column filters, and editing or deactivating units and tax categories.
 4. **Printing follow-ups after the Windows run:** fix whatever the printer script shows. Consider per-computer printer preferences, a template designer and batch printing.
-5. **Phase 7 (expenses, CRM, service)** is next.
+5. **Phase 8 (reports, dashboard data, import/export, backup)** is next.
