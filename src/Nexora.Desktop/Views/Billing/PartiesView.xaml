@@ -106,6 +106,32 @@
 
         <Border Style="{StaticResource Panel}" Margin="0,16,0,0" Visibility="{Binding IsNew, Converter={StaticResource VisibleWhen}, ConverterParameter=invert}">
           <StackPanel>
+            <TextBlock Text="Statement of account" Style="{StaticResource Text.Section}" Margin="0,0,0,8" />
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition />
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="From" Style="{StaticResource Text.Label}" />
+                <TextBox Text="{Binding StatementFrom, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" AutomationProperties.Name="Statement from (dd-mm-yyyy)" />
+              </StackPanel>
+              <StackPanel Grid.Column="2">
+                <TextBlock Text="To" Style="{StaticResource Text.Label}" />
+                <TextBox Text="{Binding StatementTo, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" AutomationProperties.Name="Statement to (dd-mm-yyyy)" />
+              </StackPanel>
+            </Grid>
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+              <Button Content="Preview" Command="{Binding PreviewStatementCommand}" Margin="0,0,8,0" />
+              <Button Content="Print" Command="{Binding PrintStatementCommand}" Margin="0,0,8,0" />
+              <Button Content="Export PDF" Command="{Binding ExportStatementPdfCommand}" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource Panel}" Margin="0,16,0,0" Visibility="{Binding IsNew, Converter={StaticResource VisibleWhen}, ConverterParameter=invert}">
+          <StackPanel>
             <TextBlock Text="Documents and settlements" Style="{StaticResource Text.Section}" Margin="0,0,0,8" />
             <ItemsControl ItemsSource="{Binding OpenItems}" Focusable="False">
               <ItemsControl.ItemTemplate>

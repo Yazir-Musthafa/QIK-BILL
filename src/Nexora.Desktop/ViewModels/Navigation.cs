@@ -37,7 +37,7 @@ public static class NavCatalog
         new("crm", "CRM", "", "Relationships", 7, "Leads, follow-ups, activity timeline and communication history.", Nexora.Domain.Security.Permissions.CrmView),
         new("service", "Service jobs", "", "Relationships", 7, "Service tickets, job cards, warranty and spare-part consumption.", Nexora.Domain.Security.Permissions.ServiceView),
         new("reports", "Reports", "", "Insights", 8, "Sales, purchase, stock, GST and financial reports.", Nexora.Domain.Security.Permissions.ReportsView),
-        new("printing", "Print centre", "", "System", 6, "Printers, test pages, templates, labels and PDF export.", Nexora.Domain.Security.Permissions.PrintingManage),
+        new("printing", "Print centre", "", "System", null, "Printers, verified test pages, print preferences, labels, print history and settings.", Nexora.Domain.Security.Permissions.PrintingManage),
         new(Settings, "Settings", "", "System", null, "Appearance, company profile, users, roles and the audit trail."),
         new(Help, "Help", "", "System", null, "Keyboard shortcuts and getting started."),
     ];

@@ -21,6 +21,17 @@
     <Border DockPanel.Dock="Right" Width="440" Margin="16,0,0,0" Style="{StaticResource Panel}" Visibility="{Binding ShowPreview, Converter={StaticResource VisibleWhen}}">
       <DockPanel>
         <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+          <WrapPanel Margin="0,0,0,4">
+            <Button Content="Preview" Command="{Binding PreviewDocumentCommand}" Margin="0,0,8,8" />
+            <Button Content="Print" Style="{StaticResource Button.Primary}" Command="{Binding PrintDocumentCommand}" Margin="0,0,8,8" />
+            <Button Content="Export PDF" Command="{Binding ExportDocumentPdfCommand}" Margin="0,0,8,8" />
+            <Button Content="Print on receipt printer" Command="{Binding PrintOnReceiptPrinterCommand}" Margin="0,0,8,8"
+                    Visibility="{Binding IsSales, Converter={StaticResource VisibleWhen}}" />
+            <Button Content="Delivery note" Command="{Binding PreviewDeliveryNoteCommand}" Margin="0,0,8,8"
+                    Visibility="{Binding PreviewCanDeliveryNote, Converter={StaticResource VisibleWhen}}" />
+            <Button Content="Purchase order" Command="{Binding PreviewPurchaseOrderCommand}" Margin="0,0,8,8"
+                    Visibility="{Binding PreviewCanPurchaseOrder, Converter={StaticResource VisibleWhen}}" />
+          </WrapPanel>
           <WrapPanel Visibility="{Binding PreviewIsDraft, Converter={StaticResource VisibleWhen}}" IsEnabled="{Binding CanCreate}">
             <Button Content="Post draft" Style="{StaticResource Button.Primary}" Command="{Binding PostSelectedCommand}" Margin="0,0,8,8" />
             <Button Content="Edit draft" Command="{Binding EditSelectedCommand}" Margin="0,0,8,8" />
@@ -204,6 +215,15 @@
       <Border Style="{StaticResource Panel}" Visibility="{Binding ShowEditor, Converter={StaticResource VisibleWhen}}" IsEnabled="{Binding CanCreate}">
         <DockPanel>
           <TextBlock DockPanel.Dock="Top" Text="{Binding EditorHeading}" Style="{StaticResource Text.Section}" Margin="0,0,0,12" />
+          <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12" Visibility="{Binding CanEditHeader, Converter={StaticResource VisibleWhen}}">
+            <TextBlock DockPanel.Dock="Left" Text="Scan or type a code, then Enter" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <TextBox Text="{Binding CodeEntry, UpdateSourceTrigger=PropertyChanged}" MaxWidth="320" HorizontalAlignment="Left" MinWidth="240"
+                     AutomationProperties.Name="Product barcode, QR identifier or SKU">
+              <TextBox.InputBindings>
+                <KeyBinding Key="Enter" Command="{Binding AddByCodeCommand}" />
+              </TextBox.InputBindings>
+            </TextBox>
+          </DockPanel>
           <WrapPanel DockPanel.Dock="Top">
             <StackPanel Width="260" Margin="0,0,12,8" IsEnabled="{Binding CanEditHeader}">
               <TextBlock Text="{Binding PartyLabel}" Style="{StaticResource Text.Label}" />
@@ -360,6 +380,11 @@
           <ColumnDefinition Width="460" />
         </Grid.ColumnDefinitions>
         <DockPanel>
+          <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,12,0,0">
+            <Button Content="Preview" Command="{Binding PreviewSettlementCommand}" Margin="0,0,8,0" />
+            <Button Content="Print" Command="{Binding PrintSettlementCommand}" Margin="0,0,8,0" />
+            <Button Content="Export PDF" Command="{Binding ExportSettlementPdfCommand}" />
+          </StackPanel>
           <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,12,0,0" Visibility="{Binding CanCancel, Converter={StaticResource VisibleWhen}}">
             <TextBox Text="{Binding CancelReason, UpdateSourceTrigger=PropertyChanged}" Width="220" MaxLength="300" Margin="0,0,8,0" AutomationProperties.Name="Reason for reversing" />
             <TextBox Text="{Binding ActionDate, UpdateSourceTrigger=PropertyChanged}" Width="100" MaxLength="10" Margin="0,0,8,0" AutomationProperties.Name="Reversal date (dd-mm-yyyy)" />

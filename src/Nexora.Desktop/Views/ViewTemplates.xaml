@@ -10,7 +10,9 @@
                     xmlns:ivm="clr-namespace:Nexora.Desktop.ViewModels.Inventory"
                     xmlns:iviews="clr-namespace:Nexora.Desktop.Views.Inventory"
                     xmlns:bvm="clr-namespace:Nexora.Desktop.ViewModels.Billing"
-                    xmlns:bviews="clr-namespace:Nexora.Desktop.Views.Billing">
+                    xmlns:bviews="clr-namespace:Nexora.Desktop.Views.Billing"
+                    xmlns:pvm="clr-namespace:Nexora.Desktop.ViewModels.Printing"
+                    xmlns:pviews="clr-namespace:Nexora.Desktop.Views.Printing">
   <DataTemplate DataType="{x:Type vm:SetupWizardViewModel}"><views:SetupWizardView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:LoginViewModel}"><views:LoginView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:ShellViewModel}"><views:ShellView /></DataTemplate>
@@ -38,6 +40,7 @@
   <!-- Sales and purchases share one view each; WPF matches the template on the base view model. -->
   <DataTemplate DataType="{x:Type bvm:BillingViewModel}"><bviews:BillingView /></DataTemplate>
   <DataTemplate DataType="{x:Type bvm:PartiesViewModel}"><bviews:PartiesView /></DataTemplate>
+  <DataTemplate DataType="{x:Type pvm:PrintCentreViewModel}"><pviews:PrintCentreView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:HelpViewModel}"><views:HelpView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:GalleryViewModel}"><views:GalleryView /></DataTemplate>
 </ResourceDictionary>

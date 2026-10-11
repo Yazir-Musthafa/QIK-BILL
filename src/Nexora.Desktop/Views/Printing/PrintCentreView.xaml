@@ -1,0 +1,324 @@
+<UserControl x:Class="Nexora.Desktop.Views.Printing.PrintCentreView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Nexora.Desktop.Controls">
+  <DockPanel Margin="24,20,24,24">
+    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+      <Button DockPanel.Dock="Right" Content="Refresh" Style="{StaticResource Button.Subtle}" Command="{Binding RefreshCommand}" />
+      <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Title}" />
+    </DockPanel>
+    <ListBox DockPanel.Dock="Top" ItemsSource="{Binding Sections}" SelectedItem="{Binding Section}" DisplayMemberPath="Label" Margin="0,0,0,16"
+             AutomationProperties.Name="Print centre sections">
+      <ListBox.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Orientation="Horizontal" />
+        </ItemsPanelTemplate>
+      </ListBox.ItemsPanel>
+    </ListBox>
+    <TextBlock DockPanel.Dock="Bottom" Text="{Binding Error}" Style="{StaticResource Text.Error}" TextWrapping="Wrap" Visibility="{Binding Error, Converter={StaticResource VisibleWhen}}" />
+
+    <Grid>
+      <!-- Printers and test pages -->
+      <Grid Visibility="{Binding ShowPrinters, Converter={StaticResource VisibleWhen}}">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="16" />
+          <ColumnDefinition Width="380" />
+        </Grid.ColumnDefinitions>
+        <controls:QikDataGrid LayoutKey="printers" ItemsSource="{Binding Printers}" SelectedItem="{Binding SelectedPrinter}" SelectionMode="Single"
+                              AutomationProperties.Name="Installed printers">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Printer" Binding="{Binding Name}" Width="*" MinWidth="160" />
+            <DataGridTemplateColumn Header="Default" Width="80" SortMemberPath="IsDefault">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <Border Style="{StaticResource Badge.Accent}" Visibility="{Binding IsDefault, Converter={StaticResource VisibleWhen}}"><TextBlock Text="Default" /></Border>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="150" />
+            <DataGridTextColumn Header="Connection" Binding="{Binding Connection}" Width="90" />
+            <DataGridTextColumn Header="Paper sizes" Binding="{Binding Papers}" Width="200" />
+            <DataGridTextColumn Header="Colour" Binding="{Binding Colour}" Width="90" />
+            <DataGridTextColumn Header="Duplex" Binding="{Binding Duplex}" Width="90" />
+            <DataGridTextColumn Header="Location" Binding="{Binding Location}" Width="110" />
+            <DataGridTextColumn Header="Last test" Binding="{Binding LastTest}" Width="190" />
+          </DataGrid.Columns>
+        </controls:QikDataGrid>
+
+        <Border Grid.Column="2" Style="{StaticResource Panel}" IsEnabled="{Binding CanManage}" VerticalAlignment="Top">
+          <StackPanel>
+            <TextBlock Text="Test page" Style="{StaticResource Text.Section}" Margin="0,0,0,8" />
+            <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,0,0,12"
+                       Text="Windows accepting a job does not prove the printer printed it. Print a test page, look at the paper, then record the result." />
+            <TextBlock Text="Printer" Style="{StaticResource Text.Label}" />
+            <TextBlock Text="{Binding SelectedPrinter.Name}" Style="{StaticResource Text.Body}" TextWrapping="Wrap" Margin="0,0,0,8" />
+            <TextBlock Text="Paper" Style="{StaticResource Text.Label}" />
+            <ComboBox ItemsSource="{Binding Papers}" SelectedItem="{Binding TestPaper}" AutomationProperties.Name="Test page paper" />
+            <Button Content="Print test page" Style="{StaticResource Button.Primary}" HorizontalAlignment="Left" Margin="0,12,0,0" Command="{Binding PrintTestPageCommand}" />
+
+            <StackPanel Margin="0,16,0,0" Visibility="{Binding HasPendingTest, Converter={StaticResource VisibleWhen}}">
+              <TextBlock Style="{StaticResource Text.Body}" TextWrapping="Wrap">
+                <Run Text="Test " /><Run Text="{Binding PendingTest.Detail, Mode=OneWay}" />
+              </TextBlock>
+              <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,4,0,8"
+                         Text="Did the page come out correctly? Check the frame on every side, the millimetre scale, all text including ₹, and that the codes scan." />
+              <TextBlock Text="Notes (required if there was a problem)" Style="{StaticResource Text.Label}" />
+              <TextBox Text="{Binding TestNotes, UpdateSourceTrigger=PropertyChanged}" MaxLength="300" AutomationProperties.Name="Test page notes" />
+              <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                <Button Content="Came out correctly" Style="{StaticResource Button.Primary}" Command="{Binding ConfirmTestGoodCommand}" Margin="0,0,8,0" />
+                <Button Content="There was a problem" Command="{Binding ReportTestProblemCommand}" />
+              </StackPanel>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- Preferences per purpose -->
+      <ScrollViewer Visibility="{Binding ShowPreferences, Converter={StaticResource VisibleWhen}}" VerticalScrollBarVisibility="Auto" Focusable="False">
+        <StackPanel IsEnabled="{Binding CanManage}">
+          <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,0,0,12"
+                     Text="Each purpose has its own printer, paper and layout. Margins are in mm, scale in %, font size in points. ESC/POS is experimental: it sends raw commands to a receipt printer, has not been tested with any printer model, and should only be used if the normal driver does not work." />
+          <ItemsControl ItemsSource="{Binding Profiles}" Focusable="False">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Style="{StaticResource Panel}" Margin="0,0,0,12">
+                  <StackPanel>
+                    <TextBlock Text="{Binding Purpose}" Style="{StaticResource Text.Section}" Margin="0,0,0,8" />
+                    <WrapPanel>
+                      <StackPanel Width="280" Margin="0,0,12,8">
+                        <TextBlock Text="Printer" Style="{StaticResource Text.Label}" />
+                        <ComboBox ItemsSource="{Binding DataContext.PrinterNames, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Printer}"
+                                  IsEditable="True" Text="{Binding Printer, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Printer" />
+                      </StackPanel>
+                      <StackPanel Width="120" Margin="0,0,12,8">
+                        <TextBlock Text="Paper" Style="{StaticResource Text.Label}" />
+                        <ComboBox ItemsSource="{Binding DataContext.Papers, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Paper}" AutomationProperties.Name="Paper" />
+                      </StackPanel>
+                      <StackPanel Width="120" Margin="0,0,12,8">
+                        <TextBlock Text="Orientation" Style="{StaticResource Text.Label}" />
+                        <ComboBox ItemsSource="{Binding DataContext.Orientations, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Orientation}" AutomationProperties.Name="Orientation" />
+                      </StackPanel>
+                      <StackPanel Width="70" Margin="0,0,8,8">
+                        <TextBlock Text="Top" Style="{StaticResource Text.Label}" />
+                        <TextBox Text="{Binding Top, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Top margin (mm)" />
+                      </StackPanel>
+                      <StackPanel Width="70" Margin="0,0,8,8">
+                        <TextBlock Text="Right" Style="{StaticResource Text.Label}" />
+                        <TextBox Text="{Binding Right, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Right margin (mm)" />
+                      </StackPanel>
+                      <StackPanel Width="70" Margin="0,0,8,8">
+                        <TextBlock Text="Bottom" Style="{StaticResource Text.Label}" />
+                        <TextBox Text="{Binding Bottom, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Bottom margin (mm)" />
+                      </StackPanel>
+                      <StackPanel Width="70" Margin="0,0,12,8">
+                        <TextBlock Text="Left" Style="{StaticResource Text.Label}" />
+                        <TextBox Text="{Binding Left, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Left margin (mm)" />
+                      </StackPanel>
+                      <StackPanel Width="80" Margin="0,0,8,8">
+                        <TextBlock Text="Scale %" Style="{StaticResource Text.Label}" />
+                        <TextBox Text="{Binding Scale, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Scale percent" />
+                      </StackPanel>
+                      <StackPanel Width="80" Margin="0,0,8,8">
+                        <TextBlock Text="Font pt" Style="{StaticResource Text.Label}" />
+                        <TextBox Text="{Binding FontSize, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Font size (points)" />
+                      </StackPanel>
+                      <StackPanel Width="70" Margin="0,0,12,8">
+                        <TextBlock Text="Copies" Style="{StaticResource Text.Label}" />
+                        <TextBox Text="{Binding Copies, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Copies" />
+                      </StackPanel>
+                    </WrapPanel>
+                    <CheckBox Content="Send as raw ESC/POS (experimental, receipts on thermal paper only)" IsChecked="{Binding UseEscPos}"
+                              Visibility="{Binding CanUseEscPos, Converter={StaticResource VisibleWhen}}" Margin="0,0,0,8" />
+                    <Button Content="Save" HorizontalAlignment="Left" Style="{StaticResource Button.Primary}"
+                            Command="{Binding DataContext.SaveProfileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </ScrollViewer>
+
+      <!-- Labels -->
+      <Grid Visibility="{Binding ShowLabels, Converter={StaticResource VisibleWhen}}">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="16" />
+          <ColumnDefinition Width="400" />
+        </Grid.ColumnDefinitions>
+        <Border Style="{StaticResource Panel}">
+          <DockPanel>
+            <StackPanel DockPanel.Dock="Top">
+              <TextBlock Text="Products to label" Style="{StaticResource Text.Section}" Margin="0,0,0,8" />
+              <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
+                         Text="Choose products and quantities, or scan barcodes here (click an empty area first so no text box has focus). Prices printed are the stored selling price and MRP." />
+              <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Add" Command="{Binding AddLabelProductCommand}" Margin="8,0,0,0" />
+                <ComboBox ItemsSource="{Binding Products}" SelectedItem="{Binding LabelProduct}" DisplayMemberPath="DisplayName" IsTextSearchEnabled="True"
+                          TextSearch.TextPath="Sku" MaxDropDownHeight="360" AutomationProperties.Name="Product" />
+              </DockPanel>
+            </StackPanel>
+            <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+              <WrapPanel>
+                <StackPanel Width="260" Margin="0,0,12,8">
+                  <TextBlock Text="Layout" Style="{StaticResource Text.Label}" />
+                  <ComboBox ItemsSource="{Binding Layouts}" SelectedItem="{Binding Layout}" DisplayMemberPath="Name" AutomationProperties.Name="Label layout" />
+                </StackPanel>
+                <StackPanel Width="140" Margin="0,0,12,8">
+                  <TextBlock Text="Skip labels on sheet" Style="{StaticResource Text.Label}" />
+                  <TextBox Text="{Binding Skip, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Labels to skip" />
+                </StackPanel>
+              </WrapPanel>
+              <TextBlock Text="{Binding Layout.Summary}" Style="{StaticResource Text.Caption}" Margin="0,0,0,8" />
+              <StackPanel Orientation="Horizontal">
+                <Button Content="Preview" Command="{Binding PreviewLabelsCommand}" Margin="0,0,8,0" />
+                <Button Content="Print labels" Style="{StaticResource Button.Primary}" Command="{Binding PrintLabelsCommand}" Margin="0,0,8,0" />
+                <Button Content="Export PDF" Command="{Binding ExportLabelsCommand}" />
+              </StackPanel>
+            </StackPanel>
+            <ScrollViewer Margin="0,12,0,0" VerticalScrollBarVisibility="Auto" Focusable="False">
+              <ItemsControl ItemsSource="{Binding LabelLines}" Focusable="False">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Grid Margin="0,0,0,4">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition Width="80" />
+                        <ColumnDefinition Width="36" />
+                      </Grid.ColumnDefinitions>
+                      <StackPanel>
+                        <TextBlock Text="{Binding Product.DisplayName}" Style="{StaticResource Text.Body}" />
+                        <TextBlock Text="{Binding Product.Sku}" Style="{StaticResource Text.Caption}" />
+                      </StackPanel>
+                      <TextBox Grid.Column="1" Text="{Binding Quantity, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" Margin="0,0,8,0" AutomationProperties.Name="Number of labels" />
+                      <Button Grid.Column="2" Style="{StaticResource Button.Icon}" Content="&#xE711;" FontSize="{StaticResource IconSizeSmall}" ToolTip="Remove"
+                              AutomationProperties.Name="Remove product" Command="{Binding DataContext.RemoveLabelLineCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                              CommandParameter="{Binding}" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </DockPanel>
+        </Border>
+
+        <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" Focusable="False">
+          <Border Style="{StaticResource Panel}" IsEnabled="{Binding CanManage}">
+            <StackPanel>
+              <DockPanel Margin="0,0,0,8">
+                <Button DockPanel.Dock="Right" Content="New layout" Style="{StaticResource Button.Subtle}" Command="{Binding NewLayoutCommand}" />
+                <TextBlock Text="Label layout" Style="{StaticResource Text.Section}" />
+              </DockPanel>
+              <TextBlock Text="Name" Style="{StaticResource Text.Label}" />
+              <TextBox Text="{Binding LayoutName, UpdateSourceTrigger=PropertyChanged}" MaxLength="60" AutomationProperties.Name="Layout name" />
+              <UniformGrid Columns="2" Margin="0,8,0,0">
+                <StackPanel Margin="0,0,8,8">
+                  <TextBlock Text="Page width (mm)" Style="{StaticResource Text.Label}" />
+                  <TextBox Text="{Binding PageWidth, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Page width (mm)" />
+                </StackPanel>
+                <StackPanel Margin="0,0,0,8">
+                  <TextBlock Text="Page height (mm)" Style="{StaticResource Text.Label}" />
+                  <TextBox Text="{Binding PageHeight, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Page height (mm)" />
+                </StackPanel>
+                <StackPanel Margin="0,0,8,8">
+                  <TextBlock Text="Label width (mm)" Style="{StaticResource Text.Label}" />
+                  <TextBox Text="{Binding LabelWidth, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Label width (mm)" />
+                </StackPanel>
+                <StackPanel Margin="0,0,0,8">
+                  <TextBlock Text="Label height (mm)" Style="{StaticResource Text.Label}" />
+                  <TextBox Text="{Binding LabelHeight, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Label height (mm)" />
+                </StackPanel>
+                <StackPanel Margin="0,0,8,8">
+                  <TextBlock Text="Columns" Style="{StaticResource Text.Label}" />
+                  <TextBox Text="{Binding Columns, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Columns" />
+                </StackPanel>
+                <StackPanel Margin="0,0,0,8">
+                  <TextBlock Text="Rows" Style="{StaticResource Text.Label}" />
+                  <TextBox Text="{Binding Rows, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Rows" />
+                </StackPanel>
+                <StackPanel Margin="0,0,8,8">
+                  <TextBlock Text="Left margin (mm)" Style="{StaticResource Text.Label}" />
+                  <TextBox Text="{Binding MarginLeft, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Left margin (mm)" />
+                </StackPanel>
+                <StackPanel Margin="0,0,0,8">
+                  <TextBlock Text="Top margin (mm)" Style="{StaticResource Text.Label}" />
+                  <TextBox Text="{Binding MarginTop, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Top margin (mm)" />
+                </StackPanel>
+                <StackPanel Margin="0,0,8,8">
+                  <TextBlock Text="Gap across (mm)" Style="{StaticResource Text.Label}" />
+                  <TextBox Text="{Binding HorizontalGap, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Horizontal gap (mm)" />
+                </StackPanel>
+                <StackPanel Margin="0,0,0,8">
+                  <TextBlock Text="Gap down (mm)" Style="{StaticResource Text.Label}" />
+                  <TextBox Text="{Binding VerticalGap, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Vertical gap (mm)" />
+                </StackPanel>
+              </UniformGrid>
+              <CheckBox Content="Product name" IsChecked="{Binding ShowName}" />
+              <CheckBox Content="SKU" IsChecked="{Binding ShowSku}" />
+              <CheckBox Content="Selling price" IsChecked="{Binding ShowPrice}" />
+              <CheckBox Content="MRP" IsChecked="{Binding ShowMrp}" />
+              <TextBlock Text="Code" Style="{StaticResource Text.Label}" Margin="0,8,0,4" />
+              <ComboBox ItemsSource="{Binding LabelCodes}" SelectedItem="{Binding Code}" AutomationProperties.Name="Barcode or QR" />
+              <Button Content="Save layout" Style="{StaticResource Button.Primary}" HorizontalAlignment="Left" Margin="0,12,0,0" Command="{Binding SaveLayoutCommand}" />
+            </StackPanel>
+          </Border>
+        </ScrollViewer>
+      </Grid>
+
+      <!-- History -->
+      <Grid Visibility="{Binding ShowHistory, Converter={StaticResource VisibleWhen}}">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="2*" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <controls:QikDataGrid LayoutKey="print-history" ItemsSource="{Binding History}" AutomationProperties.Name="Print history">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="When (UTC)" Binding="{Binding PrintedUtc, StringFormat=dd-MM-yyyy HH:mm}" SortMemberPath="PrintedUtc" Width="130" />
+            <DataGridTextColumn Header="Document" Binding="{Binding DocumentNumber}" Width="*" MinWidth="160" />
+            <DataGridTextColumn Header="Type" Binding="{Binding SourceType}" Width="90" />
+            <DataGridTextColumn Header="Output" Binding="{Binding Output}" Width="70" />
+            <DataGridTextColumn Header="Printer" Binding="{Binding PrinterName}" Width="160" />
+            <DataGridTextColumn Header="Copies" Binding="{Binding Copies}" Width="60" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+            <DataGridTextColumn Header="Print no." Binding="{Binding PrintNumber}" Width="70" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+            <DataGridTextColumn Header="Duplicate" Binding="{Binding MarkedDuplicate}" Width="80" />
+            <DataGridTextColumn Header="By" Binding="{Binding PrintedBy}" Width="110" />
+          </DataGrid.Columns>
+        </controls:QikDataGrid>
+        <TextBlock Grid.Row="1" Text="Test pages" Style="{StaticResource Text.Section}" Margin="0,16,0,8" />
+        <controls:QikDataGrid Grid.Row="2" LayoutKey="printer-tests" ItemsSource="{Binding Tests}" AutomationProperties.Name="Test pages">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Requested (UTC)" Binding="{Binding RequestedUtc, StringFormat=dd-MM-yyyy HH:mm}" SortMemberPath="RequestedUtc" Width="130" />
+            <DataGridTextColumn Header="Printer" Binding="{Binding PrinterName}" Width="*" MinWidth="140" />
+            <DataGridTextColumn Header="Paper" Binding="{Binding Paper}" Width="90" />
+            <DataGridTextColumn Header="Result" Binding="{Binding Outcome}" Width="130" />
+            <DataGridTextColumn Header="Detail" Binding="{Binding Detail}" Width="200" />
+            <DataGridTextColumn Header="Notes" Binding="{Binding Notes}" Width="200" />
+            <DataGridTextColumn Header="By" Binding="{Binding RequestedBy}" Width="100" />
+            <DataGridTextColumn Header="Confirmed by" Binding="{Binding ConfirmedBy}" Width="110" />
+          </DataGrid.Columns>
+        </controls:QikDataGrid>
+      </Grid>
+
+      <!-- Settings -->
+      <Border Style="{StaticResource Panel}" Visibility="{Binding ShowSettings, Converter={StaticResource VisibleWhen}}" IsEnabled="{Binding CanManage}"
+              VerticalAlignment="Top" MaxWidth="720" HorizontalAlignment="Left">
+        <StackPanel>
+          <CheckBox Content="Mark second and later prints of a document &quot;DUPLICATE&quot;" IsChecked="{Binding MarkDuplicate}" />
+          <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="24,2,0,12"
+                     Text="Every print and PDF export is counted per document either way (Print history)." />
+          <TextBlock Text="Label QR content" Style="{StaticResource Text.Label}" />
+          <TextBox Text="{Binding LabelQrFormat, UpdateSourceTrigger=PropertyChanged}" MaxLength="200" AutomationProperties.Name="Label QR content format" />
+          <TextBlock Text="{Binding LabelFieldsHelp}" Style="{StaticResource Text.Caption}" Margin="0,2,0,12" />
+          <TextBlock Text="Invoice reference QR content" Style="{StaticResource Text.Label}" />
+          <TextBox Text="{Binding InvoiceQrFormat, UpdateSourceTrigger=PropertyChanged}" MaxLength="200" AutomationProperties.Name="Invoice QR content format" />
+          <TextBlock Text="{Binding DocumentFieldsHelp}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,2,0,12" />
+          <TextBlock Text="Footer note on invoices and receipts" Style="{StaticResource Text.Label}" />
+          <TextBox Text="{Binding FooterNote, UpdateSourceTrigger=PropertyChanged}" MaxLength="300" AutomationProperties.Name="Footer note" />
+          <Button Content="Save settings" Style="{StaticResource Button.Primary}" HorizontalAlignment="Left" Margin="0,16,0,0" Command="{Binding SaveSettingsCommand}" />
+        </StackPanel>
+      </Border>
+    </Grid>
+  </DockPanel>
+</UserControl>

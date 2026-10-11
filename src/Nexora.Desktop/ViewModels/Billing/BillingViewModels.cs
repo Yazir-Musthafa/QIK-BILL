@@ -11,6 +11,10 @@ using Nexora.Domain.Billing;
 using Nexora.Domain.Companies;
 using Nexora.Domain.Security;
 using Nexora.Desktop.Services;
+using Nexora.Desktop.Services.Printing;
+using Nexora.Desktop.ViewModels.Printing;
+using Nexora.Printing;
+using Nexora.Printing.Templates;
 using Nexora.Desktop.ViewModels.Accounting;
 using Nexora.Desktop.ViewModels.Inventory;
 using Nexora.Desktop.ViewModels.Settings;
@@ -64,7 +68,7 @@ public sealed partial class AllocationEditor(OpenItemRow item) : ObservableObjec
 /// returns, and receipts or payments with allocation. Every amount shown for a saved document comes from the
 /// application layer; the editor never computes totals itself.
 /// </summary>
-public abstract partial class BillingViewModel : PageViewModel, ILoadable
+public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScanTarget
 {
     private readonly BillingService _billing;
     private readonly PartyService _parties;
@@ -73,10 +77,12 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable
     private readonly CompanyService _companies;
     private readonly IAuthorizer _authorizer;
     private readonly DialogService _dialogs;
+    private readonly PrintActions _print;
 
     protected BillingViewModel(PartyKind side, BillingService billing, PartyService parties, SettlementService settlements, InventoryCatalogueService catalogue,
-        CompanyService companies, IAuthorizer authorizer, DialogService dialogs, ToastService toasts, ILogger logger) : base(logger, toasts)
+        CompanyService companies, IAuthorizer authorizer, DialogService dialogs, PrintActions print, ToastService toasts, ILogger logger) : base(logger, toasts)
     {
+        _print = print;
         Side = side;
         _billing = billing;
         _parties = parties;
@@ -211,6 +217,13 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable
 
     public bool PreviewCanReturn => CanCreate && Preview is { State: BillingStatus.Posted, IsCancelled: false } && Preview.Kind == DocumentKind;
 
+    /// <summary>A delivery note is printed from a sales invoice; a purchase order from a draft purchase bill.</summary>
+    public bool PreviewCanDeliveryNote => Preview is { Kind: BillingDocumentKind.SalesInvoice };
+
+    public bool PreviewCanPurchaseOrder => Preview is { Kind: BillingDocumentKind.PurchaseBill, State: BillingStatus.Draft };
+
+    [ObservableProperty] private string _codeEntry = string.Empty;
+
     public string AllocationTotal => Application.Formatting.IndianNumberFormat.Number(
         OpenItems.Sum(o => decimal.TryParse(o.Amount, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : 0));
 
@@ -238,7 +251,8 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable
 
     partial void OnPreviewChanged(BillingDocumentView? value)
     {
-        foreach (var name in new[] { nameof(HasPreview), nameof(ShowPreview), nameof(PreviewHasCgst), nameof(PreviewIsDraft), nameof(PreviewCanCancel), nameof(PreviewCanReturn) })
+        foreach (var name in new[] { nameof(HasPreview), nameof(ShowPreview), nameof(PreviewHasCgst), nameof(PreviewIsDraft), nameof(PreviewCanCancel), nameof(PreviewCanReturn),
+                     nameof(PreviewCanDeliveryNote), nameof(PreviewCanPurchaseOrder) })
             OnPropertyChanged(name);
     }
 
@@ -595,6 +609,92 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable
         }
     }
 
+    // ----- Printing (rendered and recorded by the print centre; figures are the stored ones) -----
+
+    [RelayCommand]
+    private async Task PreviewDocumentAsync()
+    {
+        if (Preview is { } d) await _print.PreviewAsync(new BillingSubject(d.Id));
+    }
+
+    [RelayCommand]
+    private async Task PrintDocumentAsync()
+    {
+        if (Preview is { } d) await _print.PrintAsync(new BillingSubject(d.Id));
+    }
+
+    /// <summary>Prints on the receipt printer preference (for example an 80 mm thermal printer for cash bills).</summary>
+    [RelayCommand]
+    private async Task PrintOnReceiptPrinterAsync()
+    {
+        if (Preview is { } d) await _print.PrintAsync(new BillingSubject(d.Id), Domain.Printing.PrintPurpose.Receipts);
+    }
+
+    [RelayCommand]
+    private async Task ExportDocumentPdfAsync()
+    {
+        if (Preview is { } d) await _print.ExportPdfAsync(new BillingSubject(d.Id));
+    }
+
+    [RelayCommand]
+    private async Task PreviewDeliveryNoteAsync()
+    {
+        if (Preview is { } d && PreviewCanDeliveryNote) await _print.PreviewAsync(new BillingSubject(d.Id, DocumentStyle.DeliveryNote));
+    }
+
+    [RelayCommand]
+    private async Task PreviewPurchaseOrderAsync()
+    {
+        if (Preview is { } d && PreviewCanPurchaseOrder) await _print.PreviewAsync(new BillingSubject(d.Id, DocumentStyle.PurchaseOrder));
+    }
+
+    [RelayCommand]
+    private async Task PreviewSettlementAsync()
+    {
+        if (SelectedSettlement is { } s) await _print.PreviewAsync(new SettlementSubject(s.Id));
+    }
+
+    [RelayCommand]
+    private async Task PrintSettlementAsync()
+    {
+        if (SelectedSettlement is { } s) await _print.PrintAsync(new SettlementSubject(s.Id));
+    }
+
+    [RelayCommand]
+    private async Task ExportSettlementPdfAsync()
+    {
+        if (SelectedSettlement is { } s) await _print.ExportPdfAsync(new SettlementSubject(s.Id));
+    }
+
+    // ----- Scanning -----
+
+    /// <summary>A scan (or a typed code and Enter) adds the product to the editor, or adds one more if it is already there.</summary>
+    public async Task OnScanAsync(string code)
+    {
+        if (!ShowEditor || IsReturnEditor) return;
+        await RunAsync(async () =>
+        {
+            if (Products.Count == 0) await LoadReferenceDataAsync();
+            var found = await _catalogue.FindByCodeAsync(code) ?? throw new WorkspaceValidationException($"No product has the code {code}.");
+            var product = Products.FirstOrDefault(p => p.Id == found.Id) ?? throw new WorkspaceValidationException($"{found.Sku} has variants or is archived; choose a variant.");
+            var line = Lines.FirstOrDefault(l => l.Product?.Id == product.Id && string.IsNullOrWhiteSpace(l.Serial) && string.IsNullOrWhiteSpace(l.Batch));
+            var empty = Lines.FirstOrDefault(l => l.Product is null);
+            if (line is not null && product.Tracking == Domain.Inventory.TrackingMode.None)
+                line.Quantity = NumberText.Format(NumberText.Parse(line.Quantity, "Quantity") + 1);
+            else if (empty is not null) empty.Product = product;
+            else Lines.Add(new BillingLineEditor { Product = product });
+        });
+    }
+
+    [RelayCommand]
+    private async Task AddByCodeAsync()
+    {
+        var code = CodeEntry.Trim();
+        if (code.Length == 0) return;
+        CodeEntry = string.Empty;
+        await OnScanAsync(code);
+    }
+
     [RelayCommand]
     private async Task RefreshAsync()
     {
@@ -609,12 +709,12 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable
 }
 
 public sealed class SalesBillingViewModel(BillingService billing, PartyService parties, SettlementService settlements, InventoryCatalogueService catalogue,
-    CompanyService companies, IAuthorizer authorizer, DialogService dialogs, ToastService toasts, ILogger<SalesBillingViewModel> logger)
-    : BillingViewModel(PartyKind.Customer, billing, parties, settlements, catalogue, companies, authorizer, dialogs, toasts, logger);
+    CompanyService companies, IAuthorizer authorizer, DialogService dialogs, PrintActions print, ToastService toasts, ILogger<SalesBillingViewModel> logger)
+    : BillingViewModel(PartyKind.Customer, billing, parties, settlements, catalogue, companies, authorizer, dialogs, print, toasts, logger);
 
 public sealed class PurchaseBillingViewModel(BillingService billing, PartyService parties, SettlementService settlements, InventoryCatalogueService catalogue,
-    CompanyService companies, IAuthorizer authorizer, DialogService dialogs, ToastService toasts, ILogger<PurchaseBillingViewModel> logger)
-    : BillingViewModel(PartyKind.Supplier, billing, parties, settlements, catalogue, companies, authorizer, dialogs, toasts, logger);
+    CompanyService companies, IAuthorizer authorizer, DialogService dialogs, PrintActions print, ToastService toasts, ILogger<PurchaseBillingViewModel> logger)
+    : BillingViewModel(PartyKind.Supplier, billing, parties, settlements, catalogue, companies, authorizer, dialogs, print, toasts, logger);
 
 /// <summary>Customers or suppliers: profiles, GST details, balances from the ledger and open items.</summary>
 public abstract partial class PartiesViewModel : PageViewModel, ILoadable
@@ -622,10 +722,12 @@ public abstract partial class PartiesViewModel : PageViewModel, ILoadable
     private readonly PartyService _parties;
     private readonly IAuthorizer _authorizer;
     private readonly DialogService _dialogs;
+    private readonly PrintActions _print;
 
-    protected PartiesViewModel(PartyKind kind, PartyService parties, IAuthorizer authorizer, DialogService dialogs, ToastService toasts, ILogger logger)
+    protected PartiesViewModel(PartyKind kind, PartyService parties, IAuthorizer authorizer, DialogService dialogs, PrintActions print, ToastService toasts, ILogger logger)
         : base(logger, toasts)
     {
+        _print = print;
         Kind = kind;
         _parties = parties;
         _authorizer = authorizer;
@@ -664,6 +766,8 @@ public abstract partial class PartiesViewModel : PageViewModel, ILoadable
     [ObservableProperty] private string _city = string.Empty;
     [ObservableProperty] private string _pincode = string.Empty;
     [ObservableProperty] private string _creditLimit = string.Empty;
+    [ObservableProperty] private string _statementFrom = DateText.From(new DateOnly(DateText.Today.Month >= 4 ? DateText.Today.Year : DateText.Today.Year - 1, 4, 1));
+    [ObservableProperty] private string _statementTo = DateText.From(DateText.Today);
 
     public string EditorHeading => IsNew ? NewLabel : $"Edit {Noun}";
 
@@ -722,6 +826,38 @@ public abstract partial class PartiesViewModel : PageViewModel, ILoadable
         if (await RunAsync(() => _parties.SetActiveAsync(party.Id, !party.IsActive), party.IsActive ? "Deactivated." : "Reactivated.")) await LoadAsync();
     }
 
+    private StatementSubject? StatementSubjectNow()
+    {
+        if (Selected is not { } party) return null;
+        try
+        {
+            return new StatementSubject(party.Id, DateText.Parse(StatementFrom, "From"), DateText.Parse(StatementTo, "To"));
+        }
+        catch (WorkspaceValidationException ex)
+        {
+            Error = ex.Message;
+            return null;
+        }
+    }
+
+    [RelayCommand]
+    private async Task PreviewStatementAsync()
+    {
+        if (StatementSubjectNow() is { } subject) await _print.PreviewAsync(subject);
+    }
+
+    [RelayCommand]
+    private async Task PrintStatementAsync()
+    {
+        if (StatementSubjectNow() is { } subject) await _print.PrintAsync(subject);
+    }
+
+    [RelayCommand]
+    private async Task ExportStatementPdfAsync()
+    {
+        if (StatementSubjectNow() is { } subject) await _print.ExportPdfAsync(subject);
+    }
+
     private async Task LoadOpenItemsAsync(Guid partyId)
     {
         try
@@ -736,8 +872,8 @@ public abstract partial class PartiesViewModel : PageViewModel, ILoadable
     }
 }
 
-public sealed class CustomersViewModel(PartyService parties, IAuthorizer authorizer, DialogService dialogs, ToastService toasts, ILogger<CustomersViewModel> logger)
-    : PartiesViewModel(PartyKind.Customer, parties, authorizer, dialogs, toasts, logger);
+public sealed class CustomersViewModel(PartyService parties, IAuthorizer authorizer, DialogService dialogs, PrintActions print, ToastService toasts,
+    ILogger<CustomersViewModel> logger) : PartiesViewModel(PartyKind.Customer, parties, authorizer, dialogs, print, toasts, logger);
 
-public sealed class SuppliersViewModel(PartyService parties, IAuthorizer authorizer, DialogService dialogs, ToastService toasts, ILogger<SuppliersViewModel> logger)
-    : PartiesViewModel(PartyKind.Supplier, parties, authorizer, dialogs, toasts, logger);
+public sealed class SuppliersViewModel(PartyService parties, IAuthorizer authorizer, DialogService dialogs, PrintActions print, ToastService toasts,
+    ILogger<SuppliersViewModel> logger) : PartiesViewModel(PartyKind.Supplier, parties, authorizer, dialogs, print, toasts, logger);

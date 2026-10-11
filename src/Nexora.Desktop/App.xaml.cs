@@ -9,6 +9,7 @@ using Nexora.Application;
 using Nexora.Desktop.Services;
 using Nexora.Desktop.ViewModels;
 using Nexora.Infrastructure;
+using Nexora.Printing;
 using Nexora.Infrastructure.Persistence.Providers;
 using Nexora.Infrastructure.Storage;
 using Serilog;
@@ -90,6 +91,9 @@ public partial class App : System.Windows.Application
         services.AddNexoraApplication();
         services.AddNexoraAccounting();
         services.AddNexoraInfrastructure(new SqliteDatabaseProvider(databasePath));
+        services.AddNexoraPrinting();
+        services.AddSingleton<Nexora.Printing.IPrinterGateway, Services.Printing.WindowsPrinterGateway>();
+        services.AddSingleton<Services.Printing.PrintActions>();
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<DialogService>();
         services.AddSingleton<ToastService>();

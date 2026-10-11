@@ -35,8 +35,10 @@ public sealed partial class ProductsViewModel(
     InventoryCatalogueService catalogue,
     IAuthorizer authorizer,
     DialogService dialogs,
+    Nexora.Printing.PrintingService printing,
+    Services.Printing.PrintActions print,
     ToastService toasts,
-    ILogger<ProductsViewModel> logger) : PageViewModel(logger, toasts), ILoadable
+    ILogger<ProductsViewModel> logger) : PageViewModel(logger, toasts), ILoadable, Printing.IScanTarget
 {
     public string Title => "Products";
 
@@ -83,6 +85,11 @@ public sealed partial class ProductsViewModel(
     [ObservableProperty] private UnitRow? _conversionUnit;
     [ObservableProperty] private string _conversionFactor = string.Empty;
 
+    public ObservableCollection<Nexora.Printing.LabelLayoutRow> LabelLayouts { get; } = [];
+
+    [ObservableProperty] private Nexora.Printing.LabelLayoutRow? _labelLayout;
+    [ObservableProperty] private string _labelQuantity = "1";
+
     public bool CanAddVariant => Selected is { ParentProductId: null, OnHand: 0 } && CanEdit;
 
     partial void OnShowArchivedChanged(bool value) => _ = LoadAsync();
@@ -115,7 +122,45 @@ public sealed partial class ProductsViewModel(
         Products.Clear();
         foreach (var product in await catalogue.ListProductsAsync(ShowArchived)) Products.Add(product);
         Selected = Products.FirstOrDefault(p => p.Id == keep);
+        if (LabelLayouts.Count == 0)
+        {
+            foreach (var layout in await printing.LabelLayoutsAsync()) LabelLayouts.Add(layout);
+            LabelLayout ??= LabelLayouts.FirstOrDefault();
+        }
     });
+
+    /// <summary>A scanned code selects the product it belongs to (barcode, QR identifier or SKU).</summary>
+    public Task OnScanAsync(string code) => RunAsync(async () =>
+    {
+        var found = await catalogue.FindByCodeAsync(code) ?? throw new WorkspaceValidationException($"No product has the code {code}.");
+        Selected = Products.FirstOrDefault(p => p.Id == found.Id) ?? Selected;
+    });
+
+    private Nexora.Printing.LabelSubject? LabelSubjectNow()
+    {
+        if (Selected is not { } product || LabelLayout is not { } layout) return null;
+        try
+        {
+            return new Nexora.Printing.LabelSubject(layout.Id, [new Nexora.Printing.LabelRequest(product.Id, (int)NumberText.Parse(LabelQuantity, "Number of labels"))]);
+        }
+        catch (WorkspaceValidationException ex)
+        {
+            Error = ex.Message;
+            return null;
+        }
+    }
+
+    [RelayCommand]
+    private async Task PreviewLabelsAsync()
+    {
+        if (LabelSubjectNow() is { } subject) await print.PreviewAsync(subject);
+    }
+
+    [RelayCommand]
+    private async Task PrintLabelsAsync()
+    {
+        if (LabelSubjectNow() is { } subject) await print.PrintAsync(subject);
+    }
 
     [RelayCommand]
     private void New()

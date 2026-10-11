@@ -257,6 +257,32 @@
             <TextBlock Style="{StaticResource Text.Caption}" Margin="0,4,0,0" TextWrapping="Wrap" Text="For example BOX and 12 means 1 box = 12 of the base unit." />
           </StackPanel>
         </Border>
+        <Border Style="{StaticResource Panel}" Margin="0,16,0,0" Visibility="{Binding IsNew, Converter={StaticResource VisibleWhen}, ConverterParameter=invert}">
+          <StackPanel>
+            <TextBlock Text="Labels" Style="{StaticResource Text.Section}" Margin="0,0,0,8" />
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="80" />
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="Layout" Style="{StaticResource Text.Label}" />
+                <ComboBox ItemsSource="{Binding LabelLayouts}" SelectedItem="{Binding LabelLayout}" DisplayMemberPath="Name" AutomationProperties.Name="Label layout" />
+              </StackPanel>
+              <StackPanel Grid.Column="2">
+                <TextBlock Text="Labels" Style="{StaticResource Text.Label}" />
+                <TextBox Text="{Binding LabelQuantity, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Number of labels" />
+              </StackPanel>
+            </Grid>
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+              <Button Content="Preview labels" Command="{Binding PreviewLabelsCommand}" Margin="0,0,8,0" />
+              <Button Content="Print labels" Command="{Binding PrintLabelsCommand}" />
+            </StackPanel>
+            <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
+                       Text="Several products at once: Print centre → Labels. A scanned barcode selects its product on this page." />
+          </StackPanel>
+        </Border>
       </StackPanel>
     </ScrollViewer>
   </Grid>
