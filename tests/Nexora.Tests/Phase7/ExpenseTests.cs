@@ -70,6 +70,18 @@ public sealed class ExpensePostingTests : ExpenseTestBase
     }
 
     [Fact]
+    public async Task The_expense_voucher_is_reversed_only_through_the_expense()
+    {
+        var id = await ApprovedAsync();
+        var number = await Expenses.PostAsync(id);
+        var voucher = (await Db.Get<VoucherService>().ListAsync(new VoucherQuery(Type: Nexora.Domain.Accounting.VoucherType.Expense))).Single(v => v.Narration.StartsWith($"Expense {number}", StringComparison.Ordinal));
+
+        var refused = await Assert.ThrowsAsync<WorkspaceValidationException>(() => Db.Get<VoucherService>().ReverseAsync(voucher.Id, October, "wrong"));
+        Assert.Contains("under Expenses", refused.Message, StringComparison.Ordinal);
+        Assert.Equal(10_000m, await NetAsync(RentLedger));
+    }
+
+    [Fact]
     public async Task Gst_that_cannot_be_claimed_is_added_to_the_expense()
     {
         var id = await DraftAsync(eligible: false);

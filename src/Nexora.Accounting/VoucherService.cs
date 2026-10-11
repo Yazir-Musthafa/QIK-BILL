@@ -150,8 +150,15 @@ public sealed class VoucherService(
         {
             await using var unit = await units.BeginAsync(cancellationToken: cancellationToken);
             var original = await LoadWithLinesAsync(unit, voucherId, cancellationToken) ?? throw NotFound();
-            if (original.SourceType is not null)
-                throw new WorkspaceValidationException($"Voucher {original.Number} was created by a stock document. Reverse that document under Stock instead, so stock and accounts stay in step.");
+            if (original.SourceType is { } source)
+                throw new WorkspaceValidationException(source switch
+                {
+                    "billing" => $"Voucher {original.Number} was created by a sales or purchase document. Cancel or return that document instead, so documents and accounts stay in step.",
+                    "settlement" => $"Voucher {original.Number} was created by a receipt or payment. Reverse it under Receipts or Payments instead.",
+                    "expense" => $"Voucher {original.Number} was created by an expense. Reverse the expense under Expenses instead.",
+                    "service" => $"Voucher {original.Number} was created by a service job. Return the part on the job instead, so stock and accounts stay in step.",
+                    _ => $"Voucher {original.Number} was created by a stock document. Reverse that document under Stock instead, so stock and accounts stay in step.",
+                });
             var (_, number) = await ReverseCoreAsync(unit, original, date, narration, session, system: false, cancellationToken);
             await unit.CommitAsync(cancellationToken);
             logger.LogInformation("Voucher reversed; user {UserId}; voucher {VoucherId}", session.UserId, original.Id);

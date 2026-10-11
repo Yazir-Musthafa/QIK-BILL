@@ -1,8 +1,8 @@
 # Accounting map
 
-Status: Phase 5, 11 October 2026.
+Status: Phase 7, 11 October 2026.
 
-The posting engine, chart of accounts and reports are implemented and tested (`Nexora.Accounting`). **Inventory postings are implemented (Phase 4)**: stock documents post their vouchers automatically (see "Inventory" below). **Sales, purchases, returns, receipts and payments post automatically (Phase 5)**; see "Sales and purchases" below. Expense workflows are Phase 7. Nothing here is a statement of GST compliance.
+The posting engine, chart of accounts and reports are implemented and tested (`Nexora.Accounting`). **Inventory postings are implemented (Phase 4)**: stock documents post their vouchers automatically (see "Inventory" below). **Sales, purchases, returns, receipts and payments post automatically (Phase 5)**; see "Sales and purchases" below. **Expenses, service spare parts, service invoices and the credit-limit check are implemented (Phase 7)**; see "Expenses and service" below. Nothing here is a statement of GST compliance.
 
 ## Principles
 
@@ -58,6 +58,7 @@ These accounts are created for every company. They have stable keys (`SystemAcco
 | `round-off` | 5302 | Round Off | Expense (either side) | General |
 | `bank-charges` | 5303 | Bank Charges | Expense | General |
 | `inventory-adjustment` | 5304 | Inventory Adjustments | Expense | General |
+| `warranty-expense` | 5309 | Warranty and Service Costs (Phase 7; added to older companies the first time a service part is issued, under the same group as Round Off, with the next free code from 5309) | Expense | General |
 
 ## Voucher types and account rules
 
@@ -95,11 +96,12 @@ The table uses perpetual inventory. *Party* means the customer's or supplier's o
 | Reverse-charge purchase | Expense or Inventory; Input GST (if eligible) | Party; GST Payable under Reverse Charge |
 | Discount received | Party | Discount Received |
 | Payment to supplier (Phase 5) | Party | Cash or Bank |
-| Expense paid | Expense account; Input GST if eligible | Cash or Bank (or Party if on credit) |
+| Expense paid (Phase 7) | The category's expense ledger, plus GST that cannot be claimed; Input CGST/SGST or IGST if claimable | Cash or Bank (expenses on credit are purchase bills) |
 | Stock adjustment: shortage, damage, expiry (implemented, Phase 4) | Inventory Adjustments | Inventory |
 | Stock adjustment: excess found (implemented, Phase 4) | Inventory | Inventory Adjustments |
-| Service job spare parts (Phase 7) | Cost of Goods Sold | Inventory |
-| Service invoice labour (Phase 7) | Party or Cash | Sales (or a service income ledger); Output GST |
+| Service job spare parts, chargeable job (Phase 7) | Cost of Goods Sold — cost at the costing method | Inventory |
+| Service job spare parts, warranty job (Phase 7) | Warranty and Service Costs — cost | Inventory |
+| Service invoice: parts and labour (Phase 7) | Party or Cash/Bank — total | Sales — taxable value of parts and labour; Output GST (no Cost of Goods Sold: it was posted when the parts were issued) |
 | Bank charges | Bank Charges | Bank |
 | Owner introduces capital | Cash or Bank | Owner's Capital |
 | Opening balances | Assets | Liabilities, Capital; any difference to Opening Balance Difference |
@@ -197,6 +199,40 @@ Use a return instead.
 Payment status (Unpaid, Partly paid, Paid) is derived from the open amount. A party's ledger balance equals its open charges minus its open credits, unless manual vouchers are posted to the party ledger. Tests check this.
 
 **Not implemented:** dated GST rates, cess, reverse charge, ineligible input tax, freight and other charges, settlement discounts (Discount Allowed and Discount Received are not posted automatically), purchase of services or non-stock items through bills (use Purchase vouchers), and TDS/TCS.
+
+## Expenses and service (implemented in Phase 7)
+
+### Expenses
+
+An expense is approved before it posts (`ExpenseService`). Posting creates **one voucher of type Expense** through the ledger poster, in the same transaction as its number (`EXP/{FY}/`). The source is the expense, so the voucher cannot be reversed from Vouchers.
+
+| Line | Debit | Credit |
+|---|---|---|
+| Each line, GST claimable | The category's expense ledger: amount before GST | |
+| | Input CGST + Input SGST (supplier in the company's state, or no supplier), or Input IGST (supplier in another state): the line's tax | |
+| Each line, GST not claimable ("Claim GST" unticked) | The category's expense ledger: amount **plus** the tax | |
+| The expense | | The cash or bank account it was paid from: total |
+
+- Tax is calculated per line by the service from the line's tax category (CGST and SGST each half the rate, rounded separately; IGST the full rate). UI totals are never used.
+- Amounts on the same account are netted into one line, and the service checks that debits equal the total before posting.
+- **Reversal** is the only correction. It posts the exact reverse of the voucher on a date on or after the expense, once, with a reason. Posted expenses, their lines and their attachments cannot change (domain, data context and SQLite triggers).
+- **Recurring expenses** create drafts only. They post through the same approval and posting path.
+
+### Service jobs
+
+| Event | Debit | Credit |
+|---|---|---|
+| Part issued, chargeable job | Cost of Goods Sold: the part's stock value at the costing method | Inventory |
+| Part issued, warranty job | Warranty and Service Costs: the part's stock value | Inventory |
+| Part returned to stock (unbilled parts only) | Inventory: the stock value received | The account the part was charged to (Cost of Goods Sold or Warranty and Service Costs): the cost it left with. Any difference from the pool's stock value goes to Inventory Adjustments, as for other receipts. |
+| Service invoice (posted from Sales invoices) | Party (credit) or cash/bank (cash): total | Sales: taxable value of the issued parts and the labour; Output CGST + SGST or IGST by place of supply; Round Off if rounded |
+
+- **Parts move stock once.** The issue is a `ServiceIssue` stock document posted through the stock engine (negative-stock, batch and serial rules apply), with its voucher in the same transaction. On the invoice, parts are *issued-part* lines: they carry the selling price and tax but post no stock movement and no Cost of Goods Sold. Labour is *service* lines (no product, no stock, SAC code as entered).
+- **Warranty jobs** are not invoiced (zero charge to the customer). Their parts' cost stays in Warranty and Service Costs, which appears in profit and loss under Indirect Expenses.
+- A part's charge (chargeable or warranty) is fixed when it is issued; the job's charge cannot change once parts are issued.
+- Service stock documents and their vouchers cannot be posted or reversed from Stock or Vouchers. Corrections are part returns (before invoicing) or a credit note on the posted invoice.
+- **Credit limit (Phase 7):** before a credit sales invoice posts, the customer's ledger balance plus the invoice total is compared with the credit limit (0 = no limit). Above the limit, posting is refused unless the user holds "Sales: Override credit limit" and confirms. The override is recorded in the audit trail as `CreditLimitOverridden`. It does not change any posting.
+- **Customer prices (Phase 7)** only change the rate used when a line's rate is left blank. The posting rules above are unchanged.
 
 ## Not implemented yet
 
