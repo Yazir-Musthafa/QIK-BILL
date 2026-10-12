@@ -1,9 +1,8 @@
 namespace Nexora.Application;
 
 /// <summary>
-/// Dashboard content for Phase 1. Real companies show an honest empty state because no financial
-/// modules exist yet. The demonstration company shows fixed illustrative figures, labelled as such.
-/// Phase 8 replaces this with queries over posted transactions.
+/// Dashboard content that does not come from posted data: the labelled sample figures of the demonstration company,
+/// and the empty state of a company with nothing posted yet. Real figures come from <see cref="IDashboardSource"/>.
 /// </summary>
 public static class DemonstrationDashboard
 {
@@ -11,7 +10,7 @@ public static class DemonstrationDashboard
         "Demonstration company. Figures are illustrative samples, not posted transactions. Delete this company from Settings when you no longer need it.";
 
     public const string EmptyNotice =
-        "No transactions yet. Figures appear here once sales, purchases and accounting are recorded.";
+        "No transactions yet. Figures appear here once sales, purchases or vouchers are posted.";
 
     public static DashboardSnapshot Empty() => new(false, EmptyNotice,
         [

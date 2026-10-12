@@ -105,9 +105,9 @@ public sealed partial class DashboardViewModel(
         IsDemonstration = snapshot.IsDemonstration;
         Notice = snapshot.Notice;
         // Without posted data, show a dash rather than ₹0 so nothing reads as a computed balance.
+        var hasFigures = snapshot.IsDemonstration || snapshot.HasData;
         Kpis = snapshot.Metrics
-            .Select(m => new KpiItem(m.Label, snapshot.IsDemonstration ? IndianNumberFormat.Amount(m.Value) : "—",
-                snapshot.IsDemonstration ? m.Note : "No data yet"))
+            .Select(m => new KpiItem(m.Label, hasFigures ? IndianNumberFormat.Amount(m.Value) : "—", hasFigures ? m.Note : "No data yet"))
             .ToList();
 
         var trendMax = snapshot.Trend.Count == 0 ? 1m : Math.Max(1m, snapshot.Trend.Max(t => Math.Max(t.Revenue, t.Expenses)));
@@ -123,7 +123,8 @@ public sealed partial class DashboardViewModel(
             .Select(p => new TopProductRow(p.Name, IndianNumberFormat.Amount(p.Revenue), (double)(p.Revenue / productMax))).ToList();
 
         Activity = snapshot.RecentActivity
-            .Select(a => new ActivityRow(a.OccurredAt.ToLocalTime().ToString("HH:mm"), a.Title, a.Detail)).ToList();
+            .Select(a => new ActivityRow(a.OccurredAt.ToLocalTime().Date == DateTime.Today ? a.OccurredAt.ToLocalTime().ToString("HH:mm")
+                : a.OccurredAt.ToLocalTime().ToString("dd-MM HH:mm"), a.Title, a.Detail)).ToList();
 
         LowStock = snapshot.LowStock
             .Select(s => new StockRow(s.Sku, s.Name, IndianNumberFormat.Number(s.Available, 0), IndianNumberFormat.Number(s.ReorderLevel, 0)))

@@ -14,7 +14,8 @@ public sealed class WorkspaceService(
     CompanyProvisioner provisioner,
     IPasswordHasher passwordHasher,
     IClock clock,
-    ILogger<WorkspaceService> logger) : IWorkspaceService
+    ILogger<WorkspaceService> logger,
+    IEnumerable<IDashboardSource> dashboardSources) : IWorkspaceService
 {
     public const string DemoCompanyName = "Demonstration Company (sample data)";
     public const string GenericSignInError = "The username or password is incorrect.";
@@ -176,12 +177,12 @@ public sealed class WorkspaceService(
         Open(user, access);
     }
 
-    public Task<DashboardSnapshot> GetDashboardAsync(CancellationToken cancellationToken = default)
+    /// <summary>The demonstration company shows labelled sample figures; real companies show figures from posted data.</summary>
+    public async Task<DashboardSnapshot> GetDashboardAsync(CancellationToken cancellationToken = default)
     {
         var session = RequireSession();
-        return Task.FromResult(session.IsDemo
-            ? DemonstrationDashboard.Sample(new DateTimeOffset(clock.UtcNow, TimeSpan.Zero))
-            : DemonstrationDashboard.Empty());
+        if (session.IsDemo) return DemonstrationDashboard.Sample(new DateTimeOffset(clock.UtcNow, TimeSpan.Zero));
+        return dashboardSources.FirstOrDefault() is { } source ? await source.GetAsync(cancellationToken) : DemonstrationDashboard.Empty();
     }
 
     public async Task<WorkspacePreferences> GetPreferencesAsync(CancellationToken cancellationToken = default)

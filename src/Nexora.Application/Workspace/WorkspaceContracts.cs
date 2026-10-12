@@ -21,7 +21,13 @@ public sealed record AgeingBucket(string Label, decimal Value);
 public sealed record DashboardSnapshot(bool IsDemonstration, string Notice,
     IReadOnlyList<DashboardMetric> Metrics, IReadOnlyList<TrendPoint> Trend,
     IReadOnlyList<ActivityItem> RecentActivity, IReadOnlyList<StockAlert> LowStock,
-    IReadOnlyList<ProductPerformance> TopProducts, IReadOnlyList<AgeingBucket> ReceivablesAgeing);
+    IReadOnlyList<ProductPerformance> TopProducts, IReadOnlyList<AgeingBucket> ReceivablesAgeing, bool HasData = false);
+
+/// <summary>Computes the dashboard of a real company from its posted data (implemented by the reporting module).</summary>
+public interface IDashboardSource
+{
+    Task<DashboardSnapshot> GetAsync(CancellationToken cancellationToken = default);
+}
 
 /// <summary>Application boundary; storage providers remain outside this assembly.</summary>
 public interface IWorkspaceService
