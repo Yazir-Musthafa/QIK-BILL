@@ -16,6 +16,11 @@ public static class DependencyInjection
         services.AddDbContextFactory<NexoraDbContext>(provider.Configure);
         services.AddSingleton<IWorkspaceStore, EfWorkspaceStore>();
         services.AddSingleton<IUnitOfWorkFactory, EfUnitOfWorkFactory>();
+        if (provider is SqliteDatabaseProvider sqlite)
+        {
+            services.AddSingleton(sqlite);
+            services.AddSingleton<Backup.BackupService>();
+        }
         return services;
     }
 }

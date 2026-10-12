@@ -24,6 +24,7 @@ public sealed class SqliteDatabaseProvider : IDatabaseProvider
     public SqliteDatabaseProvider(string databasePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
+        DatabasePath = Path.GetFullPath(databasePath);
         _connectionString = new SqliteConnectionStringBuilder
         {
             DataSource = databasePath,
@@ -33,6 +34,9 @@ public sealed class SqliteDatabaseProvider : IDatabaseProvider
     }
 
     public string Name => "SQLite";
+
+    /// <summary>The database file, used by backup and restore.</summary>
+    public string DatabasePath { get; }
 
     public void Configure(DbContextOptionsBuilder builder) =>
         builder.UseSqlite(_connectionString, sqlite => sqlite.MigrationsAssembly(typeof(SqliteDatabaseProvider).Assembly.FullName));
