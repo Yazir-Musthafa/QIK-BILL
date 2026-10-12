@@ -15,7 +15,14 @@ public static class ReportPdf
         if (table.Columns.Count > 7 && !setup.IsRoll && setup.Orientation == PageOrientation.Portrait) setup = setup with { Orientation = PageOrientation.Landscape };
         var c = new PageComposer(setup, measure);
         var f = Math.Max(6, c.FontSize - (table.Columns.Count > 10 ? 2 : table.Columns.Count > 7 ? 1 : 0));
-        var weights = table.Columns.Select(col => col.Kind switch { ColumnKind.Text => 2.2, ColumnKind.Date => 1.1, _ => 1.3 }).ToArray();
+        // A report whose only text is its first column (statements, summaries) gives that column the room it needs.
+        var textColumns = table.Columns.Count(col => col.Kind == ColumnKind.Text);
+        var weights = table.Columns.Select((col, i) => col.Kind switch
+        {
+            ColumnKind.Text => i == 0 && textColumns == 1 ? 3.6 : 2.2,
+            ColumnKind.Date => 1.1,
+            _ => 1.5,
+        }).ToArray();
         var unit = c.Width / weights.Sum();
         var x = new double[table.Columns.Count];
         for (var i = 1; i < x.Length; i++) x[i] = x[i - 1] + weights[i - 1] * unit;
@@ -41,27 +48,33 @@ public static class ReportPdf
 
         Header(c);
         c.ContinuationHeader = Header;
-        void Row(IReadOnlyList<object?> cells, bool bold)
+        void Row(IReadOnlyList<object?> cells, bool bold, int indent)
         {
             c.Ensure(c.LineHeight(f));
             for (var i = 0; i < table.Columns.Count; i++)
             {
                 var text = Format(i < cells.Count ? cells[i] : null, table.Columns[i].Kind);
                 if (text.Length == 0) continue;
-                c.Text(x[i], W(i), TextFit.Truncate(measure, text, W(i), f, bold), f, bold, table.Columns[i].IsNumeric ? TextAlign.Right : TextAlign.Left);
+                var shift = i == 0 ? indent * 8 : 0;
+                c.Text(x[i] + shift, W(i) - shift, TextFit.Truncate(measure, text, W(i) - shift, f, bold), f, bold, table.Columns[i].IsNumeric ? TextAlign.Right : TextAlign.Left);
             }
 
             c.Move(c.LineHeight(f));
         }
 
-        foreach (var row in table.Rows) Row(row, false);
+        for (var r = 0; r < table.Rows.Count; r++)
+        {
+            var (bold, indent) = table.Style(r);
+            Row(table.Rows[r], bold, indent);
+        }
         if (table.Rows.Count == 0) c.Move(c.Wrapped(0, c.Width, "No rows for these parameters.", f));
         if (table.Totals is { } totals)
         {
-            c.Ensure(c.LineHeight(f) + 3);
+            c.Ensure(c.LineHeight(f) + 5);
+            c.Move(2);
             c.Rule(0.6);
             c.Move(2);
-            Row(totals.Select((v, i) => i == 0 && v is null ? (object?)"Total" : v).ToList(), true);
+            Row(totals.Select((v, i) => i == 0 && v is null ? (object?)"Total" : v).ToList(), true, 0);
         }
 
         return c.Finish(table.Name);

@@ -9,11 +9,13 @@ namespace Nexora.Reporting.Export;
 
 /// <summary>A plain table to export: title lines, typed columns, rows and an optional totals row.</summary>
 public sealed record ExportTable(string Name, IReadOnlyList<string> TitleLines, IReadOnlyList<ReportColumn> Columns, IReadOnlyList<IReadOnlyList<object?>> Rows,
-    IReadOnlyList<object?>? Totals = null)
+    IReadOnlyList<object?>? Totals = null, IReadOnlyList<(bool Emphasis, int Indent)>? Styles = null)
 {
     public static ExportTable From(ReportResult r) => new(r.Definition.Title,
         [r.CompanyName, r.Definition.Title, r.ParameterText, .. r.Notes],
-        r.Columns, r.Rows.Select(x => x.Cells).ToList(), r.Totals);
+        r.Columns, r.Rows.Select(x => x.Cells).ToList(), r.Totals, r.Rows.Select(x => (x.Emphasis, x.Indent)).ToList());
+
+    public (bool Emphasis, int Indent) Style(int row) => Styles is { } s && row < s.Count ? s[row] : (false, 0);
 }
 
 /// <summary>
@@ -96,10 +98,18 @@ public static class XlsxWriter
             foreach (var column in table.Columns) header.Append(TextCell(column.Header, Bold));
             data.Append(header);
             var firstDataRow = rowIndex + 1;
-            foreach (var cells in table.Rows)
+            for (var index = 0; index < table.Rows.Count; index++)
             {
+                var cells = table.Rows[index];
+                var (bold, indent) = table.Style(index);
                 var r = NewRow();
-                for (var i = 0; i < table.Columns.Count; i++) r.Append(Cell(i < cells.Count ? cells[i] : null, table.Columns[i].Kind, false));
+                for (var i = 0; i < table.Columns.Count; i++)
+                {
+                    var value = i < cells.Count ? cells[i] : null;
+                    if (i == 0 && indent > 0 && value is string text) value = new string(' ', indent * 4) + text;
+                    r.Append(Cell(value, table.Columns[i].Kind, bold));
+                }
+
                 data.Append(r);
             }
 

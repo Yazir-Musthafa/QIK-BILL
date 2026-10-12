@@ -113,24 +113,25 @@ internal sealed class GstSummaryGenerator() : Generator("gst.summary")
         var rows = new List<ReportRow>();
         (decimal T, decimal C, decimal S, decimal I) Section(bool outward, string title)
         {
-            rows.Add(new ReportRow([title, null, null, null, null, null, null], Emphasis: true));
+            rows.Add(new ReportRow([char.ToUpperInvariant(title[0]) + title[1..], null, null, null, null, null, null], Emphasis: true));
             var groups = lines.Where(l => l.Outward == outward).GroupBy(l => l.Rate).OrderBy(g => g.Key).ToList();
             foreach (var g in groups)
                 rows.Add(new ReportRow([$"GST {g.Key:0.##}%", g.Sum(l => l.Taxable), g.Sum(l => l.Cgst), g.Sum(l => l.Sgst), g.Sum(l => l.Igst), 0m,
                     g.Sum(l => l.Cgst + l.Sgst + l.Igst)], Indent: 1));
             var t = (lines.Where(l => l.Outward == outward).Sum(l => l.Taxable), lines.Where(l => l.Outward == outward).Sum(l => l.Cgst),
                 lines.Where(l => l.Outward == outward).Sum(l => l.Sgst), lines.Where(l => l.Outward == outward).Sum(l => l.Igst));
-            rows.Add(new ReportRow([$"Total {title.ToLowerInvariant()}", t.Item1, t.Item2, t.Item3, t.Item4, 0m, t.Item2 + t.Item3 + t.Item4], Emphasis: true));
+            rows.Add(new ReportRow([$"Total {title}", t.Item1, t.Item2, t.Item3, t.Item4, 0m, t.Item2 + t.Item3 + t.Item4], Emphasis: true));
             return t;
         }
 
-        var output = Section(true, "Output GST (sales after returns)");
-        var input = Section(false, "Input GST (purchases after returns, and claimable expense GST)");
+        var output = Section(true, "output GST");
+        var input = Section(false, "input GST");
         rows.Add(new ReportRow(["Output less input", null, output.C - input.C, output.S - input.S, output.I - input.I, 0m,
             output.C + output.S + output.I - input.C - input.S - input.I], Emphasis: true));
         return new ReportData([Text("line", "Line"), Money("taxable", "Taxable value", total: false), Money("cgst", "CGST", total: false), Money("sgst", "SGST", total: false),
             Money("igst", "IGST", total: false), Money("cess", "Cess", total: false), Money("tax", "Total GST", total: false)], rows, c.RangeText,
-            Notes: ["Output less input is a plain difference; it does not apply the GST set-off order or any credit carried forward."]);
+            Notes: ["Output GST is sales after returns; input GST is purchases after returns plus claimable GST on expenses.",
+                "Output less input is a plain difference; it does not apply the GST set-off order or any credit carried forward."]);
     }
 }
 
