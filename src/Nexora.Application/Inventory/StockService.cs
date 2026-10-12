@@ -72,6 +72,17 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
 
         using var lockHandle = await ledger.AcquireAsync(cancellationToken);
         await using var unit = await units.BeginAsync(cancellationToken: cancellationToken);
+        var result = await PostWithVoucherCoreAsync(unit, session, input, cancellationToken);
+        await unit.CommitAsync(cancellationToken);
+        return result;
+    }
+
+    /// <summary>
+    /// Numbers and adds a stock document with its accounting voucher to the caller's unit of work (used by <see cref="PostAsync"/>
+    /// and by opening-stock imports). The caller holds the posting lock, checks permissions and commits.
+    /// </summary>
+    internal async Task<StockPostingResult> PostWithVoucherCoreAsync(IUnitOfWork unit, SessionInfo session, StockDocumentInput input, CancellationToken cancellationToken)
+    {
         var year = FinancialYear.Containing(input.Date);
         await EnsureOpenYearAsync(unit, session, input.Date, cancellationToken);
         var number = await NumberAllocator.NextAsync(unit, session.CompanyId, input.Type.NumberingKey(), year,
@@ -92,7 +103,6 @@ public sealed class StockService(IUnitOfWorkFactory units, IAuthorizer authorize
 
         unit.Record(new AuditEvent("Posted", nameof(StockDocument), document.Id.ToString(),
             $"Posted {input.Type.Label().ToLowerInvariant()} {number}" + (increases - decreases != 0 ? $" changing stock value by {increases - decreases:N2}" : string.Empty)));
-        await unit.CommitAsync(cancellationToken);
         return new StockPostingResult(document.Id, number, voucherId, increases - decreases);
     }
 

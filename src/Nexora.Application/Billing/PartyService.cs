@@ -162,10 +162,11 @@ public sealed class PartyService(IUnitOfWorkFactory units, IAuthorizer authorize
     /// Adds a new party and its ledger to the caller's unit of work (used by lead conversion, so the customer and the
     /// lead change commit together). The caller checks permissions. Refuses a duplicate name of the same kind.
     /// </summary>
-    internal async Task<Party> CreateCoreAsync(IUnitOfWork unit, SessionInfo session, PartyKind kind, PartyDetails details, CancellationToken cancellationToken)
+    internal async Task<Party> CreateCoreAsync(IUnitOfWork unit, SessionInfo session, PartyKind kind, PartyDetails details, CancellationToken cancellationToken,
+        PartyBatch? batch = null)
     {
         var name = (details.Name ?? string.Empty).Trim();
-        if (await unit.AnyAsync<Party>(p => p.Kind == kind && p.Name == name, cancellationToken))
+        if (await unit.AnyAsync<Party>(p => p.Kind == kind && p.Name == name, cancellationToken) || batch?.PartyNames.Contains((kind, name)) == true)
             throw new WorkspaceValidationException($"A {Noun(kind)} named \"{name}\" already exists.");
         try
         {
@@ -178,8 +179,14 @@ public sealed class PartyService(IUnitOfWorkFactory units, IAuthorizer authorize
         }
 
         var group = await GroupAsync(unit, kind, cancellationToken);
-        var code = await NextCodeAsync(unit, group, cancellationToken);
-        var ledgerName = await LedgerNameAsync(unit, name, kind, Guid.Empty, cancellationToken);
+        var code = await NextCodeAsync(unit, group, cancellationToken, batch);
+        var ledgerName = await LedgerNameAsync(unit, name, kind, Guid.Empty, cancellationToken, batch);
+        if (batch is not null)
+        {
+            batch.Codes.Add(code);
+            batch.AccountNames.Add(ledgerName);
+            batch.PartyNames.Add((kind, name));
+        }
         var account = new Account(Guid.NewGuid(), session.CompanyId, code, ledgerName, group.Nature,
             kind == PartyKind.Customer ? AccountKind.Receivable : AccountKind.Payable, group.Id, null);
         unit.Add(account);
@@ -221,10 +228,11 @@ public sealed class PartyService(IUnitOfWorkFactory units, IAuthorizer authorize
     }
 
     /// <summary>Party ledgers are numbered under their group: 1130-0001, 1130-0002, and so on.</summary>
-    private static async Task<string> NextCodeAsync(IUnitOfWork unit, Account group, CancellationToken cancellationToken)
+    private static async Task<string> NextCodeAsync(IUnitOfWork unit, Account group, CancellationToken cancellationToken, PartyBatch? batch = null)
     {
         var prefix = group.Code + "-";
         var used = (await unit.ListAsync<Account>(a => a.Code.StartsWith(prefix), cancellationToken)).Select(a => a.Code).ToHashSet(StringComparer.Ordinal);
+        if (batch is not null) used.UnionWith(batch.Codes);
         for (var n = 1; n < 100_000; n++)
         {
             var code = prefix + n.ToString(n < 10_000 ? "0000" : "00000", System.Globalization.CultureInfo.InvariantCulture);
@@ -235,13 +243,28 @@ public sealed class PartyService(IUnitOfWorkFactory units, IAuthorizer authorize
     }
 
     /// <summary>Account names are unique in a company, so a customer and a supplier with the same name get a suffix.</summary>
-    private static async Task<string> LedgerNameAsync(IUnitOfWork unit, string name, PartyKind kind, Guid selfAccountId, CancellationToken cancellationToken)
+    private static async Task<string> LedgerNameAsync(IUnitOfWork unit, string name, PartyKind kind, Guid selfAccountId, CancellationToken cancellationToken,
+        PartyBatch? batch = null)
     {
-        if (!await unit.AnyAsync<Account>(a => a.Name == name && a.Id != selfAccountId, cancellationToken)) return name;
+        bool Taken(string n) => batch?.AccountNames.Contains(n) == true;
+        if (!Taken(name) && !await unit.AnyAsync<Account>(a => a.Name == name && a.Id != selfAccountId, cancellationToken)) return name;
         var suffixed = $"{name} ({(kind == PartyKind.Customer ? "Customer" : "Supplier")})";
-        if (suffixed.Length <= 120 && !await unit.AnyAsync<Account>(a => a.Name == suffixed && a.Id != selfAccountId, cancellationToken)) return suffixed;
+        if (suffixed.Length <= 120 && !Taken(suffixed) && !await unit.AnyAsync<Account>(a => a.Name == suffixed && a.Id != selfAccountId, cancellationToken)) return suffixed;
         throw new WorkspaceValidationException($"An account named \"{name}\" already exists. Choose a different name.");
     }
+}
+
+/// <summary>
+/// Codes and names taken by parties created earlier in the same unit of work (an import), which a database query cannot
+/// see before the commit.
+/// </summary>
+internal sealed class PartyBatch
+{
+    public HashSet<string> Codes { get; } = new(StringComparer.Ordinal);
+
+    public HashSet<string> AccountNames { get; } = new(StringComparer.Ordinal);
+
+    public HashSet<(PartyKind, string)> PartyNames { get; } = [];
 }
 
 /// <summary>
