@@ -30,6 +30,12 @@ public sealed record ServiceJobSubject(Guid JobId) : PrintSubject;
 
 public sealed record StatementSubject(Guid PartyId, DateOnly From, DateOnly To) : PrintSubject;
 
+/// <summary>
+/// A document laid out by another module (for example a report) with the page setup of the chosen printer preference.
+/// The caller checks its own permissions before creating it.
+/// </summary>
+public sealed record RenderedSubject(string Title, string SourceType, Func<PageSetup, RenderedDocument> Render) : PrintSubject;
+
 public sealed record LabelRequest(Guid ProductId, int Quantity);
 
 public sealed record LabelSubject(Guid LayoutId, IReadOnlyList<LabelRequest> Items, int Skip = 0) : PrintSubject;
@@ -94,6 +100,7 @@ public sealed class PrintingService(
     {
         SettlementSubject => PrintPurpose.Receipts,
         StatementSubject => PrintPurpose.Reports,
+        RenderedSubject => PrintPurpose.Reports,
         LabelSubject => PrintPurpose.Labels,
         _ => PrintPurpose.Invoices,
     };
@@ -378,6 +385,9 @@ public sealed class PrintingService(
                 var (printNumber, _) = await PrintNumberAsync("statement", st.PartyId, settings, cancellationToken);
                 return new Prepared(document, "statement", st.PartyId, $"Statement {Fmt.Date(st.From)} to {Fmt.Date(st.To)}", purpose, profile, printNumber, false, null);
             }
+
+            case RenderedSubject r:
+                return new Prepared(r.Render(setup), r.SourceType, null, r.Title, purpose, profile, 1, false, null);
 
             case LabelSubject l:
             {
