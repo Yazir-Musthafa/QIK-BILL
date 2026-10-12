@@ -34,6 +34,9 @@ public sealed record LedgerLine(DateOnly Date, Guid VoucherId, string VoucherNum
 public sealed record LedgerStatement(Guid AccountId, string Code, string Name, AccountNature Nature, DateOnly From, DateOnly To,
     decimal OpeningBalance, IReadOnlyList<LedgerLine> Lines, decimal ClosingBalance);
 
+/// <summary>A ledger amount on an account and date: one entry, or the sum of an account's entries on one day.</summary>
+public sealed record Posting(Guid AccountId, DateOnly Date, decimal Debit, decimal Credit);
+
 /// <summary>
 /// Pure calculations over posted ledger entries. Every report reads the same entries with the same rules,
 /// which is what makes the trial balance, ledgers, profit and loss and balance sheet reconcile.
@@ -42,9 +45,6 @@ public sealed record LedgerStatement(Guid AccountId, string Code, string Name, A
 /// accounts restart at zero each year, and the net of earlier years is carried into Retained Earnings.
 /// No closing entries are posted, so reports for any date are always derived from the same postings.
 /// </summary>
-/// <summary>A ledger amount on an account and date: one entry, or the sum of an account's entries on one day.</summary>
-public sealed record Posting(Guid AccountId, DateOnly Date, decimal Debit, decimal Credit);
-
 public static class LedgerCalculator
 {
     public static IReadOnlyCollection<Posting> ToPostings(IEnumerable<LedgerEntry> entries) =>

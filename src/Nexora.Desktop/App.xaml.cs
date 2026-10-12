@@ -1,3 +1,4 @@
+using Nexora.Reporting;
 using System.IO;
 using System.Reflection;
 using System.Windows;
@@ -92,6 +93,7 @@ public partial class App : System.Windows.Application
         services.AddNexoraAccounting();
         services.AddNexoraInfrastructure(new SqliteDatabaseProvider(databasePath));
         services.AddNexoraPrinting();
+        services.AddNexoraReporting();
         services.AddSingleton<Nexora.Printing.IPrinterGateway, Services.Printing.WindowsPrinterGateway>();
         services.AddSingleton<Services.Printing.PrintActions>();
         services.AddSingleton<IThemeService, ThemeService>();

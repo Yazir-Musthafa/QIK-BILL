@@ -1,3 +1,4 @@
+using Nexora.Reporting;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -27,6 +28,7 @@ public sealed class SqliteTestDatabase : IAsyncDisposable
         services.AddNexoraApplication();
         services.AddNexoraAccounting();
         services.AddNexoraPrinting();
+        services.AddNexoraReporting();
         services.AddSingleton<Nexora.Printing.IPrinterGateway>(Printers);
         services.AddNexoraInfrastructure(new SqliteDatabaseProvider(DatabasePath));
         services.AddSingleton<IPasswordHasher>(new Pbkdf2PasswordHasher(1_000));
