@@ -237,6 +237,19 @@ public static class BackupFormat
         }
 
         if (header.Format > Version) throw new WorkspaceValidationException("This backup was made by a newer version of QIK Suite. Update QIK Suite to use it.");
+        if (header.Format != Version || header.ChunkSize != ChunkSize || header.Migrations is null || header.Companies is null
+            || header.PayloadSha256 is not { Length: 64 } || !header.PayloadSha256.All(Uri.IsHexDigit)) throw Damaged();
+        if (header.Encrypted)
+        {
+            // Bound untrusted KDF work and reject malformed cryptographic parameters before allocating or decrypting.
+            if (header.KdfIterations is < 1 or > 2_000_000) throw Damaged();
+            try
+            {
+                if (Convert.FromBase64String(header.SaltBase64 ?? string.Empty).Length != 16
+                    || Convert.FromBase64String(header.NoncePrefixBase64 ?? string.Empty).Length != 4) throw Damaged();
+            }
+            catch (FormatException) { throw Damaged(); }
+        }
         return (header, headerBytes, input.Position);
     }
 

@@ -121,7 +121,8 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
                 {
                     BackupFormat.Extract(safety, null, back);
                     CopyDatabase(back, provider.DatabasePath);
-                    await store.MigrateAsync(cancellationToken);
+                    // Recovery must finish even when the caller cancelled the restore.
+                    await store.MigrateAsync(CancellationToken.None);
                 }
                 finally
                 {
@@ -158,7 +159,9 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
         if (keepCount is < 1 or > 365) throw new WorkspaceValidationException("Keep between 1 and 365 automatic backups.");
         var clean = (folder ?? string.Empty).Trim();
         if (clean.Length > 0 && !Path.IsPathRooted(clean)) throw new WorkspaceValidationException("Choose a full folder path, for example D:\\Backups\\QIK.");
-        SaveSettings(LoadSettings() with { Enabled = enabled, IntervalHours = intervalHours, Folder = clean, KeepCount = keepCount });
+        await Gate.WaitAsync(cancellationToken);
+        try { SaveSettings(LoadSettings() with { Enabled = enabled, IntervalHours = intervalHours, Folder = clean, KeepCount = keepCount }); }
+        finally { Gate.Release(); }
     }
 
     public BackupStatus Status()
@@ -181,6 +184,8 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
         if (!await Gate.WaitAsync(0, cancellationToken)) return null;
         try
         {
+            settings = LoadSettings();
+            if (!settings.Enabled || StatusCore(settings).NextDueUtc > clock.UtcNow) return null;
             var folder = settings.Folder.Length > 0 ? settings.Folder : DefaultFolder;
             var path = await CreateCoreAsync(folder, BackupKind.Automatic, null, cancellationToken);
             foreach (var old in Directory.GetFiles(folder, "QIKSuite-auto-*" + Extension).OrderByDescending(f => f, StringComparer.Ordinal).Skip(settings.KeepCount))
@@ -207,10 +212,10 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
     {
         var now = clock.UtcNow;
         var lastSuccess = settings.Records.Where(r => r.Succeeded && r.Kind != BackupKind.Safety).Select(r => (DateTime?)r.Utc).Max();
-        var lastAutomatic = settings.Records.Where(r => r.Kind == BackupKind.Automatic).MaxBy(r => r.Utc);
+        // History is append-ordered; two attempts can have the same clock timestamp.
+        var lastAutomatic = settings.Records.LastOrDefault(r => r.Kind == BackupKind.Automatic);
         var failure = lastAutomatic is { Succeeded: false } ? lastAutomatic : null;
         DateTime? next = settings.Enabled ? (lastSuccess ?? DateTime.MinValue).AddHours(settings.IntervalHours) : null;
-        if (next < now && settings.Enabled) next = now;
         var overdue = settings.Enabled && (lastSuccess is null || now - lastSuccess.Value > TimeSpan.FromHours(settings.IntervalHours * 1.5));
         var message = !settings.Enabled ? "Automatic backups are off."
             : failure is not null ? $"The last automatic backup failed: {failure.Message}"
@@ -235,6 +240,7 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
         var target = UniquePath(Path.Combine(folder, name + Extension));
         var copy = TempDatabase();
         var compressed = copy + ".gz";
+        var partial = target + ".partial";
         try
         {
             // SQLite's online backup copies a consistent snapshot even while the app is writing.
@@ -250,7 +256,6 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
             BackupFormat.Compress(copy, compressed);
             var header = new BackupHeader(BackupFormat.Version, AppVersion, now, migrations.LastOrDefault() ?? string.Empty, migrations, companies,
                 false, 0, string.Empty, string.Empty, BackupFormat.ChunkSize, string.Empty);
-            var partial = target + ".partial";
             await using (var output = File.Create(partial)) BackupFormat.Write(output, header, compressed, password);
             File.Move(partial, target);
             return target;
@@ -259,6 +264,7 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
         {
             DeleteDatabase(copy);
             File.Delete(compressed);
+            File.Delete(partial);
         }
     }
 
@@ -271,6 +277,8 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
         var known = context.Database.GetMigrations().ToHashSet(StringComparer.Ordinal);
         if (migrations.Any(m => !known.Contains(m)))
             throw new WorkspaceValidationException("This backup was made by a newer version of QIK Suite (its database has changes this version does not know). Update QIK Suite, then restore it.");
+        if (!migrations.SequenceEqual(header.Migrations) || header.LatestMigration != (migrations.LastOrDefault() ?? string.Empty))
+            throw new WorkspaceValidationException("The backup's schema information does not match its database. Use another backup.");
         return header;
     }
 
@@ -285,6 +293,8 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
             {
                 check.CommandText = "PRAGMA integrity_check";
                 if (await check.ExecuteScalarAsync(cancellationToken) as string != "ok") throw new WorkspaceValidationException("The database inside the backup is damaged.");
+                check.CommandText = "PRAGMA foreign_key_check";
+                if (await check.ExecuteScalarAsync(cancellationToken) is not null) throw new WorkspaceValidationException("The database inside the backup has broken references.");
             }
 
             async Task<List<string>> Strings(string sql)

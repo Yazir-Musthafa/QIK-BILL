@@ -1,5 +1,9 @@
 # QIK Suite implementation progress
 
+## Phase 8 continuation (13 October 2026, in progress)
+
+Starting at `da2ecca`: locked restore succeeded, build 0 warnings / 0 errors, **959 passed, 0 failed, 0 skipped** on macOS. Backup integration coverage now passes **15 cases**, including encrypted/plain restoration of data, audit hashes and reports; corruption, password and authenticated-header rejection; unknown schemas; permission in every company; cancellation-safe rollback; schedule and retention. Fixed rollback using the cancelled token and failure status surviving a successful retry at the same timestamp. Added header bounds, schema-header agreement and foreign-key verification. Desktop Phase 8 work and scale/mutation checks are still in progress.
+
 ## Phase 7: expenses, CRM and service management, complete on macOS (11 October 2026)
 
 **Starting point:** `b906500` (end of Phase 6) with a clean tree. Baseline: locked restore OK, build 0 warnings and 0 errors, **806 tests passed**.
