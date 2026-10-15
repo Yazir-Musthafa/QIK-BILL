@@ -142,7 +142,10 @@ public static class LedgerCalculator
         var running = opening;
         var lines = new List<LedgerLine>();
         foreach (var entry in entries.Where(e => e.AccountId == account.Id && e.Date >= from && e.Date <= to)
-                     .OrderBy(e => e.Date).ThenBy(e => vouchers.TryGetValue(e.VoucherId, out var v) ? v.PostedUtc : null).ThenBy(e => e.LineNumber))
+                     // Fully deterministic order (vouchers posted in the same instant would otherwise come back in any order).
+                     .OrderBy(e => e.Date).ThenBy(e => vouchers.TryGetValue(e.VoucherId, out var v) ? v.PostedUtc : null)
+                     .ThenBy(e => vouchers.TryGetValue(e.VoucherId, out var n) ? n.Number : null, StringComparer.Ordinal)
+                     .ThenBy(e => e.VoucherId).ThenBy(e => e.LineNumber))
         {
             running += entry.Debit - entry.Credit;
             var voucher = vouchers[entry.VoucherId];

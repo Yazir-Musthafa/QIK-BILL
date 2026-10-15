@@ -10,7 +10,7 @@ Last updated: **15 October 2026**, Phase 8 verification. Each statement below co
 |---|---|
 | Build (`dotnet build Nexora.sln`) | Succeeded, 0 warnings, 0 errors |
 | Locked package restore | Succeeded |
-| Automated tests (`dotnet test tests/Nexora.Tests`) | **1,017 passed, 0 failed, 0 skipped** |
+| Automated tests (`dotnet test tests/Nexora.Tests`) | **1,019 passed, 0 failed, 0 skipped** (includes the 50,000-invoice-line scale test, `Phase8/LargeDataTests`) |
 | Of those, design-rule checks on XAML styling | 318 (one per XAML file per rule). They check styling discipline, not behaviour. |
 | Of those, the guide's own status-table check | 35 (one per screen, plus one sanity check) |
 | Of those, binding check | 1 test: every page-level XAML binding (about 700) points to a real view-model property or command |

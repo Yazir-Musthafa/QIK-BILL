@@ -139,7 +139,7 @@ internal sealed class LedgerGenerator(LedgerService ledgers) : Generator("accoun
             from e in q.Set<LedgerEntry>()
             join v in q.Set<Voucher>() on e.VoucherId equals v.Id
             where e.AccountId == accountId && e.Date >= start && e.Date <= end
-            orderby e.Date, v.PostedUtc, e.LineNumber, e.Id
+            orderby e.Date, v.PostedUtc, v.Number, v.Id, e.LineNumber, e.Id
             select new Line { Date = e.Date, VoucherId = v.Id, Number = v.Number ?? "", Type = v.Type, Narration = v.Narration, Debit = e.Debit, Credit = e.Credit };
         var summary = (await c.Unit.QueryAsync(q => Ordered(q).GroupBy(l => 1).Select(g => new { Count = g.Count(), Debit = g.Sum(l => l.Debit), Credit = g.Sum(l => l.Credit) }),
             cancellationToken)).SingleOrDefault();

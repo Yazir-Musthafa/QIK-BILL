@@ -6,7 +6,7 @@ Read `AGENTS.md`, `PROJECT_BRIEF.md`, `PROGRESS.md`, `ACCOUNTING_MAP.md` and `WO
 
 ## Current state
 
-- Locked restore and build pass with warnings treated as errors. **1,017 tests pass** (663 behavioural, 318 styling, 35 guide checks, 1 binding check). Publish evidence is in `PROGRESS.md`.
+- Locked restore and build pass with warnings treated as errors. **1,019 tests pass** (665 behavioural, 318 styling, 35 guide checks, 1 binding check), including the 50,000-line scale test. Unverified Phase 9 work in progress is on branch `astra-phase9-wip`, not on `master`. Publish evidence is in `PROGRESS.md`.
 - Phase 8 backend commits precede `1aa1c88`. This continuation finishes Reports, Bank reconciliation, Cost centres, Import/Export and Backup screens, service wiring, source drill-down, backup scheduling/status and voucher centre selectors.
 - `Nexora.Reporting` supplies 30 permission-filtered reports, typed exports, data transfer and the real dashboard. Report exports use the last completed request and all matching pages. Page totals describe the whole matching selection; ledger detail keeps chronological running balances.
 - Fixed integer report cells, ledger drill dates across January–March, financial-ledger brought-forward balances, signed register sorting/stable cancellation paging, cost-centre editor selection and asynchronous report layout races.

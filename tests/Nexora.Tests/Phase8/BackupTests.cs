@@ -80,6 +80,7 @@ public sealed class BackupTests : ReportTestBase
     [InlineData("not-backup")]
     [InlineData("wrong-password")]
     [InlineData("authenticated-header")]
+    [InlineData("plain-header-edit")]
     public async Task Invalid_backups_are_refused_before_changing_live_data(string damage)
     {
         const string password = "a long backup password";
@@ -92,6 +93,17 @@ public sealed class BackupTests : ReportTestBase
             case "header": bytes[15] ^= 1; break;
             case "truncated": bytes = bytes[..^40]; break;
             case "not-backup": bytes = "this is not a backup file"u8.ToArray(); break;
+            case "plain-header-edit":
+            {
+                // A readable, same-length edit of an unencrypted header; only the file hash can notice it.
+                var plainLength = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(8, 4));
+                var plain = JsonSerializer.Deserialize<BackupHeader>(bytes.AsSpan(12, plainLength))!;
+                var edited = JsonSerializer.SerializeToUtf8Bytes(plain with { AppVersion = new string('9', plain.AppVersion.Length) });
+                Assert.Equal(plainLength, edited.Length);
+                edited.CopyTo(bytes, 12);
+                break;
+            }
+
             case "authenticated-header":
                 var length = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(8, 4));
                 var header = JsonSerializer.Deserialize<BackupHeader>(bytes.AsSpan(12, length))!;
