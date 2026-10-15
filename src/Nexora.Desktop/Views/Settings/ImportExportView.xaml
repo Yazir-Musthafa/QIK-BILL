@@ -1,0 +1,27 @@
+<UserControl x:Class="Nexora.Desktop.Views.Settings.ImportExportView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:controls="clr-namespace:Nexora.Desktop.Controls">
+  <DockPanel Margin="20" IsEnabled="{Binding IsBusy, Converter={StaticResource Inverse}}">
+    <TextBlock DockPanel.Dock="Top" Text="{Binding Title}" Style="{StaticResource Text.Title}" Margin="0,0,0,12" />
+    <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+      <StackPanel Width="180" Margin="0,0,8,8"><TextBlock Text="Data kind" Style="{StaticResource Text.Label}" /><ComboBox ItemsSource="{Binding Kinds}" SelectedItem="{Binding Kind}" /></StackPanel>
+      <StackPanel Width="110" Margin="0,0,8,8"><TextBlock Text="Format" Style="{StaticResource Text.Label}" /><ComboBox ItemsSource="{Binding Formats}" SelectedItem="{Binding Format}" /></StackPanel>
+      <Button Content="Template" Command="{Binding TemplateCommand}" Margin="0,0,8,8" VerticalAlignment="Bottom" />
+      <Button Content="Export" Command="{Binding ExportCommand}" Margin="0,0,8,8" VerticalAlignment="Bottom" />
+      <Button Content="Choose file…" Command="{Binding ChooseFileCommand}" Margin="0,0,8,8" VerticalAlignment="Bottom" />
+      <Button Content="Preview again" Command="{Binding PreviewCommand}" Margin="0,0,8,8" VerticalAlignment="Bottom" />
+      <Button Content="Import" Command="{Binding ImportCommand}" IsEnabled="{Binding CanImport}" Style="{StaticResource Button.Primary}" Margin="0,0,0,8" VerticalAlignment="Bottom" />
+    </WrapPanel>
+    <TextBlock DockPanel.Dock="Top" Text="{Binding FileName}" FontWeight="SemiBold" />
+    <TextBlock DockPanel.Dock="Top" Text="{Binding Summary}" TextWrapping="Wrap" Margin="0,8,0,8" />
+    <TextBlock DockPanel.Dock="Top" Text="{Binding Error}" Style="{StaticResource Text.Error}" />
+    <Expander DockPanel.Dock="Bottom" Header="Template columns and rules" Margin="0,12,0,0">
+      <controls:QikDataGrid LayoutKey="import-columns" ItemsSource="{Binding Columns}" MaxHeight="200">
+        <controls:QikDataGrid.Columns><DataGridTextColumn Header="Column" Binding="{Binding Header}" Width="150" /><DataGridTextColumn Header="Required" Binding="{Binding Required}" Width="80" /><DataGridTextColumn Header="Help" Binding="{Binding Help}" Width="*" /></controls:QikDataGrid.Columns>
+      </controls:QikDataGrid>
+    </Expander>
+    <controls:QikDataGrid LayoutKey="import-preview" ItemsSource="{Binding Rows}">
+      <controls:QikDataGrid.Columns><DataGridTextColumn Header="Row" Binding="{Binding Row}" Width="70" /><DataGridTextColumn Header="Summary" Binding="{Binding Summary}" Width="2*" /><DataGridTextColumn Header="Errors" Binding="{Binding Errors}" Width="3*" /></controls:QikDataGrid.Columns>
+    </controls:QikDataGrid>
+  </DockPanel>
+</UserControl>
