@@ -5,7 +5,7 @@ public sealed record SetupRequest(string CompanyName, string DisplayName, string
 /// <summary>The signed-in user, the open company, and the user's role and permissions in that company.</summary>
 public sealed record SessionInfo(Guid UserId, string Username, string DisplayName, Guid CompanyId,
     string CompanyName, bool IsDemo, int FinancialYearStartYear, Guid RoleId, string RoleName,
-    IReadOnlySet<string> Permissions, decimal MaxDiscountPercent, bool MustChangePassword)
+    IReadOnlySet<string> Permissions, decimal MaxDiscountPercent, bool MustChangePassword, DateTime? PasswordChangedUtc = null)
 {
     public bool Has(string permission) => Permissions.Contains(permission);
 }

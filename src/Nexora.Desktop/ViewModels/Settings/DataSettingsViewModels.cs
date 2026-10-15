@@ -86,6 +86,9 @@ public sealed partial class BackupViewModel(BackupService backups, BackupMonitor
     [ObservableProperty] private string _backupPassword = string.Empty;
     [ObservableProperty] private string _backupFile = string.Empty;
     [ObservableProperty] private bool _automatic;
+    [ObservableProperty] private bool _encryptAutomatic;
+    public string AutomaticPassword { get; set; } = string.Empty;
+    public event EventHandler? ClearPasswords;
     [ObservableProperty] private string _intervalHours = "24";
     [ObservableProperty] private string _keepCount = "10";
     [ObservableProperty] private string _automaticFolder = string.Empty;
@@ -97,6 +100,7 @@ public sealed partial class BackupViewModel(BackupService backups, BackupMonitor
         var settings = backups.Settings();
         Folder = backups.DefaultFolder;
         (Automatic, IntervalHours, KeepCount, AutomaticFolder) = (settings.Enabled, settings.IntervalHours.ToString(), settings.KeepCount.ToString(), settings.Folder);
+        EncryptAutomatic = settings.EncryptAutomatic;
         Refresh();
         return Task.CompletedTask;
     });
@@ -153,7 +157,10 @@ public sealed partial class BackupViewModel(BackupService backups, BackupMonitor
     [RelayCommand] private Task SaveSettingsAsync() => RunAsync(async () =>
     {
         if (!int.TryParse(IntervalHours, out var interval) || !int.TryParse(KeepCount, out var keep)) throw new WorkspaceValidationException("Enter whole numbers for interval and retention.");
-        await backups.SaveSettingsAsync(Automatic, interval, AutomaticFolder, keep);
+        await backups.SaveSettingsAsync(Automatic, interval, AutomaticFolder, keep,
+            encryptAutomatic: EncryptAutomatic, automaticPassword: AutomaticPassword);
+        AutomaticPassword = string.Empty;
+        ClearPasswords?.Invoke(this, EventArgs.Empty);
         Refresh();
     }, "Automatic backup settings saved.");
     [RelayCommand] private async Task CheckScheduleAsync()

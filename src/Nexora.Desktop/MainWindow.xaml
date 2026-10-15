@@ -15,6 +15,7 @@
     <KeyBinding Key="K" Modifiers="Control" Command="{Binding OpenPaletteCommand}" />
     <KeyBinding Key="B" Modifiers="Control" Command="{Binding ToggleSidebarCommand}" />
     <KeyBinding Key="L" Modifiers="Control+Shift" Command="{Binding ToggleThemeCommand}" />
+    <KeyBinding Key="L" Modifiers="Control+Alt" Command="{Binding LockSessionCommand}" />
     <KeyBinding Key="G" Modifiers="Control+Shift" Command="{Binding OpenGalleryCommand}" />
     <KeyBinding Key="D1" Modifiers="Control" Command="{Binding GoToDashboardCommand}" />
     <KeyBinding Key="F1" Command="{Binding OpenHelpCommand}" />

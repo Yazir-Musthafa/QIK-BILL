@@ -19,6 +19,7 @@ public static class DependencyInjection
         if (provider is SqliteDatabaseProvider sqlite)
         {
             services.AddSingleton(sqlite);
+            services.AddSingleton<Backup.ISecretProtector, Backup.WindowsSecretProtector>();
             services.AddSingleton<Backup.BackupService>();
         }
         return services;

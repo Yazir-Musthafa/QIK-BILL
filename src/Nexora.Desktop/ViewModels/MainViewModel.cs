@@ -46,6 +46,8 @@ public sealed partial class MainViewModel(
 
     private void ShowLogin()
     {
+        Dialogs.CancelActive();
+        Toasts.Items.Clear();
         var login = services.GetRequiredService<LoginViewModel>();
         login.SignedIn += async (_, session) => await ShowShellAsync(session, welcome: false);
         Current = login;
@@ -66,6 +68,7 @@ public sealed partial class MainViewModel(
                 services.GetRequiredService<Application.Security.IAuthorizer>(), session, _preferences.SidebarCollapsed);
             shell.SignedOut += (_, _) => ShowLogin();
             await shell.InitializeAsync();
+            if (!ReferenceEquals(workspace.CurrentSession, session)) return;
             Current = shell;
             if (welcome) Toasts.Show($"{session.CompanyName} is ready.", ToastKind.Success);
         }
@@ -76,6 +79,25 @@ public sealed partial class MainViewModel(
             ShowLogin();
             Toasts.Show("The workspace could not be opened. Sign in again.", ToastKind.Error);
         }
+    }
+
+    public Task RefreshIdentityAsync(SessionInfo session) => ShowShellAsync(session, welcome: false);
+
+    public void HideSession()
+    {
+        Dialogs.CancelActive();
+        Toasts.Items.Clear();
+        foreach (var window in System.Windows.Application.Current.Windows.Cast<System.Windows.Window>().ToArray())
+            if (window != System.Windows.Application.Current.MainWindow) window.Close();
+        if (services.GetRequiredService<BackupMonitor>().IsRestoring) Current = null;
+        else if (Current is not (LoginViewModel or SetupWizardViewModel)) ShowLogin();
+    }
+
+    [RelayCommand]
+    private void LockSession()
+    {
+        workspace.SignOut();
+        HideSession();
     }
 
     /// <summary>A temporary password must be replaced before the workspace opens.</summary>

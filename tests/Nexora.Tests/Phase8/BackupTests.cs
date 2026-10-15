@@ -169,7 +169,7 @@ public sealed class BackupTests : ReportTestBase
             throw new InvalidOperationException("Forced migration failure after database replacement");
         };
         var failing = new BackupService(Db.Get<SqliteDatabaseProvider>(), Db.Get<IDbContextFactory<NexoraDbContext>>(), store,
-            Db.Workspace, Db.Get<IAuthorizer>(), Db.Clock, NullLogger<BackupService>.Instance);
+            Db.Workspace, Db.Get<IAuthorizer>(), Db.Clock, NullLogger<BackupService>.Instance, Db.Get<ISecretProtector>());
 
         var error = await Assert.ThrowsAsync<WorkspaceValidationException>(() => failing.RestoreAsync(path, cancellationToken: cancellation.Token));
 

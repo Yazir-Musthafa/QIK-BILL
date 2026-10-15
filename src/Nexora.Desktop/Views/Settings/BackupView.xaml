@@ -18,7 +18,11 @@
       <TextBlock Text="{Binding Verification}" TextWrapping="Wrap" />
       <TextBlock Text="Automatic backups" Style="{StaticResource Text.Section}" Margin="0,20,0,8" />
       <CheckBox Content="Enable automatic backups while QIK Suite is open" IsChecked="{Binding Automatic}" />
-      <TextBlock Text="Checked on startup and every 15 minutes. Automatic and safety backups are unencrypted; choose a folder protected by your Windows account or an encrypted drive." Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,4,0,8" />
+      <TextBlock Text="Checked on startup and every 15 minutes. Safety copies use the restore password, or the saved automatic password when encryption is enabled. Without either password, safety copies are unencrypted." Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,4,0,8" />
+      <CheckBox Content="Encrypt automatic backups" IsChecked="{Binding EncryptAutomatic}" />
+      <TextBlock Text="Automatic backup password (leave blank to keep the saved password)" Style="{StaticResource Text.Label}" Margin="0,8,0,4" />
+      <PasswordBox x:Name="AutomaticPasswordBox" PasswordChanged="OnAutomaticPasswordChanged" MaxLength="256" AutomationProperties.Name="Automatic backup password" />
+      <TextBlock Text="Keep a separate safe copy of this password: you need it to restore backups on another computer. The saved password is protected by your Windows account. Changing it affects future backups only." Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,4,0,8" />
       <WrapPanel><StackPanel Width="140" Margin="0,0,8,8"><TextBlock Text="Every (hours)" Style="{StaticResource Text.Label}" /><TextBox Text="{Binding IntervalHours}" /></StackPanel><StackPanel Width="140" Margin="0,0,8,8"><TextBlock Text="Automatic files to keep" Style="{StaticResource Text.Label}" /><TextBox Text="{Binding KeepCount}" /></StackPanel></WrapPanel>
       <TextBlock Text="Automatic folder (blank uses the default)" Style="{StaticResource Text.Label}" />
       <DockPanel><Button DockPanel.Dock="Right" Content="Choose…" Command="{Binding ChooseAutomaticFolderCommand}" Margin="8,0,0,0" /><TextBox Text="{Binding AutomaticFolder}" /></DockPanel>

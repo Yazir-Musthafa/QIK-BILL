@@ -70,6 +70,7 @@ public partial class App : System.Windows.Application
             await window.InitializeAsync();
             window.Show();
             _services.GetRequiredService<BackupMonitor>().Start();
+            _services.GetRequiredService<SessionMonitor>().Start();
             ShutdownMode = ShutdownMode.OnMainWindowClose;
             Log.Information("Workspace initialization completed");
         }
@@ -100,6 +101,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<ReportDrillActions>();
         services.AddSingleton<BackupMonitor>();
+        services.AddSingleton<SessionMonitor>();
         services.AddSingleton<DialogService>();
         services.AddSingleton<ToastService>();
         services.AddSingleton<MainViewModel>();

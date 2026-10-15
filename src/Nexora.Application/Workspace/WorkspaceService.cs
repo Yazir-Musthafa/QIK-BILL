@@ -23,6 +23,7 @@ public sealed class WorkspaceService(
     private const string ThemeKey = "ui.theme";
     private const string SidebarKey = "ui.sidebarCollapsed";
     private const string LastCompanyKey = "session.lastCompanyId";
+    private static readonly SemaphoreSlim AuthenticationGate = new(1, 1);
 
     // Verified against when the username is unknown so both paths cost the same.
     private readonly Lazy<string> _dummyHash = new(() => passwordHasher.Hash(Guid.NewGuid().ToString("N")));
@@ -77,6 +78,14 @@ public sealed class WorkspaceService(
 
     public async Task<LoginResult> SignInAsync(string username, string password, CancellationToken cancellationToken = default)
     {
+        await AuthenticationGate.WaitAsync(cancellationToken);
+        try { return await SignInCoreAsync(username, password, cancellationToken); }
+        finally { AuthenticationGate.Release(); }
+    }
+
+    private async Task<LoginResult> SignInCoreAsync(string username, string password, CancellationToken cancellationToken)
+    {
+        sessionContext.Set(null);
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrEmpty(password))
             return new LoginResult(false, "Enter your username and password.", null);
 
@@ -156,8 +165,10 @@ public sealed class WorkspaceService(
             ?? throw new AccessDeniedException("You no longer have access to that company. Choose another company.");
         var user = await store.FindUserAsync(session.UserId, cancellationToken)
             ?? throw new AccessDeniedException("Your session has ended. Sign in again.");
+        EnsureUserStillActive(user, session);
         await RememberCompanyAsync(access.Company.Id, cancellationToken);
-        var opened = Open(user, access);
+        var opened = DescribeSession(user, access);
+        UpdateSession(session, opened);
         logger.LogInformation("Company switched; user {UserId}; company {CompanyId}", session.UserId, access.Company.Id);
         return opened;
     }
@@ -168,13 +179,17 @@ public sealed class WorkspaceService(
         var user = await store.FindUserAsync(session.UserId, cancellationToken);
         var access = user is null ? null
             : (await store.GetAccessAsync(session.UserId, cancellationToken)).FirstOrDefault(a => a.Company.Id == session.CompanyId);
-        if (user is null || access is null)
+        if (user is null || access is null || !user.IsActive || user.IsLockedOut(clock.UtcNow)
+            || user.PasswordChangedUtc != session.PasswordChangedUtc)
         {
             sessionContext.Set(null);
             throw new AccessDeniedException("Your access to this company was removed. Sign in again.");
         }
 
-        Open(user, access);
+        var updated = DescribeSession(user, access);
+        // Keep the same identity object for unchanged permissions, so an in-flight unit of work stays valid.
+        if (updated with { Permissions = session.Permissions } != session || !updated.Permissions.SetEquals(session.Permissions))
+            UpdateSession(session, updated);
     }
 
     /// <summary>The demonstration company shows labelled sample figures; real companies show figures from posted data.</summary>
@@ -226,33 +241,67 @@ public sealed class WorkspaceService(
 
     public async Task ChangePasswordAsync(string currentPassword, string newPassword, CancellationToken cancellationToken = default)
     {
+        await AuthenticationGate.WaitAsync(cancellationToken);
+        try { await ChangePasswordCoreAsync(currentPassword, newPassword, cancellationToken); }
+        finally { AuthenticationGate.Release(); }
+    }
+
+    private async Task ChangePasswordCoreAsync(string currentPassword, string newPassword, CancellationToken cancellationToken)
+    {
         // A pending forced change is exactly what this method resolves, so it does not use RequireSession.
         var session = sessionContext.Current ?? throw new AccessDeniedException("Your session has ended. Sign in again.");
         var user = await store.FindUserAsync(session.UserId, cancellationToken)
             ?? throw new AccessDeniedException("Your session has ended. Sign in again.");
+        EnsureUserStillActive(user, session);
         if (passwordHasher.Verify(currentPassword ?? string.Empty, user.PasswordHash) == PasswordVerification.Failed)
+        {
+            user.RecordFailedSignIn(clock.UtcNow);
+            await store.UpdateUserAsync(user, cancellationToken);
+            if (user.IsLockedOut(clock.UtcNow))
+            {
+                sessionContext.Set(null);
+                throw new AccessDeniedException(LockoutMessage(user.LockoutEndUtc!.Value, clock.UtcNow));
+            }
             throw new WorkspaceValidationException("The current password is incorrect.");
+        }
         if (PasswordPolicy.Check(newPassword, user.Username) is { } problem) throw new WorkspaceValidationException(problem);
         if (newPassword == currentPassword) throw new WorkspaceValidationException("Choose a password different from the current one.");
 
         user.ChangePassword(passwordHasher.Hash(newPassword), clock.UtcNow, mustChangeOnNextSignIn: false);
         await store.UpdateUserAsync(user, cancellationToken);
-        sessionContext.Set(session with { MustChangePassword = false });
+        UpdateSession(session, session with { MustChangePassword = false, PasswordChangedUtc = user.PasswordChangedUtc });
         await RecordAsync(new AuditEvent("PasswordChanged", nameof(User), user.Id.ToString(), $"{user.Username} changed their password"),
             cancellationToken);
         logger.LogInformation("Password changed; user {UserId}", user.Id);
     }
 
-    private SessionInfo RequireSession() =>
-        CurrentSession ?? throw new AccessDeniedException("Your session has ended. Sign in again.");
+    private SessionInfo RequireSession() => new Authorizer(sessionContext).RequireSession();
 
     private SessionInfo Open(User user, CompanyAccess access)
     {
-        var session = new SessionInfo(user.Id, user.Username, user.DisplayName, access.Company.Id, access.Company.Name,
-            access.Company.IsDemo, access.Company.FinancialYearStartYear, access.Role.Id, access.Role.Name,
-            access.Role.Permissions, access.Role.MaxDiscountPercent, user.MustChangePassword);
+        var session = DescribeSession(user, access);
         sessionContext.Set(session);
         return session;
+    }
+
+    private static SessionInfo DescribeSession(User user, CompanyAccess access) =>
+        new(user.Id, user.Username, user.DisplayName, access.Company.Id, access.Company.Name,
+            access.Company.IsDemo, access.Company.FinancialYearStartYear, access.Role.Id, access.Role.Name,
+            access.Role.Permissions, access.Role.MaxDiscountPercent, user.MustChangePassword, user.PasswordChangedUtc);
+
+    private void UpdateSession(SessionInfo expected, SessionInfo updated)
+    {
+        if (!sessionContext.TryUpdate(expected, updated))
+            throw new AccessDeniedException("Your session has ended or changed. Sign in again.");
+    }
+
+    private void EnsureUserStillActive(User user, SessionInfo session)
+    {
+        if (!user.IsActive || user.IsLockedOut(clock.UtcNow) || user.PasswordChangedUtc != session.PasswordChangedUtc)
+        {
+            sessionContext.Set(null);
+            throw new AccessDeniedException("Your account changed or was locked. Sign in again.");
+        }
     }
 
     private async Task RecordAsync(AuditEvent auditEvent, CancellationToken cancellationToken)

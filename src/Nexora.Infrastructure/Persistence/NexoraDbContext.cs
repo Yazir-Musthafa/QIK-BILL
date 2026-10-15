@@ -1,5 +1,6 @@
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
+using Nexora.Application;
 using Nexora.Application.Abstractions;
 using Nexora.Domain.Accounting;
 using Nexora.Domain.Audit;
@@ -36,11 +37,13 @@ public sealed class NexoraDbContext : DbContext
         typeof(NexoraDbContext).GetMethod(nameof(ApplyCompanyFilter), BindingFlags.NonPublic | BindingFlags.Instance)!;
 
     private readonly ISessionContext _session;
+    private readonly SessionInfo? _openedSession;
     private readonly AuditRecorder _audit;
 
     public NexoraDbContext(DbContextOptions<NexoraDbContext> options, ISessionContext session, IClock clock) : base(options)
     {
         _session = session;
+        _openedSession = session.Current;
         _audit = new AuditRecorder(this, session, clock);
     }
 
@@ -81,7 +84,7 @@ public sealed class NexoraDbContext : DbContext
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
 
     /// <summary>The company every query and write is limited to. Empty when nobody is signed in, which matches nothing.</summary>
-    public Guid CurrentCompanyId => _session.Current?.CompanyId ?? Guid.Empty;
+    public Guid CurrentCompanyId => ReferenceEquals(_openedSession, _session.Current) ? _openedSession?.CompanyId ?? Guid.Empty : Guid.Empty;
 
     /// <summary>Allows writes for companies other than the signed-in one. Set only by <see cref="EfWorkspaceStore"/>.</summary>
     internal bool SystemScope { get; set; }

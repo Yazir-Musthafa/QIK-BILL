@@ -22,7 +22,8 @@ public enum BackupKind
 public sealed record BackupRecord(DateTime Utc, BackupKind Kind, string FileName, bool Succeeded, string Message);
 
 /// <summary>Automatic backup settings and history, kept in a small file next to the database so a restore never overwrites them.</summary>
-public sealed record BackupSettings(bool Enabled = false, int IntervalHours = 24, string Folder = "", int KeepCount = 10, IReadOnlyList<BackupRecord>? History = null)
+public sealed record BackupSettings(bool Enabled = false, int IntervalHours = 24, string Folder = "", int KeepCount = 10, IReadOnlyList<BackupRecord>? History = null,
+    bool EncryptAutomatic = false, string? ProtectedPassword = null)
 {
     public IReadOnlyList<BackupRecord> Records => History ?? [];
 }
@@ -41,7 +42,7 @@ public sealed record RestoreResult(string SafetyBackupPath, BackupHeader Restore
 /// that back if anything fails.
 /// </summary>
 public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFactory<NexoraDbContext> contexts, IWorkspaceStore store, IWorkspaceService workspace,
-    IAuthorizer authorizer, IClock clock, ILogger<BackupService> logger)
+    IAuthorizer authorizer, IClock clock, ILogger<BackupService> logger, ISecretProtector secrets)
 {
     public const string Extension = ".qikbak";
     private static readonly SemaphoreSlim Gate = new(1, 1);
@@ -63,6 +64,7 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
         await Gate.WaitAsync(cancellationToken);
         try
         {
+            await DemandAsync(cancellationToken);
             var path = await CreateCoreAsync(folder, BackupKind.Manual, password, cancellationToken);
             Record(new BackupRecord(clock.UtcNow, BackupKind.Manual, Path.GetFileName(path), true, "Backup created."));
             return path;
@@ -105,7 +107,10 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
         try
         {
             var header = await ExtractCheckedAsync(path, password, temp, cancellationToken);
-            safety = await CreateCoreAsync(Path.Combine(DefaultFolder, "safety"), BackupKind.Safety, null, cancellationToken);
+            await DemandAsync(cancellationToken);
+            // The restore password also protects its safety copy. Otherwise use the configured automatic password.
+            var safetyPassword = password ?? AutomaticPassword(LoadSettings());
+            safety = await CreateCoreAsync(Path.Combine(DefaultFolder, "safety"), BackupKind.Safety, safetyPassword, cancellationToken);
             Record(new BackupRecord(clock.UtcNow, BackupKind.Safety, Path.GetFileName(safety), true, "Safety backup before a restore."));
             try
             {
@@ -119,7 +124,7 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
                 var back = TempDatabase();
                 try
                 {
-                    BackupFormat.Extract(safety, null, back);
+                    BackupFormat.Extract(safety, safetyPassword, back);
                     await CopyDatabaseAsync(back, provider.DatabasePath, CancellationToken.None);
                     // Recovery must finish even when the caller cancelled the restore.
                     await store.MigrateAsync(CancellationToken.None);
@@ -149,10 +154,11 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
     public BackupSettings Settings()
     {
         authorizer.Demand(Permissions.BackupManage);
-        return LoadSettings();
+        return LoadSettings() with { ProtectedPassword = null };
     }
 
-    public async Task SaveSettingsAsync(bool enabled, int intervalHours, string folder, int keepCount, CancellationToken cancellationToken = default)
+    public async Task SaveSettingsAsync(bool enabled, int intervalHours, string folder, int keepCount, CancellationToken cancellationToken = default,
+        bool encryptAutomatic = false, string? automaticPassword = null)
     {
         await DemandAsync(cancellationToken);
         if (intervalHours is < 1 or > 24 * 31) throw new WorkspaceValidationException("Back up every 1 to 744 hours.");
@@ -160,7 +166,24 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
         var clean = (folder ?? string.Empty).Trim();
         if (clean.Length > 0 && !Path.IsPathRooted(clean)) throw new WorkspaceValidationException("Choose a full folder path, for example D:\\Backups\\QIK.");
         await Gate.WaitAsync(cancellationToken);
-        try { SaveSettings(LoadSettings() with { Enabled = enabled, IntervalHours = intervalHours, Folder = clean, KeepCount = keepCount }); }
+        try
+        {
+            await DemandAsync(cancellationToken);
+            var settings = LoadSettings();
+            var protectedPassword = settings.ProtectedPassword;
+            if (encryptAutomatic)
+            {
+                if (automaticPassword is { Length: > 0 })
+                {
+                    if (automaticPassword.Length is < 10 or > 256) throw new WorkspaceValidationException("Use a backup password of 10 to 256 characters.");
+                    protectedPassword = secrets.Protect(automaticPassword);
+                }
+                if (string.IsNullOrEmpty(protectedPassword)) throw new WorkspaceValidationException("Enter a password before enabling encrypted automatic backups.");
+                secrets.Unprotect(protectedPassword); // Fail before saving if this account cannot open the secret.
+            }
+            SaveSettings(settings with { Enabled = enabled, IntervalHours = intervalHours, Folder = clean, KeepCount = keepCount,
+                EncryptAutomatic = encryptAutomatic, ProtectedPassword = encryptAutomatic ? protectedPassword : null });
+        }
         finally { Gate.Release(); }
     }
 
@@ -173,7 +196,7 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
     /// <summary>
     /// Makes an automatic backup when one is due (called on start-up and by a timer) and deletes the oldest automatic
     /// backups beyond the kept number. Runs without a signed-in user; only an authorised user can switch it on.
-    /// Automatic backups are not encrypted (storing a password safely needs Windows DPAPI, planned for Phase 9).
+    /// Optional encryption uses a password protected by Windows DPAPI. A failed unprotect never falls back to plaintext.
     /// </summary>
     public async Task<BackupRecord?> RunScheduledIfDueAsync(CancellationToken cancellationToken = default)
     {
@@ -187,7 +210,7 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
             settings = LoadSettings();
             if (!settings.Enabled || StatusCore(settings).NextDueUtc > clock.UtcNow) return null;
             var folder = settings.Folder.Length > 0 ? settings.Folder : DefaultFolder;
-            var path = await CreateCoreAsync(folder, BackupKind.Automatic, null, cancellationToken);
+            var path = await CreateCoreAsync(folder, BackupKind.Automatic, AutomaticPassword(settings), cancellationToken);
             foreach (var old in Directory.GetFiles(folder, "QIKSuite-auto-*" + Extension).OrderByDescending(f => f, StringComparer.Ordinal).Skip(settings.KeepCount))
                 File.Delete(old);
             var record = new BackupRecord(clock.UtcNow, BackupKind.Automatic, Path.GetFileName(path), true, "Automatic backup created.");
@@ -225,6 +248,13 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
     }
 
     // ----- Core -----
+
+    private string? AutomaticPassword(BackupSettings settings)
+    {
+        if (!settings.EncryptAutomatic) return null;
+        if (string.IsNullOrEmpty(settings.ProtectedPassword)) throw new WorkspaceValidationException("The automatic backup password is missing. Save it again in Backup settings.");
+        return secrets.Unprotect(settings.ProtectedPassword);
+    }
 
     private async Task<string> CreateCoreAsync(string folder, BackupKind kind, string? password, CancellationToken cancellationToken)
     {
