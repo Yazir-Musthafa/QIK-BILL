@@ -20,6 +20,33 @@ public sealed class BackupTests : ReportTestBase
     private BackupService Backups => Db.Get<BackupService>();
     private string Folder => Path.Combine(Path.GetDirectoryName(Db.DatabasePath)!, "backups");
 
+    [Fact]
+    public async Task Backups_remain_readable_during_connection_pool_cleanup()
+    {
+        using var stop = new CancellationTokenSource();
+        var cleanup = Task.Run(async () =>
+        {
+            while (!stop.IsCancellationRequested)
+            {
+                Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+                await Task.Delay(1);
+            }
+        });
+        try
+        {
+            for (var i = 0; i < 12; i++)
+            {
+                var path = await Backups.CreateAsync(Folder);
+                Assert.Equal(2, (await Backups.VerifyAsync(path)).Header.Companies.Count);
+            }
+        }
+        finally
+        {
+            stop.Cancel();
+            await cleanup;
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

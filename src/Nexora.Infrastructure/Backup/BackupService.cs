@@ -71,7 +71,7 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
         {
             logger.LogError("Backup failed; error type {ErrorType}", ex.GetType().FullName);
             Record(new BackupRecord(clock.UtcNow, BackupKind.Manual, string.Empty, false, "The backup could not be written. Check the folder exists and has space."));
-            throw new WorkspaceValidationException("The backup could not be written. Check the folder exists, is writable and has space.");
+            throw new WorkspaceValidationException("The backup could not be written. Check the folder exists, is writable and has space.", ex);
         }
         finally
         {
@@ -109,7 +109,7 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
             Record(new BackupRecord(clock.UtcNow, BackupKind.Safety, Path.GetFileName(safety), true, "Safety backup before a restore."));
             try
             {
-                CopyDatabase(temp, provider.DatabasePath);
+                await CopyDatabaseAsync(temp, provider.DatabasePath, cancellationToken);
                 await store.MigrateAsync(cancellationToken);
                 await workspace.InitializeAsync(cancellationToken);
             }
@@ -120,7 +120,7 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
                 try
                 {
                     BackupFormat.Extract(safety, null, back);
-                    CopyDatabase(back, provider.DatabasePath);
+                    await CopyDatabaseAsync(back, provider.DatabasePath, CancellationToken.None);
                     // Recovery must finish even when the caller cancelled the restore.
                     await store.MigrateAsync(CancellationToken.None);
                 }
@@ -244,12 +244,12 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
         try
         {
             // SQLite's online backup copies a consistent snapshot even while the app is writing.
-            await using (var source = new SqliteConnection($"Data Source={provider.DatabasePath};Mode=ReadOnly"))
+            await using (var source = new SqliteConnection($"Data Source={provider.DatabasePath};Mode=ReadOnly;Pooling=False"))
             await using (var destination = new SqliteConnection($"Data Source={copy};Pooling=False"))
             {
                 await source.OpenAsync(cancellationToken);
                 await destination.OpenAsync(cancellationToken);
-                source.BackupDatabase(destination);
+                await CopyPagesAsync(source, destination, cancellationToken);
             }
 
             var (migrations, companies) = await InspectAsync(copy, cancellationToken);
@@ -316,7 +316,7 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
     }
 
     /// <summary>Overwrites the live database page by page with SQLite's backup API (one transaction), after closing pooled connections.</summary>
-    private static void CopyDatabase(string source, string destination)
+    private static async Task CopyDatabaseAsync(string source, string destination, CancellationToken cancellationToken)
     {
         SqliteConnection.ClearAllPools();
         using (var from = new SqliteConnection($"Data Source={source};Mode=ReadOnly;Pooling=False"))
@@ -324,10 +324,30 @@ public sealed class BackupService(SqliteDatabaseProvider provider, IDbContextFac
         {
             from.Open();
             to.Open();
-            from.BackupDatabase(to);
+            await CopyPagesAsync(from, to, cancellationToken);
         }
 
         SqliteConnection.ClearAllPools();
+    }
+
+    private static async Task CopyPagesAsync(SqliteConnection source, SqliteConnection destination, CancellationToken cancellationToken)
+    {
+        // BackupDatabase does not apply the SQL command busy timeout. WAL checkpoint/connection cleanup can
+        // briefly hold the file lock, so retry the entire SQLite backup transaction on BUSY or LOCKED only.
+        var deadline = System.Diagnostics.Stopwatch.StartNew();
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                source.BackupDatabase(destination);
+                return;
+            }
+            catch (SqliteException ex) when (ex.SqliteErrorCode is 5 or 6 && deadline.Elapsed < TimeSpan.FromSeconds(10))
+            {
+                await Task.Delay(50, cancellationToken);
+            }
+        }
     }
 
     private async Task DemandAsync(CancellationToken cancellationToken)

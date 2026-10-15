@@ -53,4 +53,4 @@ public interface IWorkspaceService
 }
 
 /// <summary>A user-facing rule violation. The message is safe to show and tells the user what to do.</summary>
-public class WorkspaceValidationException(string message) : Exception(message);
+public class WorkspaceValidationException(string message, Exception? innerException = null) : Exception(message, innerException);
