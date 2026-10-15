@@ -87,6 +87,11 @@ public sealed class ReportExportTests : ReportTestBase
         await SignInAsAsync("ravi", "Read-only");
         await Assert.ThrowsAsync<AccessDeniedException>(() => Exports.ExportAsync("sales.register", October2026, ExportFormat.Csv));
         await Assert.ThrowsAsync<AccessDeniedException>(() => Exports.ExportAsync("sales.register", October2026, ExportFormat.Excel));
-        Assert.NotNull(await Exports.PrintSubjectAsync("sales.register", October2026));
+        await Assert.ThrowsAsync<AccessDeniedException>(() => Exports.ExportAsync("sales.register", October2026, ExportFormat.Pdf));
+        var subject = await Exports.PrintSubjectAsync("sales.register", October2026);
+        var printing = Db.Get<Nexora.Printing.PrintingService>();
+        Assert.NotNull(await printing.PreviewAsync(subject));
+        await printing.PrintAsync(subject);
+        await Assert.ThrowsAsync<AccessDeniedException>(() => printing.ExportPdfAsync(subject));
     }
 }

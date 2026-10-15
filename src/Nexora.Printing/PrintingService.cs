@@ -142,6 +142,7 @@ public sealed class PrintingService(
 
     public async Task<PdfResult> ExportPdfAsync(PrintSubject subject, PrintPurpose? purpose = null, CancellationToken cancellationToken = default)
     {
+        if (subject is RenderedSubject { SourceType: "report" }) authorizer.Demand(Permissions.DataExport);
         var prepared = await PrepareAsync(subject, purpose, cancellationToken);
         var bytes = PdfRenderer.Render(prepared.Document);
         var number = await RecordAsync(prepared, PrintOutput.Pdf, "PDF", 1, cancellationToken);

@@ -125,7 +125,10 @@ internal sealed class LedgerGenerator(LedgerService ledgers) : Generator("accoun
             var all = statement.Lines.Select(l => new ReportRow([l.Date, l.VoucherNumber, l.VoucherType.Label(), l.Narration, l.Debit, l.Credit, l.Balance],
                 new DrillTarget(DrillKind.Voucher, l.VoucherId))).ToList();
             var pageRows = c.Request.PageSize > 0 ? all.Skip((c.Request.Page - 1) * c.Request.PageSize).Take(c.Request.PageSize).ToList() : all;
-            pageRows.Insert(0, new ReportRow([start, "", "", "Opening balance", null, null, statement.OpeningBalance], Emphasis: true));
+            var offset = c.Request.PageSize > 0 ? (c.Request.Page - 1) * c.Request.PageSize : 0;
+            var broughtForward = offset == 0 ? statement.OpeningBalance
+                : statement.Lines.Take(offset).LastOrDefault()?.Balance ?? statement.OpeningBalance;
+            pageRows.Insert(0, new ReportRow([start, "", "", offset == 0 ? "Opening balance" : "Brought forward", null, null, broughtForward], Emphasis: true));
             return new ReportData(columns, pageRows, $"{account.Code} · {account.Name} · {c.RangeText}",
                 [null, null, null, null, statement.Lines.Sum(l => l.Debit), statement.Lines.Sum(l => l.Credit), statement.ClosingBalance], all.Count);
         }

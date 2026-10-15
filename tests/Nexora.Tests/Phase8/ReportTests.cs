@@ -196,6 +196,30 @@ public sealed class ReportReconciliationTests : ReportTestBase
 public sealed class ReportBehaviourTests : ReportTestBase
 {
     [Fact]
+    public async Task Register_sorts_signed_totals_and_pages_tied_cancellation_rows_once()
+    {
+        var sorted = await RunAsync("sales.register", new ReportRequest { From = MonthStart, To = MonthEnd, SortKey = "total", PageSize = 0 });
+        var values = sorted.Rows.Select(r => Cell(r, sorted, "total")).ToList();
+        Assert.Equal(values.Order(), values);
+        var paged = new List<ReportRow>();
+        for (var page = 1; page <= sorted.TotalRows; page++)
+            paged.AddRange((await RunAsync("sales.register", new ReportRequest { From = MonthStart, To = MonthEnd, PageSize = 1, Page = page })).Rows);
+        Assert.Equal(sorted.TotalRows, paged.Select(r => (r.Cells[1], r.Cells[2])).Distinct().Count());
+    }
+
+    [Fact]
+    public async Task Income_ledger_second_page_carries_forward_the_previous_closing_balance()
+    {
+        var sales = (await Db.Get<ChartOfAccountsService>().ListAsync()).Single(a => a.SystemKey == SystemAccounts.Sales).Id;
+        var request = new ReportRequest { From = MonthStart, To = MonthEnd, AccountId = sales, PageSize = 2 };
+        var first = await RunAsync("accounts.ledger", request);
+        var next = await RunAsync("accounts.ledger", request with { Page = 2 });
+        Assert.Equal("Brought forward", next.Rows[0].Cells[3]);
+        Assert.Equal(first.Rows.Last().Cells[6], next.Rows[0].Cells[6]);
+        Assert.Equal(first.Totals, next.Totals);
+    }
+
+    [Fact]
     public async Task Register_pages_in_the_database_and_keeps_whole_selection_totals()
     {
         var all = await RunAsync("sales.register");

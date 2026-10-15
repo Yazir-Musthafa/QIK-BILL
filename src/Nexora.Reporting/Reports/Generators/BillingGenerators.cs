@@ -70,11 +70,13 @@ internal sealed class RegisterGenerator(string key, bool sales) : Generator(key)
                 ("number", true) => query.OrderByDescending(f => f.Number).ThenByDescending(f => f.Date),
                 ("party", false) => query.OrderBy(f => f.PartyName).ThenBy(f => f.Date),
                 ("party", true) => query.OrderByDescending(f => f.PartyName).ThenByDescending(f => f.Date),
-                ("total", false) => query.OrderBy(f => f.Total),
-                ("total", true) => query.OrderByDescending(f => f.Total),
+                ("total", false) => query.OrderBy(f => ((f.Kind == BillingDocumentKind.SalesReturn || f.Kind == BillingDocumentKind.PurchaseReturn) != f.IsCancellation) ? -f.Total : f.Total),
+                ("total", true) => query.OrderByDescending(f => ((f.Kind == BillingDocumentKind.SalesReturn || f.Kind == BillingDocumentKind.PurchaseReturn) != f.IsCancellation) ? -f.Total : f.Total),
                 (_, true) => query.OrderByDescending(f => f.Date).ThenByDescending(f => f.Number),
                 _ => query.OrderBy(f => f.Date).ThenBy(f => f.Number),
             };
+            // A cancellation can share its date and number with the original. Ties must stay stable across pages.
+            query = ((IOrderedQueryable<BillingFacts.DocumentFact>)query).ThenBy(f => f.Id).ThenBy(f => f.IsCancellation);
             return size > 0 ? query.Skip((page - 1) * size).Take(size) : query;
         }, cancellationToken);
 
