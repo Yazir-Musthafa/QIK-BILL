@@ -8,3 +8,7 @@
 artifacts/
 TestResults/
 .DS_Store
+
+# Notes and documentation stay local; only the README is published.
+*.md
+!README.md

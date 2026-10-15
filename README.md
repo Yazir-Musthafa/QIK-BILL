@@ -1,41 +1,69 @@
 # QIK Suite
 
-A Windows desktop application (WPF, .NET 10) for billing, inventory, accounting, CRM and service management for Indian businesses. **Status: Phases 1–8 implemented; Phase 9 remains.** Built so far:
+A Windows desktop app for small Indian businesses: GST billing, purchases, inventory, double-entry accounts, expenses, CRM and service jobs, in one place, with printing, reports and backups.
 
-- the shell, design system and themes;
-- companies, users, roles and permissions, the audit trail and company data isolation;
-- a double-entry accounting engine: chart of accounts, vouchers, ledgers, trial balance, profit and loss, balance sheet and financial years;
-- products and inventory: an append-only stock ledger, FIFO or weighted average costing, batches, serials and expiry, and automatic accounting that reconciles to the ledger.
+> Work in progress. The core is built and covered by automated tests, but the Windows screens are still being tested. Please don't use it for real accounts or GST filing yet.
 
-Sales/purchases with recorded GST, printing/PDF, expenses, CRM, service jobs, 30 reports, a live dashboard, CSV/Excel transfer and whole-workspace backup/restore are implemented and covered by automated service tests. GST portal filing is not implemented. On Windows the app has been seen to open; its screens have not yet been tested there. Do not use it for real accounts or GST.
+## What it does
 
-The full specification is in `docs/PROJECT_BRIEF.md`, and status is in `docs/PROGRESS.md`.
+- **Billing and purchases:** tax invoices, cash bills, credit notes, purchase bills and returns, with CGST/SGST/IGST worked out from the place of supply. Receipts and payments, with allocation to invoices.
+- **Inventory:** products, variants, units, batches, expiry and serial numbers, several warehouses, and FIFO or weighted-average costing.
+- **Accounting:** chart of accounts, vouchers, ledgers, trial balance, profit and loss, balance sheet, cash flow, cost centres and bank reconciliation. Sales, purchases and stock post to the books automatically.
+- **Expenses, CRM and service:** expense approval, leads and follow-ups, and service job cards with spare parts and warranty.
+- **Reports:** 30 reports (sales, GST, stock, ageing, profit and more), with export to Excel, CSV or PDF.
+- **Dashboard:** live figures from posted data.
+- **Printing:** A4 and thermal invoices, barcode labels and a print centre.
+- **Data:** import and export of products, customers, suppliers, opening stock and accounts, plus encrypted, verifiable backups.
+- **Users:** roles and permissions, an audit trail, and separate companies.
 
-## Layout
+## Using it
 
-| Project | Role |
-|---|---|
-| `src/Nexora.Domain` | Entities and business rules. No framework dependencies. |
-| `src/Nexora.Application` | Use cases (workspace, companies, users, roles, audit), permission checks, password hashing, and the persistence interfaces (`IUnitOfWork`, `IWorkspaceStore`). |
-| `src/Nexora.Infrastructure` | EF Core `NexoraDbContext` (company filters, write guard, audit capture, immutability), SQLite provider behind `IDatabaseProvider`, and migrations. |
-| `src/Nexora.Accounting` | Posting engine, chart-of-accounts template, ledgers and financial statements. See `docs/ACCOUNTING_MAP.md`. |
-| `src/Nexora.Printing` | Document/label templates, PDF, barcodes and print services; Windows drivers live in Desktop. |
-| `src/Nexora.Reporting` | Report catalogue, SQL aggregation, dashboard, CSV/Excel import/export and report output. |
-| `src/Nexora.Desktop` | WPF app: views, view models, design system (`Themes/`). Builds `QIKSuite.exe`. |
-| `tests/Nexora.Tests` | xUnit tests: domain, security, permissions, company isolation, audit, accounting and reconciliation, SQLite integration, XAML design rules. |
+1. Install the .NET SDK 10.0.401 or newer on Windows 10 or 11.
+2. Build and run:
+   ```powershell
+   ./scripts/build-windows.ps1
+   ./artifacts/publish/win-x64/QIKSuite.exe
+   ```
+3. The first time it starts, a short setup asks for your company details and creates an administrator login. You can add a demonstration company to try things out.
+4. A typical day:
+   - add products under **Inventory → Products** and customers under **Sales → Customers**;
+   - raise invoices under **Sales → Invoices** and record receipts against them;
+   - enter supplier bills under **Purchases**;
+   - check figures on the **Dashboard** and under **Reports**.
+5. Set up automatic backups under **Settings → Backup**, and keep a copy somewhere other than your computer.
 
-## Build
+Your data is stored in `%LOCALAPPDATA%\QIKSuite\`.
 
-You need the .NET SDK version in `global.json` (10.0.401, latest patch allowed).
+Shortcuts: **Ctrl+K** search, **Ctrl+B** sidebar, **Ctrl+Shift+L** light/dark theme, **F1** help.
 
-**Windows:**
+## How it's built
 
-```powershell
-./scripts/build-windows.ps1            # restore, build, test, publish win-x64
-./artifacts/publish/win-x64/QIKSuite.exe
-```
+- C# on **.NET 10** with **WPF** for the desktop interface (MVVM with CommunityToolkit.Mvvm).
+- **SQLite** through Entity Framework Core. Posted records can't be edited: changes are reversals, enforced in code and by database triggers.
+- The code is in layers:
+  - `Domain`: business rules;
+  - `Application`: use cases and permission checks;
+  - `Accounting`: posting engine and statements;
+  - `Infrastructure`: database and backups;
+  - `Printing`: PDF via PDFsharp, barcodes via ZXing.Net;
+  - `Reporting`: reports, Excel via the Open XML SDK, imports and the dashboard;
+  - `Desktop`: the WPF app.
+- Money is kept as exact decimals. Reports total in the database and are checked against the ledger.
+- I built it in stages:
+  1. foundation and login;
+  2. companies and users;
+  3. accounting;
+  4. inventory;
+  5. billing and GST;
+  6. printing;
+  7. expenses, CRM and service;
+  8. reports and backups.
 
-**macOS or Linux (build and test only; WPF cannot run):**
+  Each stage came with tests before moving on. Packaging and the installer are next.
+
+### Building and testing on any OS
+
+The interface only runs on Windows, but the code builds and the tests run on macOS or Linux too:
 
 ```bash
 dotnet restore Nexora.sln --locked-mode
@@ -43,24 +71,6 @@ dotnet build Nexora.sln
 dotnet test tests/Nexora.Tests
 ```
 
-`EnableWindowsTargeting=true` in `Directory.Build.props` lets the WPF projects compile on macOS and Linux.
+## Licence
 
-CI: `.github/workflows/windows.yml` runs the build script on `windows-latest`.
-
-## Database migrations
-
-```bash
-dotnet tool restore
-dotnet ef migrations add <Name> --project src/Nexora.Infrastructure \
-  --output-dir Persistence/Migrations/Sqlite --namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
-```
-
-EF may write `NexoraDbContextModelSnapshot.cs` into a folder named after its namespace. If it does, move the file into `Persistence/Migrations/Sqlite/`. The app applies migrations on startup. A test fails if the model has changes with no migration.
-
-## Runtime data
-
-Data lives in `%LOCALAPPDATA%\QIKSuite\`: `qiksuite.db` (SQLite, WAL mode) and `logs\qiksuite-YYYYMMDD.jsonl`. Logs roll daily and are kept for 14 days. Logs record error types, never passwords or exception messages.
-
-## Keyboard
-
-Ctrl+K command palette · Ctrl+B sidebar · Ctrl+Shift+L theme · Ctrl+1 dashboard · F1 help · Esc close · Ctrl+Shift+G component gallery (hidden).
+Third-party packages are MIT or Apache-2.0, and the bundled Noto Sans font is under the SIL Open Font License.
