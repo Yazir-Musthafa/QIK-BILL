@@ -10,7 +10,7 @@
     </CollectionViewSource>
   </UserControl.Resources>
 
-  <Grid>
+  <Grid IsEnabled="{Binding Backups.IsRestoring, Converter={StaticResource Inverse}}">
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="Auto" />
       <ColumnDefinition Width="*" />
@@ -94,6 +94,8 @@
             </DockPanel>
           </Button>
 
+          <TextBlock DockPanel.Dock="Right" Text="{Binding Backups.StatusText}" ToolTip="{Binding Backups.Notification}" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" Margin="8,0" />
+
           <!-- User menu -->
           <Grid DockPanel.Dock="Right" Margin="8,0,0,0">
             <Button x:Name="UserButton" Style="{StaticResource Button.Subtle}" Padding="4,0" Command="{Binding ToggleUserMenuCommand}"
@@ -152,6 +154,7 @@
               <Border Style="{StaticResource Popup.Surface}" Width="300" Margin="8,4,8,12" Padding="16">
                 <StackPanel>
                   <TextBlock Text="Notifications" Style="{StaticResource Text.Section}" />
+                  <TextBlock Text="{Binding Backups.Notification}" Style="{StaticResource Text.Error}" TextWrapping="Wrap" Margin="0,0,0,8" Visibility="{Binding Backups.NeedsAttention, Converter={StaticResource VisibleWhen}}" />
                   <TextBlock Text="{Binding NotificationText}" Style="{StaticResource Text.Secondary}" TextWrapping="Wrap" Margin="0,8,0,0" />
                   <ItemsControl ItemsSource="{Binding Notifications}" Margin="0,8,0,0" Focusable="False">
                     <ItemsControl.ItemTemplate>

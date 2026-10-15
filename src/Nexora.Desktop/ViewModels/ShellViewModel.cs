@@ -44,6 +44,8 @@ public sealed partial class ShellViewModel : ObservableObject
 
     public event EventHandler? SignedOut;
 
+    public BackupMonitor Backups => _services.GetRequiredService<BackupMonitor>();
+
     /// <summary>Destinations the current role may open. Hiding is a convenience; services enforce permissions.</summary>
     [ObservableProperty]
     private IReadOnlyList<NavItem> _navItems;
@@ -93,6 +95,7 @@ public sealed partial class ShellViewModel : ObservableObject
     public async Task InitializeAsync()
     {
         await ReloadCompaniesAsync();
+        Backups.Refresh();
         Navigate(NavCatalog.Dashboard);
     }
 
@@ -113,6 +116,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
     public void Navigate(string key)
     {
+        if (Backups.IsRestoring) return;
         var item = NavCatalog.Find(key);
         if (item.Permission is { } permission && !_authorizer.Has(permission)) item = NavCatalog.Find(NavCatalog.Dashboard);
         // Set the key first so the selection change below does not navigate a second time.
@@ -177,6 +181,7 @@ public sealed partial class ShellViewModel : ObservableObject
     [RelayCommand]
     private async Task ToggleNotificationsAsync()
     {
+        Backups.Refresh();
         IsNotificationsOpen = !IsNotificationsOpen;
         if (!IsNotificationsOpen) return;
         try
@@ -220,6 +225,7 @@ public sealed partial class ShellViewModel : ObservableObject
     [RelayCommand]
     private void SignOut()
     {
+        if (Backups.IsRestoring) return;
         IsUserMenuOpen = false;
         _workspace.SignOut();
         SignedOut?.Invoke(this, EventArgs.Empty);
@@ -278,6 +284,9 @@ public sealed partial class ShellViewModel : ObservableObject
     /// <summary>Pages built through DI. Each loads its own data and handles its own errors.</summary>
     private static readonly Dictionary<string, Type> PageTypes = new()
     {
+        ["reports"] = typeof(Reporting.ReportsViewModel),
+        ["accounts.bank"] = typeof(Accounting.BankReconciliationViewModel),
+        ["accounts.costcentres"] = typeof(Accounting.CostCentresViewModel),
         ["accounts.chart"] = typeof(Accounting.ChartOfAccountsViewModel),
         ["accounts.vouchers"] = typeof(Accounting.VouchersViewModel),
         ["accounts.ledgers"] = typeof(Accounting.LedgerViewModel),
@@ -335,6 +344,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
     private async Task SwitchCompanyAsync(CompanySummary company)
     {
+        if (Backups.IsRestoring) return;
         try
         {
             Session = await _workspace.SwitchCompanyAsync(company.Id);

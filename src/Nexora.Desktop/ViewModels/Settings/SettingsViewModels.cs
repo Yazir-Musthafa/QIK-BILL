@@ -41,6 +41,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         new("roles", "Roles and permissions", "", Permissions.UsersView, typeof(RolesViewModel)),
         new("inventory", "Inventory", "\uE7B8", Permissions.InventoryView, typeof(Inventory.InventorySettingsViewModel)),
         new("years", "Financial years", "\uE787", Permissions.AccountsView, typeof(Accounting.FinancialYearsViewModel)),
+        new("transfer", "Import/Export", "\uE8B5", null, typeof(ImportExportViewModel)),
+        new("backup", "Backup", "\uE74E", Permissions.BackupManage, typeof(BackupViewModel)),
         new("audit", "Audit trail", "", Permissions.AuditView, typeof(AuditViewModel)),
     ];
 

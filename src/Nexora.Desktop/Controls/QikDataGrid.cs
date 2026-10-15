@@ -46,6 +46,21 @@ public interface ITableLayoutStore
 /// </summary>
 public class QikDataGrid : DataGrid
 {
+    public static readonly DependencyProperty ShowFilterProperty = DependencyProperty.Register(nameof(ShowFilter), typeof(bool), typeof(QikDataGrid), new PropertyMetadata(true));
+
+    public bool ShowFilter { get => (bool)GetValue(ShowFilterProperty); set => SetValue(ShowFilterProperty, value); }
+
+    public Task ReloadLayoutAsync()
+    {
+        _saveTimer.Stop();
+        _layoutApplied = false;
+        return ApplySavedLayoutAsync();
+    }
+
+    private int _layoutVersion;
+    private readonly HashSet<DataGridColumn> _observedColumns = [];
+    private void ColumnWidthChanged(object? sender, EventArgs e) => LayoutChanged();
+
     public static readonly DependencyProperty LayoutKeyProperty = DependencyProperty.Register(
         nameof(LayoutKey), typeof(string), typeof(QikDataGrid), new PropertyMetadata(null));
 
@@ -142,10 +157,18 @@ public class QikDataGrid : DataGrid
     {
         if (_layoutApplied) return;
         _layoutApplied = true;
+        var version = ++_layoutVersion;
+        var columns = Columns.ToList();
+        var layoutKey = LayoutKey;
+        var width = DependencyPropertyDescriptor.FromProperty(DataGridColumn.ActualWidthProperty, typeof(DataGridColumn));
+        foreach (var removed in _observedColumns.Except(columns).ToList())
+        {
+            width.RemoveValueChanged(removed, ColumnWidthChanged);
+            _observedColumns.Remove(removed);
+        }
         foreach (var column in Columns)
         {
-            DependencyPropertyDescriptor.FromProperty(DataGridColumn.ActualWidthProperty, typeof(DataGridColumn))
-                .AddValueChanged(column, (_, _) => LayoutChanged());
+            if (_observedColumns.Add(column)) width.AddValueChanged(column, ColumnWidthChanged);
         }
 
         TableLayout? saved = null;
@@ -161,7 +184,8 @@ public class QikDataGrid : DataGrid
             }
         }
 
-        var columns = Columns.ToList();
+        // Another report may have replaced the columns while its saved layout was loading.
+        if (version != _layoutVersion || layoutKey != LayoutKey || !columns.SequenceEqual(Columns)) return;
         var layout = TableLayout.Merge(saved, columns.Select(KeyOf).ToList(), columns.Select(c => c.ActualWidth > 0 ? c.ActualWidth : 120).ToList());
         _restoring = true;
         try
@@ -175,7 +199,7 @@ public class QikDataGrid : DataGrid
                 if (saved is not null && !column.Width.IsStar) column.Width = new DataGridLength(entry.Width);
             }
 
-            if (layout.SortKey is { } sortKey && _view is not null && columns.FirstOrDefault(c => KeyOf(c) == sortKey) is { } sortColumn)
+            if (CanUserSortColumns && layout.SortKey is { } sortKey && _view is not null && columns.FirstOrDefault(c => KeyOf(c) == sortKey) is { } sortColumn)
             {
                 var direction = layout.SortDescending ? ListSortDirection.Descending : ListSortDirection.Ascending;
                 _view.SortDescriptions.Clear();

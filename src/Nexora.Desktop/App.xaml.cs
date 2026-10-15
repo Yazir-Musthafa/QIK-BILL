@@ -69,6 +69,7 @@ public partial class App : System.Windows.Application
             MainWindow = window;
             await window.InitializeAsync();
             window.Show();
+            _services.GetRequiredService<BackupMonitor>().Start();
             ShutdownMode = ShutdownMode.OnMainWindowClose;
             Log.Information("Workspace initialization completed");
         }
@@ -97,6 +98,8 @@ public partial class App : System.Windows.Application
         services.AddSingleton<Nexora.Printing.IPrinterGateway, Services.Printing.WindowsPrinterGateway>();
         services.AddSingleton<Services.Printing.PrintActions>();
         services.AddSingleton<IThemeService, ThemeService>();
+        services.AddSingleton<ReportDrillActions>();
+        services.AddSingleton<BackupMonitor>();
         services.AddSingleton<DialogService>();
         services.AddSingleton<ToastService>();
         services.AddSingleton<MainViewModel>();

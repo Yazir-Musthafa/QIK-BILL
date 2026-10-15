@@ -745,7 +745,7 @@
                       AutomationProperties.Name="Choose columns" ToolTip="Show or hide columns" />
               <TextBlock DockPanel.Dock="Right" Text="{TemplateBinding RowCountText}" Style="{StaticResource Text.Caption}"
                          VerticalAlignment="Center" Margin="12,0" />
-              <Grid Width="260" HorizontalAlignment="Left">
+              <Grid Width="260" HorizontalAlignment="Left" Visibility="{Binding ShowFilter, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource VisibleWhen}}">
                 <TextBox x:Name="Filter" Text="{Binding FilterText, RelativeSource={RelativeSource TemplatedParent}, UpdateSourceTrigger=PropertyChanged}"
                          Padding="28,4,8,4" AutomationProperties.Name="Filter rows" />
                 <TextBlock Style="{StaticResource Text.Icon}" FontSize="{StaticResource IconSizeSmall}" Text="&#xE71C;" HorizontalAlignment="Left"

@@ -17,6 +17,8 @@
                     xmlns:eviews="clr-namespace:Nexora.Desktop.Views.Expenses"
                     xmlns:cvm="clr-namespace:Nexora.Desktop.ViewModels.Crm"
                     xmlns:cviews="clr-namespace:Nexora.Desktop.Views.Crm"
+                    xmlns:rvm="clr-namespace:Nexora.Desktop.ViewModels.Reporting"
+                    xmlns:rviews="clr-namespace:Nexora.Desktop.Views.Reporting"
                     xmlns:srvm="clr-namespace:Nexora.Desktop.ViewModels.Service"
                     xmlns:srviews="clr-namespace:Nexora.Desktop.Views.Service">
   <DataTemplate DataType="{x:Type vm:SetupWizardViewModel}"><views:SetupWizardView /></DataTemplate>
@@ -33,6 +35,8 @@
   <DataTemplate DataType="{x:Type svm:RolesViewModel}"><sviews:RolesView /></DataTemplate>
   <DataTemplate DataType="{x:Type svm:AuditViewModel}"><sviews:AuditView /></DataTemplate>
   <DataTemplate DataType="{x:Type svm:ChangePasswordViewModel}"><sviews:ChangePasswordView /></DataTemplate>
+  <DataTemplate DataType="{x:Type avm:CostCentresViewModel}"><aviews:CostCentresView /></DataTemplate>
+  <DataTemplate DataType="{x:Type avm:BankReconciliationViewModel}"><aviews:BankReconciliationView /></DataTemplate>
   <DataTemplate DataType="{x:Type avm:ChartOfAccountsViewModel}"><aviews:ChartOfAccountsView /></DataTemplate>
   <DataTemplate DataType="{x:Type avm:VouchersViewModel}"><aviews:VouchersView /></DataTemplate>
   <DataTemplate DataType="{x:Type avm:LedgerViewModel}"><aviews:LedgerView /></DataTemplate>
@@ -50,6 +54,9 @@
   <DataTemplate DataType="{x:Type evm:ExpensesViewModel}"><eviews:ExpensesView /></DataTemplate>
   <DataTemplate DataType="{x:Type cvm:CrmViewModel}"><cviews:CrmView /></DataTemplate>
   <DataTemplate DataType="{x:Type srvm:ServiceViewModel}"><srviews:ServiceView /></DataTemplate>
+  <DataTemplate DataType="{x:Type rvm:ReportsViewModel}"><rviews:ReportsView /></DataTemplate>
+  <DataTemplate DataType="{x:Type svm:ImportExportViewModel}"><sviews:ImportExportView /></DataTemplate>
+  <DataTemplate DataType="{x:Type svm:BackupViewModel}"><sviews:BackupView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:HelpViewModel}"><views:HelpView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:GalleryViewModel}"><views:GalleryView /></DataTemplate>
 </ResourceDictionary>
