@@ -83,3 +83,15 @@ Phases 1–3 were built and tested on macOS. Nothing in this list has been perfo
 - [ ] Settings → Financial years: open the next year; close the current year (refused while drafts exist in it); posting into a closed year is refused; reopen.
 - [ ] Amounts everywhere use Indian grouping (12,34,567.00) and right alignment.
 - [ ] Keyboard: Tab moves account → debit → credit → note across voucher lines; Enter on Ledger/Trial balance runs Show.
+
+## Phase 8 runtime checks
+
+Use `WORKING_GUIDE.md` section 3.13 for detailed expected results.
+
+- [ ] Reports: all 30 entries, date filters, page navigation, integer/quantity/amount cells, statement headings, saved layouts and source windows.
+- [ ] CSV, Excel, PDF, Print Centre preview and actual paper output for the same report/parameters.
+- [ ] Bank clearing/un-clearing and statement comparison; cost-centre editing and tagged voucher reversals.
+- [ ] Import previews, rejection of invalid files, whole-file atomic import and permission restrictions.
+- [ ] Manual encrypted/plain backups; verify; cancelled and confirmed whole-workspace restore; safety copy and sign-out.
+- [ ] Scheduled backups while signed out, failure notices, corrected-folder retry and automatic-only retention.
+- [ ] 1366×768 and 150% DPI, both themes, keyboard focus and company isolation on every new screen.

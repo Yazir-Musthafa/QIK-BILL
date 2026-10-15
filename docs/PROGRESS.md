@@ -1,6 +1,36 @@
 # QIK Suite implementation progress
 
-## Phase 8 continuation (13 October 2026, in progress)
+## Phase 8: desktop completion and verification (15 October 2026)
+
+Resumed from `1aa1c88` and the existing uncommitted Desktop Phase 8 files. Finished the Reports catalogue/output/source windows, bank reconciliation, cost/profit centres and voucher tags, CSV/Excel import/export settings, backup/restore controls, scheduler and shell status. Updated the working guide’s statuses and added section 3.13 for Windows testing.
+
+**Environment:** macOS; `EnableWindowsTargeting=true`. All new desktop behaviour is **UI unverified at runtime**. Nothing was printed, and no installer ran.
+
+### Corrections found during verification
+
+- Locked restore initially failed on newly reported Pkcs vulnerabilities. Pinned `System.Security.Cryptography.Pkcs` 10.0.13 in Printing and updated dependent lock files without suppressing audit warnings.
+- A full-suite backup failure was reproduced under concurrent SQLite connection-pool cleanup: `BackupDatabase` returned SQLITE_BUSY. Backup/restore/rollback copies now retry BUSY/LOCKED for at most ten seconds, respecting cancellation except during required rollback. The user-facing error stays concise while retaining its inner exception for diagnostics.
+- Integer report cells no longer use a decimal-only converter. Reports retain statement emphasis/indentation, use fractional quantities, and limit sort choices to supported columns. Dynamic table layouts reject stale asynchronous loads and remove listeners for replaced columns.
+- Ledger drill-down uses the containing financial year, including January–March, and updates the visible date inputs. Income/expense ledgers carry the preceding page’s closing balance. Billing registers sort signed totals and break cancellation/original ties consistently across pages.
+- Creating a cost centre now selects the saved row, so a second Save edits it. Import file-size guidance agrees with the 10 MB service limit. Restore locks the shell until it returns to login or reports failure.
+
+### Verification
+
+- Locked restore and full solution build succeeded, **0 warnings, 0 errors**.
+- Full suite: **1,017 passed, 0 failed, 0 skipped** (44 seconds): 663 behavioural, 318 XAML design-rule, 35 guide checks and 1 page-binding test. TRX: `tests/Nexora.Tests/TestResults/phase8-final.trx`.
+- Package audit (`dotnet list Nexora.sln package --vulnerable --include-transitive --no-restore`): no known vulnerable packages reported by the current NuGet source.
+- Self-contained Release `win-x64` publish succeeded to `artifacts/publish/win-x64/QIKSuite.exe`; not run on Windows.
+- Backup tests: **16 passed**, including a pool-cleanup regression. That regression passed **10 consecutive repeat runs** after the lock retry fix.
+- Scale tests: **2 passed**. Posted 2,000 ledger entries through VoucherService; paged 1,992 bank detail rows across 20 pages, exported all rows and reconciled the trial balance (149 ms after fixture seeding in the focused run). Previewed/imported/exported 1,000 products through real services and an Excel round trip (571 ms). These are local regression measurements, not production performance promises.
+- Four mutations, applied separately and restored exactly, each failed assertions: cancellation sign, cost-permission filtering, bank reconciliation equation and financial-year drill dates. Evidence: `artifacts/phase8-validation/mutations.txt` (local, ignored build artifact).
+- After the full pass, strengthened the existing export-permission test to cover direct PDF export from a print subject while allowing preview/printing; its focused rerun passed. Final guide coverage rerun: 35 passed.
+- No model changes in this continuation; existing Phase 8 migrations and trigger checks are retained. No tests were weakened or deleted.
+
+### Remaining limits
+
+Windows QA remains outstanding, including the dispatcher timer, file dialogs, source windows, dynamic columns, print preview/drivers and restore sign-out. Automatic/safety backups are unencrypted and the schedule runs only while the app is open. Reports are not GST filing output; salesperson means posting user; no bank feeds or automatic centre allocations. Some histories/exports materialize in memory. Phase 9 security/installer/release work is not started.
+
+## Earlier Phase 8 checkpoint (13 October 2026)
 
 Starting at `da2ecca`: locked restore succeeded, build 0 warnings / 0 errors, **959 passed, 0 failed, 0 skipped** on macOS. Backup integration coverage now passes **15 cases**, including encrypted/plain restoration of data, audit hashes and reports; corruption, password and authenticated-header rejection; unknown schemas; permission in every company; cancellation-safe rollback; schedule and retention. Fixed rollback using the cancelled token and failure status surviving a successful retry at the same timestamp. Added header bounds, schema-header agreement and foreign-key verification. Desktop Phase 8 work and scale/mutation checks are still in progress.
 

@@ -1,25 +1,29 @@
-# Handoff: end of Phase 7 (11 October 2026)
+# Handoff: Phase 8 completion (15 October 2026)
 
-Read this first, then:
+Read `AGENTS.md`, `PROJECT_BRIEF.md`, `PROGRESS.md`, `ACCOUNTING_MAP.md` and `WORKING_GUIDE.md` before editing.
 
-- `PROJECT_BRIEF.md`: the full spec; there is no `AGENTS.md`;
-- `PROGRESS.md`: the evidence for each claim;
-- `ACCOUNTING_MAP.md`;
-- `WORKING_GUIDE.md`: screen status and the Windows test script.
+**Current scope:** Phases 1–8 are implemented on macOS. Phase 9 is next. Only application startup has been reported on Windows; all WPF screens, printer paths and installer work remain **UI unverified at runtime**. The retained Phase 2–7 notes below describe historical checkpoints; this section supersedes their future-work statements.
 
-**Phase 7 (expenses, CRM, service management) is complete on macOS. Phase 8 (reports, dashboard data, import/export, backup) is next; it was not started.** The owner has confirmed only that the app opens on Windows; no Phase 5–7 screen has been tried there and nothing has been printed.
+## Current state
 
-**About "GPT-6 Astra":** the Phase 5 request said an agent called GPT-6 Astra had already worked on Phase 5. The repository had no trace of it: no commits, branches, stashes, worktrees or uncommitted files after the Phase 4 commit `926a72e`. Phase 5 was therefore built from that commit. The three inventory edge cases named in the request were investigated and fixed (see `PROGRESS.md`).
+- Locked restore and build pass with warnings treated as errors. **1,017 tests pass** (663 behavioural, 318 styling, 35 guide checks, 1 binding check). Publish evidence is in `PROGRESS.md`.
+- Phase 8 backend commits precede `1aa1c88`. This continuation finishes Reports, Bank reconciliation, Cost centres, Import/Export and Backup screens, service wiring, source drill-down, backup scheduling/status and voucher centre selectors.
+- `Nexora.Reporting` supplies 30 permission-filtered reports, typed exports, data transfer and the real dashboard. Report exports use the last completed request and all matching pages. Page totals describe the whole matching selection; ledger detail keeps chronological running balances.
+- Fixed integer report cells, ledger drill dates across January–March, financial-ledger brought-forward balances, signed register sorting/stable cancellation paging, cost-centre editor selection and asynchronous report layout races.
+- Backup copying retries transient SQLite BUSY/LOCKED errors for up to ten seconds. Pool-cleanup stress reproduced the original intermittent failure; the regression test and ten repeat runs pass after the fix. Restore disables shell navigation/company changes while replacing the database and signs out afterward; this UI transition needs Windows verification.
+- Pkcs 8.0.1 failed NuGet vulnerability audit. Printing explicitly references the patched 10.0.13 package, with updated lock files and no warning suppression.
+- Phase 8 migrations are `ReportsCostCentresBank` and `RestoreLedgerTriggers`. **No model changes in this continuation.** All snapshots remain in `Persistence/Migrations/Sqlite/`; migration tests preserve immutability triggers.
+- Test evidence includes reconciliation, permissions/isolation, encrypted/plain backup restore, rollback, schedule/retention, 2,000 posted-entry paging/export and a 1,000-product import/Excel round trip. Four mutation checks caught cancellation-sign, cost-visibility, bank-equation and financial-year-drill errors.
 
-## State
+## Next work
 
-- **Build:** clean, 0 warnings. `dotnet restore --locked-mode` passes, and a `win-x64` self-contained publish produces `QIKSuite.exe`.
-- **Tests:** **873 passing** (`dotnet test tests/Nexora.Tests`): 553 behavioural, 288 XAML design-rule, 31 guide checks and 1 binding check.
-- **Migrations:** `InitialWorkspace`, `CompaniesUsersRolesAudit`, `AccountingEngine`, `Inventory`, `Billing`, `Printing`, `ServiceLinesCreditLimitPrices`, `RestoreBillingLineTriggers`, `ExpensesCrmService`. From `AccountingEngine` on, most contain SQLite immutability triggers. **EF rebuilds a SQLite table when a column becomes nullable, and the rebuild drops that table's triggers.** `RestoreBillingLineTriggers` recreates them, and `MigrationTests` checks they exist. Do the same after any future rebuild.
-- **Commits:** Phase 5 used the prefix `cla:`; Phases 6 and 7 use `claude:` (the owner's requests).
-- **New packages (Phase 7):** none.
-- **New packages (Phase 6):** PDFsharp 6.2.4 (MIT) and ZXing.Net 0.16.11 (Apache-2.0), plus the bundled Noto Sans font (OFL). See `THIRD_PARTY_LICENSES.md` and `DECISIONS.md`.
-- **Not yet run:** the WPF UI, printing and the installer. Nothing has run on Windows.
+1. Run `WORKING_GUIDE.md` sections 3.1–3.13 on Windows. Test Reports at 1366×768, integer/quantity formatting, layouts, source windows, bank clearing, cost-centre entry, file dialogs, scheduler while signed out and restore returning to login. Confirm A4/thermal/label paper output.
+2. Phase 9: idle lock/session hardening, protected automatic-backup secrets, distribution licence notices, installer, release scripts and Windows QA. Do not claim release readiness from a macOS build.
+3. Remaining product gaps are in the guide: quotations/orders, dated GST rates/cess/reverse charge, bank feeds, reservations and product images. Do not silently count them as complete.
+4. Reports still materialize some histories/exports; the scale checks are bounded regression evidence, not production capacity guarantees. Ledger search/sort stays disabled; source-paged report sort options match implemented SQL sorting.
+5. Automatic and safety backups are unencrypted; manual passwords do not encrypt header company names/timestamps. The schedule runs only while QIK Suite is open. Whole-workspace backup/restore/settings need Backup: Manage in every company.
+
+## Historical Phase 2–7 notes
 
 ## What was done in Phases 2 and 3
 
@@ -202,15 +206,3 @@ Never mark something FULLY FUNCTIONAL unless the code is wired to a real service
 - **The service invoice is posted from Sales invoices.** It cannot be edited there; delete the draft and create it again from the job.
 - **No default labour SAC.** Each labour line needs the SAC the accountant advises, or a default in Service settings.
 - **The customer view** loads every invoice and receipt of the customer; fine at small scale, slow with thousands.
-
-## Next steps
-
-1. **Test Phases 1–7 on Windows** with `WORKING_GUIDE.md` sections 3.1–3.12. Section 3.9 is the printer script (A4, 80 mm thermal, label printer, USB scanner); section 3.10 covers expenses, CRM and service. Report what came out on paper, not only what the screen said.
-2. **Phase 5 leftovers.** These were not built; decide with the owner which belong in later phases:
-   - quotations, orders and delivery notes (the Quotations page is still a placeholder);
-   - dated GST rates, cess, reverse charge and bills of supply;
-   - POS and barcode entry, additional charges;
-   - a billing settings screen.
-3. **Data-table follow-ups:** per-column filters, and editing or deactivating units and tax categories.
-4. **Printing follow-ups after the Windows run:** fix whatever the printer script shows. Consider per-computer printer preferences, a template designer and batch printing.
-5. **Phase 8 (reports, dashboard data, import/export, backup)** is next.

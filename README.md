@@ -1,13 +1,13 @@
 # QIK Suite
 
-A Windows desktop application (WPF, .NET 10) for billing, inventory, accounting, CRM and service management for Indian businesses. **Status: Phases 1–4 of 9.** Built so far:
+A Windows desktop application (WPF, .NET 10) for billing, inventory, accounting, CRM and service management for Indian businesses. **Status: Phases 1–8 implemented; Phase 9 remains.** Built so far:
 
 - the shell, design system and themes;
 - companies, users, roles and permissions, the audit trail and company data isolation;
 - a double-entry accounting engine: chart of accounts, vouchers, ledgers, trial balance, profit and loss, balance sheet and financial years;
 - products and inventory: an append-only stock ledger, FIFO or weighted average costing, batches, serials and expiry, and automatic accounting that reconciles to the ledger.
 
-There is no sales, purchase or GST workflow yet. On Windows the app has been seen to open; its screens have not yet been tested there. Do not use it for real accounts or GST.
+Sales/purchases with recorded GST, printing/PDF, expenses, CRM, service jobs, 30 reports, a live dashboard, CSV/Excel transfer and whole-workspace backup/restore are implemented and covered by automated service tests. GST portal filing is not implemented. On Windows the app has been seen to open; its screens have not yet been tested there. Do not use it for real accounts or GST.
 
 The full specification is in `docs/PROJECT_BRIEF.md`, and status is in `docs/PROGRESS.md`.
 
@@ -19,7 +19,8 @@ The full specification is in `docs/PROJECT_BRIEF.md`, and status is in `docs/PRO
 | `src/Nexora.Application` | Use cases (workspace, companies, users, roles, audit), permission checks, password hashing, and the persistence interfaces (`IUnitOfWork`, `IWorkspaceStore`). |
 | `src/Nexora.Infrastructure` | EF Core `NexoraDbContext` (company filters, write guard, audit capture, immutability), SQLite provider behind `IDatabaseProvider`, and migrations. |
 | `src/Nexora.Accounting` | Posting engine, chart-of-accounts template, ledgers and financial statements. See `docs/ACCOUNTING_MAP.md`. |
-| `src/Nexora.Printing` | Reserved for Phase 6. |
+| `src/Nexora.Printing` | Document/label templates, PDF, barcodes and print services; Windows drivers live in Desktop. |
+| `src/Nexora.Reporting` | Report catalogue, SQL aggregation, dashboard, CSV/Excel import/export and report output. |
 | `src/Nexora.Desktop` | WPF app: views, view models, design system (`Themes/`). Builds `QIKSuite.exe`. |
 | `tests/Nexora.Tests` | xUnit tests: domain, security, permissions, company isolation, audit, accounting and reconciliation, SQLite integration, XAML design rules. |
 

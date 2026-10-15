@@ -52,3 +52,11 @@ They sit behind `Nexora.Printing.IPrinterGateway`, and tests use a fake.
 - **Font:** the Noto Sans font (SIL OFL 1.1) is embedded. It is used for measuring, for PDF and for Windows printing, so every output paginates the same and includes ₹.
 
 **One rendering path.** Templates produce `RenderedDocument` page items in points. The PDF renderer and the WPF renderer draw those items and nothing else.
+
+## 2026-10-15: Reporting and data protection (Phase 8)
+
+`Nexora.Reporting` is a platform-neutral project for report queries, typed CSV/Excel exports, imports and the dashboard. Open XML SDK 3.5.1 is MIT. Report access and cost visibility are enforced in services. Exports rerun the last completed report request with paging removed. Source navigation preserves report dates and uses the existing permission-checked services.
+
+Whole-workspace backups use SQLite’s online backup API, gzip, SHA-256 and optional chunked AES-256-GCM with PBKDF2. Brief SQLITE_BUSY/LOCKED errors retry for up to ten seconds, including restore/rollback copies, following SQLite’s [backup lock handling guidance](https://www.sqlite.org/backup.html). A concurrent pool-cleanup test reproduced the original intermittent lock failure. Automatic checks run on startup and every 15 minutes while the desktop is open. Automatic and safety copies remain unencrypted until Phase 9 provides protected secret storage.
+
+No domain model changed in this continuation; the existing `ReportsCostCentresBank` and `RestoreLedgerTriggers` migrations cover Phase 8.

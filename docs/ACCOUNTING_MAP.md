@@ -234,10 +234,16 @@ An expense is approved before it posts (`ExpenseService`). Posting creates **one
 - **Credit limit (Phase 7):** before a credit sales invoice posts, the customer's ledger balance plus the invoice total is compared with the credit limit (0 = no limit). Above the limit, posting is refused unless the user holds "Sales: Override credit limit" and confirms. The override is recorded in the audit trail as `CreditLimitOverridden`. It does not change any posting.
 - **Customer prices (Phase 7)** only change the rate used when a line's rate is left blank. The posting rules above are unchanged.
 
-## Not implemented yet
+## Reports and reconciliation (Phase 8)
 
-Several items from section H of the brief are not built yet:
+Reporting creates no postings. Cash flow groups the counterpart accounts of cash/bank vouchers into operating, investing and financing activity; transfers between cash/bank accounts net to zero. Trial balance, P&L and balance sheet aggregate ledger amounts in the database.
 
-- **Phase 8 reporting work:** cash flow statement, bank reconciliation, cost and profit centres, receivable and payable ageing, bill-wise allocation, and ledger export.
-- **Phase 5 (done):** customer and supplier ledgers are created automatically with each party. Ledgers created by hand under Sundry Debtors or Creditors still work in vouchers but are not parties.
-- **Performance at scale:** reports aggregate in memory over the company's ledger entries. Amounts are stored as integer paise, so they can move to SQL aggregation (`SUM`) when volumes require it.
+Bank clearing changes matching metadata only: expected statement balance = book balance − uncleared deposits + uncleared withdrawals. Clearing dates preserve historical as-of views; un-clearing removes the match and is audited. Cost/profit centres tag income/expense voucher lines; reversal keeps the tag and reverses its effect.
+
+Receivable/payable ageing comes from documents and allocations as of the chosen date, with unapplied credits and manual-ledger differences shown separately. Full sets of returns now take the original document’s remaining round-off on the final return. Reports and dashboard never compute profit as cash received minus cash spent.
+
+Opening-stock import goes through the stock posting engine and VoucherService in one transaction. Preview validates in a transaction that rolls back. Imports do not update existing rows.
+
+## Remaining limitations
+
+Balance-sheet ledger detail pages in SQL; income/expense and Retained Earnings ledgers stay within one financial year. Ageing loads open-item history and exports materialize rows. There are no bank feeds, automatic centre-allocation rules or GST filing APIs. Manually created debtor/creditor ledgers are still not billing parties.
