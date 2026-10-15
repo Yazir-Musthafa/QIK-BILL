@@ -1,0 +1,27 @@
+<UserControl x:Class="Nexora.Desktop.Views.Accounting.BankReconciliationView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:controls="clr-namespace:Nexora.Desktop.Controls">
+  <DockPanel Margin="24,20,24,24" IsEnabled="{Binding IsBusy, Converter={StaticResource Inverse}}">
+    <TextBlock DockPanel.Dock="Top" Text="{Binding Title}" Style="{StaticResource Text.Title}" Margin="0,0,0,16" />
+    <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+      <StackPanel Width="240" Margin="0,0,8,8"><TextBlock Text="Bank account" Style="{StaticResource Text.Label}" /><ComboBox ItemsSource="{Binding Accounts}" SelectedItem="{Binding Account}" DisplayMemberPath="Name" /></StackPanel>
+      <StackPanel Width="120" Margin="0,0,8,8"><TextBlock Text="As of (dd-mm-yyyy)" Style="{StaticResource Text.Label}" /><TextBox Text="{Binding AsOf}" /></StackPanel>
+      <CheckBox Content="Include cleared" IsChecked="{Binding IncludeCleared}" VerticalAlignment="Bottom" Margin="0,0,8,12" />
+      <Button Content="Show" Command="{Binding RefreshCommand}" VerticalAlignment="Bottom" Margin="0,0,0,8" />
+    </WrapPanel>
+    <TextBlock DockPanel.Dock="Top" Text="{Binding Summary}" TextWrapping="Wrap" Margin="0,0,0,8" />
+    <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+      <TextBlock Text="{Binding Error}" Style="{StaticResource Text.Error}" />
+      <WrapPanel IsEnabled="{Binding CanEdit}">
+        <StackPanel Width="120" Margin="0,0,8,8"><TextBlock Text="Cleared on" Style="{StaticResource Text.Label}" /><TextBox Text="{Binding ClearedOn}" /></StackPanel>
+        <StackPanel Width="220" Margin="0,0,8,8"><TextBlock Text="Statement reference" Style="{StaticResource Text.Label}" /><TextBox Text="{Binding StatementReference}" /></StackPanel>
+        <Button Content="Clear selected" Command="{Binding ClearCommand}" VerticalAlignment="Bottom" Margin="0,0,8,8" />
+        <Button Content="Unclear selected" Command="{Binding UnclearCommand}" VerticalAlignment="Bottom" Margin="0,0,8,8" />
+      </WrapPanel>
+      <WrapPanel><TextBlock Text="Statement closing balance" VerticalAlignment="Center" Margin="0,0,8,0" /><TextBox Text="{Binding StatementBalance, UpdateSourceTrigger=PropertyChanged}" Width="160" /><TextBlock Text="{Binding Difference}" Margin="12,0,0,0" VerticalAlignment="Center" /></WrapPanel>
+    </StackPanel>
+    <controls:QikDataGrid LayoutKey="bank-reconciliation" ItemsSource="{Binding Entries}" SelectedItem="{Binding Selected}" SelectionMode="Single">
+      <controls:QikDataGrid.Columns><DataGridTextColumn Header="Date" Binding="{Binding Date, StringFormat=dd-MM-yyyy}" Width="100" /><DataGridTextColumn Header="Voucher" Binding="{Binding Voucher}" Width="150" /><DataGridTextColumn Header="Narration" Binding="{Binding Narration}" Width="*" /><DataGridTextColumn Header="Deposit" Binding="{Binding Deposit, Converter={StaticResource Amount}}" Width="110" ElementStyle="{StaticResource Cell.Amount}" HeaderStyle="{StaticResource Header.Amount}" /><DataGridTextColumn Header="Withdrawal" Binding="{Binding Withdrawal, Converter={StaticResource Amount}}" Width="110" ElementStyle="{StaticResource Cell.Amount}" HeaderStyle="{StaticResource Header.Amount}" /><DataGridTextColumn Header="Cleared on" Binding="{Binding ClearedOn, StringFormat=dd-MM-yyyy}" Width="100" /><DataGridTextColumn Header="Reference" Binding="{Binding StatementReference}" Width="140" /></controls:QikDataGrid.Columns>
+    </controls:QikDataGrid>
+  </DockPanel>
+</UserControl>

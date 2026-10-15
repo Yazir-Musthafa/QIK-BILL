@@ -117,6 +117,7 @@ public sealed partial class ChartOfAccountsViewModel(
 public sealed partial class VoucherLineEditor : ObservableObject
 {
     [ObservableProperty] private AccountChoice? _account;
+    [ObservableProperty] private Guid? _costCentreId;
     [ObservableProperty] private string _debit = string.Empty;
     [ObservableProperty] private string _credit = string.Empty;
     [ObservableProperty] private string _narration = string.Empty;
@@ -135,14 +136,16 @@ public sealed partial class VouchersViewModel : PageViewModel, ILoadable
 {
     private readonly VoucherService _vouchers;
     private readonly ChartOfAccountsService _chart;
+    private readonly CostCentreService _centres;
     private readonly IAuthorizer _authorizer;
     private readonly DialogService _dialogs;
 
-    public VouchersViewModel(VoucherService vouchers, ChartOfAccountsService chart, IAuthorizer authorizer, DialogService dialogs,
+    public VouchersViewModel(VoucherService vouchers, ChartOfAccountsService chart, CostCentreService centres, IAuthorizer authorizer, DialogService dialogs,
         ToastService toasts, ILogger<VouchersViewModel> logger) : base(logger, toasts)
     {
         _vouchers = vouchers;
         _chart = chart;
+        _centres = centres;
         _authorizer = authorizer;
         _dialogs = dialogs;
         Lines.CollectionChanged += (_, e) =>
@@ -171,6 +174,8 @@ public sealed partial class VouchersViewModel : PageViewModel, ILoadable
 
     public ObservableCollection<VoucherLineEditor> Lines { get; } = [];
 
+    public IReadOnlyList<Expenses.Choice> CostCentres { get; private set; } = [];
+
     [ObservableProperty] private VoucherSummary? _selected;
     [ObservableProperty] private Guid? _editingId;
     [ObservableProperty] private string? _editingNumber;
@@ -192,6 +197,8 @@ public sealed partial class VouchersViewModel : PageViewModel, ILoadable
 
     public async Task LoadAsync() => await RunAsync(async () =>
     {
+        CostCentres = new[] { new Expenses.Choice(null, "(No centre)") }.Concat((await _centres.ListAsync()).Select(c => new Expenses.Choice(c.Id, c.Display))).ToList();
+        OnPropertyChanged(nameof(CostCentres));
         LedgerAccounts.Clear();
         foreach (var row in (await _chart.ListAsync()).Where(r => !r.IsGroup && r.IsActive))
             LedgerAccounts.Add(new AccountChoice(row.Id, row.Code, row.Name, row.Nature, false));
@@ -306,7 +313,7 @@ public sealed partial class VouchersViewModel : PageViewModel, ILoadable
         foreach (var voucher in await _vouchers.ListAsync(new VoucherQuery())) Vouchers.Add(voucher);
     }
 
-    private async Task OpenAsync(Guid id) => await RunAsync(async () =>
+    public async Task OpenAsync(Guid id) => await RunAsync(async () =>
     {
         var details = await _vouchers.GetAsync(id);
         EditingId = details.Id;
@@ -325,6 +332,7 @@ public sealed partial class VouchersViewModel : PageViewModel, ILoadable
                 Debit = line.Debit == 0 ? string.Empty : line.Debit.ToString("0.00", CultureInfo.InvariantCulture),
                 Credit = line.Credit == 0 ? string.Empty : line.Credit.ToString("0.00", CultureInfo.InvariantCulture),
                 Narration = line.Narration ?? string.Empty,
+                CostCentreId = line.CostCentreId,
             });
         }
     });
@@ -334,7 +342,7 @@ public sealed partial class VouchersViewModel : PageViewModel, ILoadable
         var lines = Lines.Where(l => l.Account is not null || l.DebitValue != 0 || l.CreditValue != 0)
             .Select((l, i) => l.Account is null
                 ? throw new WorkspaceValidationException($"Line {i + 1}: choose an account.")
-                : new VoucherLineInput(l.Account.Id, l.DebitValue, l.CreditValue, l.Narration))
+                : new VoucherLineInput(l.Account.Id, l.DebitValue, l.CreditValue, l.Narration, l.CostCentreId))
             .ToList();
         var editing = IsPostedVoucher ? null : EditingId;
         return new VoucherInput(editing, Type, DateText.Parse(Date, "Date"), Narration, lines);

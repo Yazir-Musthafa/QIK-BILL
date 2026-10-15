@@ -150,9 +150,12 @@
                       <ColumnDefinition Width="160" />
                       <ColumnDefinition Width="36" />
                     </Grid.ColumnDefinitions>
+                    <StackPanel>
                     <ComboBox ItemsSource="{Binding DataContext.LedgerAccounts, RelativeSource={RelativeSource AncestorType=UserControl}}"
                               SelectedItem="{Binding Account}" DisplayMemberPath="Display" IsTextSearchEnabled="True" TextSearch.TextPath="Name"
                               MaxDropDownHeight="360" Margin="0,0,8,0" AutomationProperties.Name="Account" />
+                      <ComboBox ItemsSource="{Binding DataContext.CostCentres, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedValue="{Binding CostCentreId}" SelectedValuePath="Id" DisplayMemberPath="Name" Margin="0,4,8,0" AutomationProperties.Name="Cost centre (income or expense only)" />
+                    </StackPanel>
                     <TextBox Grid.Column="1" Text="{Binding Debit, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" Margin="0,0,8,0"
                              Typography.NumeralAlignment="Tabular" AutomationProperties.Name="Debit" />
                     <TextBox Grid.Column="2" Text="{Binding Credit, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" Margin="0,0,8,0"
