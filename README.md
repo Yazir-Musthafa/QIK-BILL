@@ -2,7 +2,7 @@
 
 A Windows desktop app for small Indian businesses: GST billing, purchases, inventory, double-entry accounts, expenses, CRM and service jobs, in one place, with printing, reports and backups.
 
-> Work in progress. The core is built and covered by automated tests, but the Windows screens are still being tested. Please don't use it for real accounts or GST filing yet.
+> Version 0.9.0, a release candidate. Everything is built and covered by automated tests, but the screens are still being checked by hand on Windows. Please don't use it for real accounts or GST filing yet.
 
 ## What it does
 
@@ -18,23 +18,23 @@ A Windows desktop app for small Indian businesses: GST billing, purchases, inven
 
 ## Using it
 
-1. Install the .NET SDK 10.0.401 or newer on Windows 10 or 11.
-2. Build and run:
+1. Download the installer, `QIKSuite-Setup-<version>.exe`, from the latest successful **Actions** run (artifact `qiksuite-installer`) and run it. It installs for your Windows account and needs no administrator rights. Or build it yourself on Windows with Inno Setup 6 installed:
    ```powershell
-   ./scripts/build-windows.ps1
-   ./artifacts/publish/win-x64/QIKSuite.exe
+   ./scripts/release.ps1 -Version 0.9.0
    ```
-3. The first time it starts, a short setup asks for your company details and creates an administrator login. You can add a demonstration company to try things out.
-4. A typical day:
+2. The first time it starts, a short setup asks for your company details and creates an administrator login. You can add a demonstration company to try things out.
+3. A typical day:
    - add products under **Inventory → Products** and customers under **Sales → Customers**;
-   - raise invoices under **Sales → Invoices** and record receipts against them;
-   - enter supplier bills under **Purchases**;
-   - check figures on the **Dashboard** and under **Reports**.
-5. Set up automatic backups under **Settings → Backup**, and keep a copy somewhere other than your computer.
+   - raise invoices under **Sales → Sales invoices** and record receipts against them;
+   - enter supplier bills under **Purchases → Purchase bills**;
+   - check figures on the **Dashboard** and under **Insights → Reports**.
+4. Turn on automatic backups under **Settings → Backup**, with a password, and keep a copy somewhere other than your computer.
+
+For safety, QIK Suite signs you out after 15 minutes without use, when Windows locks, or when you press **Ctrl+Alt+L**.
 
 Your data is stored in `%LOCALAPPDATA%\QIKSuite\`.
 
-Shortcuts: **Ctrl+K** search, **Ctrl+B** sidebar, **Ctrl+Shift+L** light/dark theme, **F1** help.
+Shortcuts: **Ctrl+K** search, **Ctrl+B** sidebar, **Ctrl+Shift+L** light/dark theme, **Ctrl+Alt+L** lock, **F1** help.
 
 ## How it's built
 
@@ -57,9 +57,10 @@ Shortcuts: **Ctrl+K** search, **Ctrl+B** sidebar, **Ctrl+Shift+L** light/dark th
   5. billing and GST;
   6. printing;
   7. expenses, CRM and service;
-  8. reports and backups.
+  8. reports and backups;
+  9. security, the installer and the release pipeline.
 
-  Each stage came with tests before moving on. Packaging and the installer are next.
+  Each stage came with tests before moving on. GitHub Actions builds, tests and packages it on Windows, and starts, installs and uninstalls it on every push.
 
 ### Building and testing on any OS
 
