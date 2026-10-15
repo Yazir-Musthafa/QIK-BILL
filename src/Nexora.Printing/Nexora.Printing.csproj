@@ -6,6 +6,8 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="PDFsharp" />
+    <!-- Override PDFsharp's older transitive version with the security-patched .NET 10 package. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
     <PackageReference Include="ZXing.Net" />
   </ItemGroup>
   <ItemGroup>

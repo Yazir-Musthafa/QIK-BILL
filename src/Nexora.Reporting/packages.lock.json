@@ -39,11 +39,6 @@
         "resolved": "10.0.2",
         "contentHash": "JTpM4z0wpoIHHDvlCU27HsXo+zVnpWib94HXQpzzr+jc/P9NYf4w353AK4MXyGq/grm1mbLi7eXsOsDU8sGmNg=="
       },
-      "System.Security.Cryptography.Pkcs": {
-        "type": "Transitive",
-        "resolved": "8.0.1",
-        "contentHash": "CoCRHFym33aUSf/NtWSVSZa99dkd0Hm7OCZUxORBjRB16LNhIEOf8THPqzIYlvKM0nNDAPTRBa1FxEECrgaxxA=="
-      },
       "nexora.accounting": {
         "type": "Project",
         "dependencies": {
@@ -72,6 +67,7 @@
           "Nexora.Application": "[0.1.0, )",
           "Nexora.Domain": "[0.1.0, )",
           "PDFsharp": "[6.2.4, )",
+          "System.Security.Cryptography.Pkcs": "[10.0.13, )",
           "ZXing.Net": "[0.16.11, )"
         }
       },
@@ -85,6 +81,12 @@
           "System.Security.Cryptography.Pkcs": "8.0.1"
         }
       },
+      "System.Security.Cryptography.Pkcs": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.13, )",
+        "resolved": "10.0.13",
+        "contentHash": "a+EovgC1fBnwdlQ6cn3j4JFBfKqiFaFvoAhjisOoSvazLAcIznaBzPQP0oYnvccmeXfqUH1KebVZOxSeH6rMaw=="
+      },
       "ZXing.Net": {
         "type": "CentralTransitive",
         "requested": "[0.16.11, )",
@@ -94,9 +96,10 @@
     },
     "net10.0/win-x64": {
       "System.Security.Cryptography.Pkcs": {
-        "type": "Transitive",
-        "resolved": "8.0.1",
-        "contentHash": "CoCRHFym33aUSf/NtWSVSZa99dkd0Hm7OCZUxORBjRB16LNhIEOf8THPqzIYlvKM0nNDAPTRBa1FxEECrgaxxA=="
+        "type": "CentralTransitive",
+        "requested": "[10.0.13, )",
+        "resolved": "10.0.13",
+        "contentHash": "a+EovgC1fBnwdlQ6cn3j4JFBfKqiFaFvoAhjisOoSvazLAcIznaBzPQP0oYnvccmeXfqUH1KebVZOxSeH6rMaw=="
       }
     }
   }
