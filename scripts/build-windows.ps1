@@ -4,10 +4,13 @@
 
 .DESCRIPTION
   Run from any directory on Windows with the .NET SDK pinned in global.json installed.
-  The installer step is added in Phase 9; this script stops after publishing.
+  scripts/release.ps1 calls this script and then signs and packages the result.
 
 .PARAMETER Configuration
   Build configuration. Default: Release.
+
+.PARAMETER Version
+  Version stamped on the assemblies, for example 1.0.0. Default: the version in Directory.Build.props.
 
 .PARAMETER SkipTests
   Skip the test run (not recommended for release builds).
@@ -16,6 +19,7 @@
 param(
     [ValidateSet('Debug', 'Release')]
     [string] $Configuration = 'Release',
+    [string] $Version = '',
     [switch] $SkipTests
 )
 
@@ -24,6 +28,8 @@ $root = Split-Path -Parent $PSScriptRoot
 $solution = Join-Path $root 'Nexora.sln'
 $publishDir = Join-Path $root 'artifacts/publish/win-x64'
 $testResults = Join-Path $root 'artifacts/test-results'
+$versionArgs = @()
+if ($Version) { $versionArgs = @("-p:Version=$Version") }
 
 function Invoke-Step([string] $Name, [scriptblock] $Action) {
     Write-Host "==> $Name"
@@ -32,19 +38,25 @@ function Invoke-Step([string] $Name, [scriptblock] $Action) {
 }
 
 Invoke-Step 'Restore' { dotnet restore $solution --locked-mode }
-Invoke-Step 'Build' { dotnet build $solution --configuration $Configuration --no-restore }
+Invoke-Step 'Build' { dotnet build $solution --configuration $Configuration --no-restore @versionArgs }
 
 if (-not $SkipTests) {
+    # The working-guide checks read docs/WORKING_GUIDE.md. Checkouts without the docs folder skip only that category.
+    $filter = @()
+    if (-not (Test-Path (Join-Path $root 'docs/WORKING_GUIDE.md'))) {
+        Write-Host 'docs/WORKING_GUIDE.md is not present: skipping the documentation checks (Category=Docs).'
+        $filter = @('--filter', 'Category!=Docs')
+    }
     Invoke-Step 'Test' {
-        dotnet test (Join-Path $root 'tests/Nexora.Tests/Nexora.Tests.csproj') --configuration $Configuration --no-build `
+        dotnet test (Join-Path $root 'tests/Nexora.Tests/Nexora.Tests.csproj') --configuration $Configuration --no-build @filter `
             --logger 'trx;LogFileName=results.trx' --results-directory $testResults
     }
 }
 
+if (Test-Path $publishDir) { Remove-Item $publishDir -Recurse -Force }
 Invoke-Step 'Publish win-x64' {
     dotnet publish (Join-Path $root 'src/Nexora.Desktop/Nexora.Desktop.csproj') --configuration $Configuration `
-        --runtime win-x64 --self-contained true --output $publishDir
+        --runtime win-x64 --self-contained true --output $publishDir @versionArgs
 }
 
 Write-Host "Published to $publishDir"
-Write-Host 'Installer packaging is not implemented yet (Phase 9).'

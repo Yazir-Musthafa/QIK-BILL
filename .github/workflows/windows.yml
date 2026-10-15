@@ -12,6 +12,10 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_NOLOGO: 1
     steps:
       - uses: actions/checkout@v4
 
@@ -19,9 +23,44 @@ jobs:
         with:
           global-json-file: global.json
 
-      - name: Build, test and publish
+      - name: Install Inno Setup if missing
         shell: pwsh
-        run: ./scripts/build-windows.ps1 -Configuration Release
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+
+      - name: Build, test, publish and package (unsigned)
+        shell: pwsh
+        run: ./scripts/release.ps1 -Version 0.9.0
+
+      - name: Smoke test the published app
+        shell: pwsh
+        run: ./scripts/smoke-test.ps1
+
+      - name: Install, start, uninstall
+        shell: pwsh
+        run: |
+          $installer = Get-Item artifacts/installer/QIKSuite-Setup-0.9.0.exe
+          $p = Start-Process $installer.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER','/LOG=artifacts/installer/install.log' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Installer exit code $($p.ExitCode)" }
+          $exe = Join-Path $env:LOCALAPPDATA 'Programs\QIK Suite\QIKSuite.exe'
+          if (-not (Test-Path $exe)) { throw "Not installed: $exe" }
+          if (-not (Test-Path (Join-Path $env:LOCALAPPDATA 'Programs\QIK Suite\licenses\THIRD-PARTY-NOTICES.txt'))) { throw 'Licence notices missing from the installation.' }
+          ./scripts/smoke-test.ps1 -Exe $exe
+          $uninstaller = Get-ChildItem (Join-Path $env:LOCALAPPDATA 'Programs\QIK Suite') -Filter 'unins*.exe' | Select-Object -First 1
+          $u = Start-Process $uninstaller.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
+          if ($u.ExitCode -ne 0) { throw "Uninstaller exit code $($u.ExitCode)" }
+          Start-Sleep -Seconds 3
+          if (Test-Path $exe) { throw 'The program was not removed.' }
+          if (-not (Test-Path (Join-Path $env:LOCALAPPDATA 'QIKSuite\qiksuite.db'))) { throw 'Uninstall removed the company data.' }
+          Write-Host 'Installed, started, uninstalled; company data kept.'
+
+      - name: Collect app logs
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/logs | Out-Null
+          $logs = Join-Path $env:LOCALAPPDATA 'QIKSuite\logs'
+          if (Test-Path $logs) { Copy-Item "$logs\*" artifacts/logs }
 
       - name: Upload test results
         if: always()
@@ -30,10 +69,19 @@ jobs:
           name: test-results
           path: artifacts/test-results
 
-      - name: Upload win-x64 build
+      - name: Upload installer
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: qiksuite-win-x64
-          path: artifacts/publish/win-x64
+          name: qiksuite-installer
+          path: artifacts/installer
 
-      # Installer packaging (Inno Setup or WiX) is added in Phase 9.
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs
+          path: |
+            artifacts/logs
+            artifacts/installer/install.log
+          if-no-files-found: ignore

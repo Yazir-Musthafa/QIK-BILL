@@ -5,7 +5,9 @@ namespace Nexora.Tests.Design;
 /// <summary>
 /// Keeps docs/WORKING_GUIDE.md from going stale: every sidebar destination in NavCatalog and every Settings
 /// section must have a row in the guide's status table, with one of the agreed status labels.
+/// The guide stays local (it is not in the published repository), so builds without it skip the "Docs" category.
 /// </summary>
+[Trait("Category", "Docs")]
 public sealed partial class WorkingGuideTests
 {
     private static readonly string Root = FindRepositoryRoot();

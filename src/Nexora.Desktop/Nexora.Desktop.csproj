@@ -20,4 +20,8 @@
     <PackageReference Include="Serilog.Extensions.Logging" />
     <PackageReference Include="Serilog.Sinks.File" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Licence notices that must ship with the application (and the installer). -->
+    <None Include="../../licenses/THIRD-PARTY-NOTICES.txt" CopyToOutputDirectory="PreserveNewest" Link="licenses/THIRD-PARTY-NOTICES.txt" />
+  </ItemGroup>
 </Project>

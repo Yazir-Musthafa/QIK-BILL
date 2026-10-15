@@ -10,7 +10,16 @@ namespace Nexora.Printing.Pdf;
 /// </summary>
 public static class PdfRenderer
 {
+    // PDFsharp keeps process-wide font caches that are not documented as thread-safe, and the fonts are shared,
+    // so documents are rendered one at a time.
+    private static readonly object RenderGate = new();
+
     public static byte[] Render(RenderedDocument document)
+    {
+        lock (RenderGate) return RenderCore(document);
+    }
+
+    private static byte[] RenderCore(RenderedDocument document)
     {
         var fonts = PrintFonts.Instance;
         using var pdf = new PdfDocument();
