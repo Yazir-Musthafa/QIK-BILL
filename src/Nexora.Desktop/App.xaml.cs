@@ -94,6 +94,18 @@ public partial class App : System.Windows.Application
         services.AddNexoraApplication();
         services.AddNexoraAccounting();
         services.AddNexoraInfrastructure(new SqliteDatabaseProvider(databasePath));
+        var metadata = typeof(App).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>().ToDictionary(x => x.Key, x => x.Value);
+        metadata.TryGetValue("QikActivationUrl", out var activationUrl);
+        metadata.TryGetValue("QikActivationPublicKey", out var activationKey);
+        var http = new System.Net.Http.HttpClient(new System.Net.Http.HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(15) };
+        if (Uri.TryCreate(activationUrl, UriKind.Absolute, out var uri) && uri.Scheme == "https") http.BaseAddress = uri;
+        services.AddSingleton(http);
+        services.AddSingleton<Nexora.Infrastructure.Licensing.ActivationClient>(sp => new(http, activationKey ?? "",
+            new Nexora.Infrastructure.Licensing.ProtectedActivationStateStore(Path.Combine(Path.GetDirectoryName(databasePath)!, "activation.dat"),
+                sp.GetRequiredService<Nexora.Infrastructure.Backup.ISecretProtector>())));
+        services.AddSingleton<Nexora.Application.Licensing.IActivationAccess>(sp => sp.GetRequiredService<Nexora.Infrastructure.Licensing.ActivationClient>());
+        services.AddSingleton<Nexora.Application.Abstractions.ISessionContext>(sp => new Nexora.Application.Licensing.LicensedSessionContext(
+            new Nexora.Application.Abstractions.SessionContext(), sp.GetRequiredService<Nexora.Application.Licensing.IActivationAccess>()));
         services.AddNexoraPrinting();
         services.AddNexoraReporting();
         services.AddSingleton<Nexora.Printing.IPrinterGateway, Services.Printing.WindowsPrinterGateway>();
@@ -107,6 +119,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<MainViewModel>();
         services.AddTransient<SetupWizardViewModel>();
         services.AddTransient<LoginViewModel>();
+        services.AddTransient<ActivationViewModel>();
         services.AddTransient<ViewModels.Settings.ChangePasswordViewModel>();
         services.AddSingleton<MainWindow>();
         return services;

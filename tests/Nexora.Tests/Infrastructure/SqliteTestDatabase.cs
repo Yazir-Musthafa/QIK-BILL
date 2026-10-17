@@ -17,7 +17,7 @@ public sealed class SqliteTestDatabase : IAsyncDisposable
 {
     private readonly string _directory;
 
-    public SqliteTestDatabase()
+    public SqliteTestDatabase(Action<IServiceCollection>? configure = null)
     {
         _directory = Path.Combine(Path.GetTempPath(), "qiksuite-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_directory);
@@ -33,6 +33,7 @@ public sealed class SqliteTestDatabase : IAsyncDisposable
         services.AddNexoraInfrastructure(new SqliteDatabaseProvider(DatabasePath));
         services.AddSingleton<IPasswordHasher>(new Pbkdf2PasswordHasher(1_000));
         services.AddSingleton<IClock>(Clock);
+        configure?.Invoke(services);
         Services = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
     }
 

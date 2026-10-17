@@ -10,15 +10,18 @@ namespace Nexora.Desktop.Services;
 
 /// <summary>Observes input across all application windows. Services enforce expiry even before the next UI tick.</summary>
 public sealed class SessionMonitor(ISessionContext session, IWorkspaceService workspace, MainViewModel main,
-    ILogger<SessionMonitor> logger) : IDisposable
+    ILogger<SessionMonitor> logger, Nexora.Infrastructure.Licensing.ActivationClient activation) : IDisposable
 {
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
     private SessionInfo? _observed;
     private long _lastRefresh = Environment.TickCount64;
     private bool _refreshing;
+    private long _lastClockSave = Environment.TickCount64;
+    private bool _wasActivated;
 
     public void Start()
     {
+        _wasActivated = activation.IsActive;
         InputManager.Current.PreProcessInput += OnInput;
         SystemEvents.SessionSwitch += OnSessionSwitch;
         SystemEvents.PowerModeChanged += OnPowerModeChanged;
@@ -53,6 +56,21 @@ public sealed class SessionMonitor(ISessionContext session, IWorkspaceService wo
 
     private async void OnTick(object? sender, EventArgs e)
     {
+        var active = activation.IsActive;
+        if (_wasActivated && !active)
+        {
+            _wasActivated = false;
+            session.Set(null);
+            main.HideSession();
+            System.Windows.MessageBox.Show("Internet is needed to check activation. Your offline access period has ended. Connect and click Check activation to continue.",
+                "QIK Suite activation", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+        }
+        _wasActivated = active;
+        if (Environment.TickCount64 - _lastClockSave >= 60_000)
+        {
+            activation.ObserveClock();
+            _lastClockSave = Environment.TickCount64;
+        }
         var current = session.Current;
         if (current is null) { _observed = null; main.HideSession(); return; }
         if (_refreshing) return;

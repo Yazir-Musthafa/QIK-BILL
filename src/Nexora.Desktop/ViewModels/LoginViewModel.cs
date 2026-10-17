@@ -5,7 +5,8 @@ using Nexora.Application;
 
 namespace Nexora.Desktop.ViewModels;
 
-public sealed partial class LoginViewModel(IWorkspaceService workspace, ILogger<LoginViewModel> logger) : ObservableObject
+public sealed partial class LoginViewModel(IWorkspaceService workspace, ILogger<LoginViewModel> logger,
+    Nexora.Infrastructure.Licensing.ActivationClient activation) : ObservableObject
 {
     public event EventHandler<SessionInfo>? SignedIn;
 
@@ -56,4 +57,12 @@ public sealed partial class LoginViewModel(IWorkspaceService workspace, ILogger<
     }
 
     private bool CanSignIn() => !IsBusy;
+
+    [RelayCommand]
+    private void OpenAdmin()
+    {
+        if (activation.AdminUri is not { } uri) return;
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true }); }
+        catch (System.ComponentModel.Win32Exception) { Error = $"Open {uri} in your browser to sign in as admin."; }
+    }
 }

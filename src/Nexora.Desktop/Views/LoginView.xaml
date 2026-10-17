@@ -29,6 +29,7 @@
 
       <TextBlock Style="{StaticResource Text.Caption}" Margin="0,12,0,0" TextWrapping="Wrap"
                  Text="Forgot your password? Ask your administrator to reset it." />
+      <Button Content="Open online admin panel" Command="{Binding OpenAdminCommand}" HorizontalAlignment="Left" Margin="0,12,0,0" />
     </StackPanel>
   </Grid>
 </UserControl>

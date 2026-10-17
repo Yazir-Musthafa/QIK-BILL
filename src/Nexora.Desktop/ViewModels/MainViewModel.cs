@@ -33,8 +33,22 @@ public sealed partial class MainViewModel(
     {
         _preferences = await workspace.GetPreferencesAsync();
         theme.Apply(_preferences.Theme);
+        var activation = services.GetRequiredService<Nexora.Infrastructure.Licensing.ActivationClient>();
+        activation.Load();
+        if (!activation.IsActive) { ShowActivation(); return; }
         if (await workspace.NeedsSetupAsync()) ShowSetup();
         else ShowLogin();
+    }
+
+    private void ShowActivation()
+    {
+        if (Current is ActivationViewModel) return;
+        workspace.SignOut();
+        Dialogs.CancelActive();
+        Toasts.Items.Clear();
+        var activation = services.GetRequiredService<ActivationViewModel>();
+        activation.Activated += async (_, _) => await InitializeAsync();
+        Current = activation;
     }
 
     private void ShowSetup()
@@ -46,6 +60,7 @@ public sealed partial class MainViewModel(
 
     private void ShowLogin()
     {
+        if (!services.GetRequiredService<Nexora.Infrastructure.Licensing.ActivationClient>().IsActive) { ShowActivation(); return; }
         Dialogs.CancelActive();
         Toasts.Items.Clear();
         var login = services.GetRequiredService<LoginViewModel>();
@@ -89,6 +104,7 @@ public sealed partial class MainViewModel(
         Toasts.Items.Clear();
         foreach (var window in System.Windows.Application.Current.Windows.Cast<System.Windows.Window>().ToArray())
             if (window != System.Windows.Application.Current.MainWindow) window.Close();
+        if (!services.GetRequiredService<Nexora.Infrastructure.Licensing.ActivationClient>().IsActive) { ShowActivation(); return; }
         if (services.GetRequiredService<BackupMonitor>().IsRestoring) Current = null;
         else if (Current is not (LoginViewModel or SetupWizardViewModel)) ShowLogin();
     }

@@ -15,7 +15,8 @@ public sealed class WorkspaceService(
     IPasswordHasher passwordHasher,
     IClock clock,
     ILogger<WorkspaceService> logger,
-    IEnumerable<IDashboardSource> dashboardSources) : IWorkspaceService
+    IEnumerable<IDashboardSource> dashboardSources,
+    Licensing.IActivationAccess? activation = null) : IWorkspaceService
 {
     public const string DemoCompanyName = "Demonstration Company (sample data)";
     public const string GenericSignInError = "The username or password is incorrect.";
@@ -41,6 +42,7 @@ public sealed class WorkspaceService(
 
     public async Task<SessionInfo> CompleteSetupAsync(SetupRequest request, CancellationToken cancellationToken = default)
     {
+        activation?.Demand();
         ArgumentNullException.ThrowIfNull(request);
         var errors = SetupValidator.ValidateCompany(request.CompanyName, request.StateCode, request.FinancialYearStartYear)
             .Concat(SetupValidator.ValidateAdministrator(request.DisplayName, request.Username, request.Password, request.Password))
@@ -78,6 +80,7 @@ public sealed class WorkspaceService(
 
     public async Task<LoginResult> SignInAsync(string username, string password, CancellationToken cancellationToken = default)
     {
+        activation?.Demand();
         await AuthenticationGate.WaitAsync(cancellationToken);
         try { return await SignInCoreAsync(username, password, cancellationToken); }
         finally { AuthenticationGate.Release(); }
@@ -175,6 +178,7 @@ public sealed class WorkspaceService(
 
     public async Task RefreshSessionAsync(CancellationToken cancellationToken = default)
     {
+        activation?.Demand();
         var session = sessionContext.Current ?? throw new AccessDeniedException("Your session has ended. Sign in again.");
         var user = await store.FindUserAsync(session.UserId, cancellationToken);
         var access = user is null ? null

@@ -23,6 +23,7 @@
                     xmlns:srviews="clr-namespace:Nexora.Desktop.Views.Service">
   <DataTemplate DataType="{x:Type vm:SetupWizardViewModel}"><views:SetupWizardView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:LoginViewModel}"><views:LoginView /></DataTemplate>
+  <DataTemplate DataType="{x:Type vm:ActivationViewModel}"><views:ActivationView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:ShellViewModel}"><views:ShellView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:DashboardViewModel}"><views:DashboardView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:PlaceholderViewModel}"><views:PlaceholderView /></DataTemplate>
