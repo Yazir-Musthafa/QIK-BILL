@@ -58,10 +58,19 @@ public sealed class SqliteTestDatabase : IAsyncDisposable
         return connection;
     }
 
+    public void ClearConnectionPool()
+    {
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = DatabasePath, Mode = SqliteOpenMode.ReadWriteCreate, ForeignKeys = true
+        }.ToString());
+        SqliteConnection.ClearPool(connection);
+    }
+
     public async ValueTask DisposeAsync()
     {
         await Services.DisposeAsync();
-        SqliteConnection.ClearAllPools();
+        ClearConnectionPool();
         try
         {
             Directory.Delete(_directory, recursive: true);

@@ -15,6 +15,7 @@ using Nexora.Infrastructure.Persistence.Providers;
 
 namespace Nexora.Tests.Phase8;
 
+[Collection("SQLite global pool operations")]
 public sealed class BackupTests : ReportTestBase
 {
     private BackupService Backups => Db.Get<BackupService>();
@@ -275,3 +276,8 @@ public class FailingMigrationStore : DispatchProxy
         catch (TargetInvocationException ex) { throw ex.InnerException!; }
     }
 }
+
+// This suite deliberately clears every SQLite pool (including a stress loop). It must not dispose
+// native handles while unrelated test classes are opening their own independent databases.
+[CollectionDefinition("SQLite global pool operations", DisableParallelization = true)]
+public sealed class SqliteGlobalPoolCollection;
