@@ -1,0 +1,38 @@
+services:
+  server:
+    build:
+      context: ../..
+      dockerfile: deploy/licensing/Dockerfile
+    restart: unless-stopped
+    environment:
+      Licensing__TrustedProxy: 172.30.0.2
+      AllowedHosts: ${QIK_DOMAIN:?Set QIK_DOMAIN to your activation domain}
+    volumes:
+      - licensing-data:/data
+    networks:
+      activation:
+        ipv4_address: 172.30.0.3
+  proxy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      QIK_DOMAIN: ${QIK_DOMAIN:?Set QIK_DOMAIN to your activation domain}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      activation:
+        ipv4_address: 172.30.0.2
+networks:
+  activation:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+volumes:
+  licensing-data:
+  caddy-data:
+  caddy-config:

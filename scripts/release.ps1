@@ -24,6 +24,9 @@ param(
     [string] $CertificatePath = $env:QIK_SIGN_PFX,
     [object] $CertificatePassword = $env:QIK_SIGN_PASSWORD,
     [string] $TimestampUrl = 'http://timestamp.digicert.com',
+    [string] $ActivationUrl = $env:QIK_ACTIVATION_URL,
+    [string] $ActivationPublicKey = $env:QIK_ACTIVATION_PUBLIC_KEY,
+    [switch] $AllowUnconfiguredActivation,
     [switch] $SkipTests
 )
 
@@ -31,6 +34,19 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $publishDir = Join-Path $root 'artifacts/publish/win-x64'
 $installerDir = Join-Path $root 'artifacts/installer'
+$configured = $false
+if ($ActivationUrl -and $ActivationPublicKey) {
+    $uri = [Uri] $ActivationUrl
+    if (-not $uri.IsAbsoluteUri -or $uri.Scheme -ne 'https' -or $uri.UserInfo -or $uri.Query -or $uri.Fragment -or $uri.AbsolutePath -ne '/') {
+        throw 'ActivationUrl must be an HTTPS origin, for example https://activate.example.com/.'
+    }
+    $rsa = [Security.Cryptography.RSA]::Create()
+    try { $read = 0; $rsa.ImportSubjectPublicKeyInfo([Convert]::FromBase64String($ActivationPublicKey), [ref] $read) }
+    finally { $rsa.Dispose() }
+    $configured = $true
+} elseif (-not $AllowUnconfiguredActivation) {
+    throw 'Set QIK_ACTIVATION_URL and QIK_ACTIVATION_PUBLIC_KEY before making a customer installer. For CI startup checks only, use -AllowUnconfiguredActivation.'
+} else { Write-Warning 'PREVIEW ONLY: activation is unconfigured. This installer cannot open a customer workspace.' }
 
 function Invoke-Step([string] $Name, [scriptblock] $Action) {
     Write-Host "==> $Name"
@@ -49,7 +65,7 @@ function Find-Tool([string] $Name, [string[]] $Candidates) {
 }
 
 # 1. Build, test and publish.
-$buildArgs = @{ Configuration = 'Release'; Version = $Version }
+$buildArgs = @{ Configuration = 'Release'; Version = $Version; ActivationUrl = $ActivationUrl; ActivationPublicKey = $ActivationPublicKey }
 if ($SkipTests) { $buildArgs.SkipTests = $true }
 & (Join-Path $PSScriptRoot 'build-windows.ps1') @buildArgs
 
@@ -93,3 +109,4 @@ $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
 Write-Host "Release $Version ready: $installer"
 Write-Host "SHA-256 $hash"
 if (-not $sign) { Write-Host 'Unsigned build.' }
+if (-not $configured) { 'PREVIEW ONLY. No activation server configured; do not distribute to customers.' | Set-Content (Join-Path $installerDir 'PREVIEW-ONLY.txt') }

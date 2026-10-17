@@ -2,7 +2,7 @@
 
 A Windows desktop app for small Indian businesses: GST billing, purchases, inventory, double-entry accounts, expenses, CRM and service jobs, in one place, with printing, reports and backups.
 
-> Version 0.9.0, a release candidate. Everything is built and covered by automated tests, but the screens are still being checked by hand on Windows. Please don't use it for real accounts or GST filing yet.
+> Version 0.10.0, a local release candidate. Major workflows have automated coverage; the screens still require manual Windows verification. Online activation requires a configured server before customer distribution. Please don't use it for real accounts or GST filing yet.
 
 ## What it does
 
@@ -20,9 +20,10 @@ A Windows desktop app for small Indian businesses: GST billing, purchases, inven
 
 1. Download the installer, `QIKSuite-Setup-<version>.exe`, from the latest successful **Actions** run (artifact `qiksuite-installer`) and run it. It installs for your Windows account and needs no administrator rights. Or build it yourself on Windows with Inno Setup 6 installed:
    ```powershell
-   ./scripts/release.ps1 -Version 0.9.0
+   # Set QIK_ACTIVATION_URL and QIK_ACTIVATION_PUBLIC_KEY first.
+   ./scripts/release.ps1 -Version 0.10.0
    ```
-2. The first time it starts, a short setup asks for your company details and creates an administrator login. You can add a demonstration company to try things out.
+2. Register an activation account first. It stays locked until the supplier activates it in the separate online admin panel. Check activation, then a short setup asks for your company details and creates a local administrator login. You can add a demonstration company to try things out.
 3. A typical day:
    - add products under **Inventory → Products** and customers under **Sales → Customers**;
    - raise invoices under **Sales → Sales invoices** and record receipts against them;
@@ -31,6 +32,10 @@ A Windows desktop app for small Indian businesses: GST billing, purchases, inven
 4. Turn on automatic backups under **Settings → Backup**, with a password, and keep a copy somewhere other than your computer.
 
 For safety, QIK Suite signs you out after 15 minutes without use, when Windows locks, or when you press **Ctrl+Alt+L**.
+
+One activation covers the customer installation and all its staff logins. A successful check permits **30 days of offline use**, including restarts. At expiry, internet is required to check again. Suspension applies at the next check, so existing offline access may last up to 30 days. There is no payment gateway.
+
+GitHub wraps artifacts in ZIPs, but recipients only need the installer EXE inside. `scripts/download-installer.ps1 -RunId <id>` extracts and verifies it for you. Unconfigured preview builds stay locked; do not distribute them as customer releases.
 
 Your data is stored in `%LOCALAPPDATA%\QIKSuite\`.
 
@@ -47,7 +52,8 @@ Shortcuts: **Ctrl+K** search, **Ctrl+B** sidebar, **Ctrl+Shift+L** light/dark th
   - `Infrastructure`: database and backups;
   - `Printing`: PDF via PDFsharp, barcodes via ZXing.Net;
   - `Reporting`: reports, Excel via the Open XML SDK, imports and the dashboard;
-  - `Desktop`: the WPF app.
+  - `Desktop`: the WPF app;
+  - `Licensing`: separate ASP.NET Core admin website/API, its own SQLite database and migrations. No customer accounting data is uploaded.
 - Money is kept as exact decimals. Reports total in the database and are checked against the ledger.
 - I built it in stages:
   1. foundation and login;
@@ -75,3 +81,9 @@ dotnet test tests/Nexora.Tests
 ## Licence
 
 Third-party packages are MIT or Apache-2.0, and the bundled Noto Sans font is under the SIL Open Font License.
+
+## Activation server setup
+
+Run `dotnet run --project src/Nexora.Licensing -- --configure /absolute/private/data/path` to create private server settings and choose an admin password. Preserve the generated signing key. Set `QIK_LICENSING_SETTINGS` to that directory's `settings.json`, then run the service over HTTPS. Desktop builds receive only the HTTPS server origin and `public-key.txt` contents via `QIK_ACTIVATION_URL` and `QIK_ACTIVATION_PUBLIC_KEY`.
+
+`deploy/licensing/` contains a Docker/Caddy recipe for one VPS instance and persistent storage. Set `QIK_DOMAIN`, build the Compose service, run `server --configure /data` interactively, then start it. Production hosting and container deployment are not yet verified. Never commit server settings, private signing keys or databases.

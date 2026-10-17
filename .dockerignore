@@ -1,0 +1,11 @@
+**/bin
+**/obj
+.git
+artifacts
+**/TestResults
+**/*.db
+**/*.db-*
+**/settings.json
+**/*.pem
+**/*.pfx
+**/.env

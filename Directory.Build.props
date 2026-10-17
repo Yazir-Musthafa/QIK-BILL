@@ -11,7 +11,7 @@
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AnalysisLevel>latest</AnalysisLevel>
-    <Version>0.9.0</Version>
+    <Version>0.10.0</Version>
     <Company>QIK</Company>
     <Product>QIK Suite</Product>
     <Description>QIK Suite: billing, inventory, accounting, CRM and service management for Indian businesses.</Description>
