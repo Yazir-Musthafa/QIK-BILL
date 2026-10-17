@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>@ViewData["Title"] · QIK Suite</title><link rel="stylesheet" href="~/admin.css" /></head>
+<body><header><a asp-page="/Index" class="brand">QIK <span>Suite</span></a><span>Account administration</span>
+@if (User.Identity?.IsAuthenticated == true) { <form method="post" asp-page="/Login" asp-page-handler="Logout"><button class="quiet">Sign out</button></form> }
+</header><main>@RenderBody()</main><footer>QIK Suite · Manual activation · 30-day offline access</footer></body>
+</html>
