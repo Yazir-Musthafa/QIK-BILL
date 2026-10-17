@@ -12,8 +12,9 @@ public sealed class LocalActivationStore(string databasePath, IPasswordHasher ha
     private readonly TimeProvider _time = time ?? TimeProvider.System;
     private readonly string _hash = adminPasswordHash ?? throw new ArgumentException("Supply the admin password verifier from private build configuration.", nameof(adminPasswordHash));
     private static readonly SemaphoreSlim Gate = new(1, 1);
+    // Backup restore clears pooled business connections; activation checks must remain independent.
     private LocalActivationDb Open() => new(new DbContextOptionsBuilder<LocalActivationDb>()
-        .UseSqlite(new SqliteConnectionStringBuilder { DataSource = databasePath, ForeignKeys = true, DefaultTimeout = 5 }.ToString()).Options);
+        .UseSqlite(new SqliteConnectionStringBuilder { DataSource = databasePath, ForeignKeys = true, DefaultTimeout = 5, Pooling = false }.ToString()).Options);
     public bool IsActive
     {
         get

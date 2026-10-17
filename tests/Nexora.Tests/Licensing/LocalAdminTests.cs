@@ -123,3 +123,32 @@ public sealed class LocalAdminTests
         await Assert.ThrowsAsync<SqliteException>(() => db.Database.ExecuteSqlRawAsync("UPDATE Installations SET Status = 'Unknown'"));
     }
 }
+
+[Collection("SQLite global pool operations")]
+public sealed class LocalActivationPoolTests
+{
+    [Fact]
+    public async Task Activation_and_admin_status_reads_survive_concurrent_backup_pool_cleanup()
+    {
+        await using var f = new LocalActivationFixture(); await f.InitializeAsync(); await f.RegisterAsync(); await f.ActivateAsync();
+        await f.Admin.SignInAsync("admin", LocalActivationFixture.AdminPassword);
+        using var stop = new CancellationTokenSource();
+        var cleanup = Task.Run(async () =>
+        {
+            while (!stop.IsCancellationRequested)
+            {
+                SqliteConnection.ClearAllPools();
+                await Task.Delay(1);
+            }
+        });
+        try
+        {
+            for (var i = 0; i < 100; i++)
+            {
+                Assert.True(f.Store.IsActive);
+                Assert.Equal("Active", (await f.Service.StatusAsync()).Status);
+            }
+        }
+        finally { stop.Cancel(); await cleanup; }
+    }
+}
