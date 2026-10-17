@@ -2,7 +2,7 @@
 
 A Windows desktop app for small Indian businesses: GST billing, purchases, inventory, double-entry accounts, expenses, CRM and service jobs, in one place, with printing, reports and backups.
 
-> Version 0.10.0, a local release candidate. Major workflows have automated coverage; the screens still require manual Windows verification. Online activation requires a configured server before customer distribution. Please don't use it for real accounts or GST filing yet.
+> Version 0.10.0, a local release candidate. Major workflows have automated coverage; the screens still require manual Windows verification. Activation is managed inside the desktop app; no server or internet check is required. Please don't use it for real accounts or GST filing yet.
 
 ## What it does
 
@@ -20,10 +20,9 @@ A Windows desktop app for small Indian businesses: GST billing, purchases, inven
 
 1. Download the installer, `QIKSuite-Setup-<version>.exe`, from the latest successful **Actions** run (artifact `qiksuite-installer`) and run it. It installs for your Windows account and needs no administrator rights. Or build it yourself on Windows with Inno Setup 6 installed:
    ```powershell
-   # Set QIK_ACTIVATION_URL and QIK_ACTIVATION_PUBLIC_KEY first.
    ./scripts/release.ps1 -Version 0.10.0
    ```
-2. Register an activation account first. It stays locked until the supplier activates it in the separate online admin panel. Check activation, then a short setup asks for your company details and creates a local administrator login. You can add a demonstration company to try things out.
+2. Choose **Register new customer** on the sign-in page. Enter your company details and choose your own username and password (`admin` is reserved). Registration saves the workspace but keeps all company pages locked. The supplier signs in on the same page with the special admin credentials, enters a reason and chooses **Activate / Reactivate**. After the admin signs out, use your registered account to sign in.
 3. A typical day:
    - add products under **Inventory → Products** and customers under **Sales → Customers**;
    - raise invoices under **Sales → Sales invoices** and record receipts against them;
@@ -33,9 +32,9 @@ A Windows desktop app for small Indian businesses: GST billing, purchases, inven
 
 For safety, QIK Suite signs you out after 15 minutes without use, when Windows locks, or when you press **Ctrl+Alt+L**.
 
-One activation covers the customer installation and all its staff logins. A successful check permits **30 days of offline use**, including restarts. At expiry, internet is required to check again. Suspension applies at the next check, so existing offline access may last up to 30 days. There is no payment gateway.
+One activation covers this Windows-user installation and all its staff logins. The admin panel lists registered accounts, activates or suspends the installation, and saves a history with reasons. Suspension locks company access immediately; reactivation requires a fresh customer sign-in. Activated installations work offline indefinitely, with no 30-day check or payment gateway. Management must be performed on that customer's PC, in the same Windows account.
 
-GitHub wraps artifacts in ZIPs, but recipients only need the installer EXE inside. `scripts/download-installer.ps1 -RunId <id>` extracts and verifies it for you. Unconfigured preview builds stay locked; do not distribute them as customer releases.
+GitHub wraps artifacts in ZIPs, but recipients only need the installer EXE inside. `scripts/download-installer.ps1 -RunId <id>` extracts and verifies it for you. Share that EXE directly.
 
 Your data is stored in `%LOCALAPPDATA%\QIKSuite\`.
 
@@ -52,8 +51,7 @@ Shortcuts: **Ctrl+K** search, **Ctrl+B** sidebar, **Ctrl+Shift+L** light/dark th
   - `Infrastructure`: database and backups;
   - `Printing`: PDF via PDFsharp, barcodes via ZXing.Net;
   - `Reporting`: reports, Excel via the Open XML SDK, imports and the dashboard;
-  - `Desktop`: the WPF app;
-  - `Licensing`: separate ASP.NET Core admin website/API, its own SQLite database and migrations. No customer accounting data is uploaded.
+  - `Desktop`: the WPF app, including the local activation admin panel.
 - Money is kept as exact decimals. Reports total in the database and are checked against the ledger.
 - I built it in stages:
   1. foundation and login;
@@ -82,8 +80,12 @@ dotnet test tests/Nexora.Tests
 
 Third-party packages are MIT or Apache-2.0, and the bundled Noto Sans font is under the SIL Open Font License.
 
-## Activation server setup
+## Local activation administration
 
-Run `dotnet run --project src/Nexora.Licensing -- --configure /absolute/private/data/path` to create private server settings and choose an admin password. Preserve the generated signing key. Set `QIK_LICENSING_SETTINGS` to that directory's `settings.json`, then run the service over HTTPS. Desktop builds receive only the HTTPS server origin and `public-key.txt` contents via `QIK_ACTIVATION_URL` and `QIK_ACTIVATION_PUBLIC_KEY`.
+The supplier signs in as `admin` with the configured supplier password on the normal login page. The app ships a salted PBKDF2 password verifier, never a plaintext password. Admin permission is separate from company roles, expires after 15 minutes of inactivity, and is cleared on sign-out or Windows lock. Five incorrect admin passwords cause a persistent 15-minute lockout.
 
-`deploy/licensing/` contains a Docker/Caddy recipe for one VPS instance and persistent storage. Set `QIK_DOMAIN`, build the Compose service, run `server --configure /data` interactively, then start it. Production hosting and container deployment are not yet verified. Never commit server settings, private signing keys or databases.
+`local-activation.db` holds installation status, admin lockout counters and append-only activation history beside `qiksuite.db`. It has its own EF migration and is deliberately excluded from company backups, so restoring an older company backup cannot undo a suspension. Keep that file when moving the same installation's data; a different Windows account or PC starts pending and needs local approval. Existing 0.9.0 installations also need approval after upgrading; their company data is retained.
+
+Local control depends on the customer PC and is bypassable by someone who modifies the program or its local security database. It does not provide remote enforcement. The former web server, signed offline grants and hosting configuration have been removed.
+
+For developer builds, provide `QIK_ADMIN_PASSWORD_HASH_BASE64` (Base64 of the PBKDF2 verifier) to `build-windows.ps1`, or keep it in the ignored root `admin-build.props` as `QikAdminPasswordHashBase64`. GitHub Actions receives it from a private repository secret. No credential configuration is needed on the customer PC.

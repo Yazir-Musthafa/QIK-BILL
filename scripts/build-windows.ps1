@@ -20,8 +20,7 @@ param(
     [ValidateSet('Debug', 'Release')]
     [string] $Configuration = 'Release',
     [string] $Version = '',
-    [string] $ActivationUrl = $env:QIK_ACTIVATION_URL,
-    [string] $ActivationPublicKey = $env:QIK_ACTIVATION_PUBLIC_KEY,
+    [string] $AdminPasswordHashBase64 = $env:QIK_ADMIN_PASSWORD_HASH_BASE64,
     [switch] $SkipTests
 )
 
@@ -32,8 +31,11 @@ $publishDir = Join-Path $root 'artifacts/publish/win-x64'
 $testResults = Join-Path $root 'artifacts/test-results'
 $versionArgs = @()
 if ($Version) { $versionArgs = @("-p:Version=$Version") }
-if ($ActivationUrl) { $versionArgs += "-p:QikActivationUrl=$ActivationUrl" }
-if ($ActivationPublicKey) { $versionArgs += "-p:QikActivationPublicKey=$ActivationPublicKey" }
+
+if ($AdminPasswordHashBase64) { $versionArgs += "-p:QikAdminPasswordHashBase64=$AdminPasswordHashBase64" }
+if (-not $AdminPasswordHashBase64 -and -not (Test-Path (Join-Path $root 'admin-build.props'))) {
+    throw 'Supply QIK_ADMIN_PASSWORD_HASH_BASE64 or a private admin-build.props before building a runnable installer.'
+}
 
 function Invoke-Step([string] $Name, [scriptblock] $Action) {
     Write-Host "==> $Name"

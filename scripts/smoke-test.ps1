@@ -38,7 +38,7 @@ try {
                 $text = (New-Object System.IO.StreamReader($stream)).ReadToEnd()
             } finally { $stream.Dispose() }
             if ($text -match '"@l":"Fatal"' -or $text -match 'Startup failed') { throw "Startup logged a fatal error:`n$text" }
-            if ($text -match 'Workspace initialization completed' -and (Test-Path (Join-Path $data 'qiksuite.db'))) { $ready = $true; break }
+            if ($text -match 'Workspace initialization completed' -and (Test-Path (Join-Path $data 'qiksuite.db')) -and (Test-Path (Join-Path $data 'local-activation.db'))) { $ready = $true; break }
         }
     }
     if (-not $ready) { throw "QIKSuite.exe did not finish starting within $Seconds seconds." }

@@ -16,4 +16,5 @@
     <Product>QIK Suite</Product>
     <Description>QIK Suite: billing, inventory, accounting, CRM and service management for Indian businesses.</Description>
   </PropertyGroup>
+  <Import Project="$(MSBuildThisFileDirectory)admin-build.props" Condition="Exists('$(MSBuildThisFileDirectory)admin-build.props')" />
 </Project>
