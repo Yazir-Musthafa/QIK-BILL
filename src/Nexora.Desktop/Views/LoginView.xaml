@@ -9,6 +9,7 @@
 
       <Border Style="{StaticResource Panel}" Padding="24">
         <StackPanel>
+          <TextBlock Text="{Binding ActivationMessage}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,0,0,16" />
           <TextBlock Text="Username" Style="{StaticResource Text.Label}" />
           <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" MaxLength="32"
                    controls:Behaviors.FocusOnVisible="True" AutomationProperties.Name="Username" />
@@ -29,7 +30,7 @@
 
       <TextBlock Style="{StaticResource Text.Caption}" Margin="0,12,0,0" TextWrapping="Wrap"
                  Text="Forgot your password? Ask your administrator to reset it." />
-      <Button Content="Open online admin panel" Command="{Binding OpenAdminCommand}" HorizontalAlignment="Left" Margin="0,12,0,0" />
+      <Button Content="Register new customer" Command="{Binding RegisterCommand}" Visibility="{Binding CanRegister, Converter={StaticResource VisibleWhen}}" HorizontalAlignment="Left" Margin="0,12,0,0" />
     </StackPanel>
   </Grid>
 </UserControl>

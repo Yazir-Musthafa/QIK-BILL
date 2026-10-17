@@ -44,8 +44,8 @@
         "dependencies": {
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.12, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )",
-          "Nexora.Application": "[0.1.0, )",
-          "Nexora.Domain": "[0.1.0, )"
+          "Nexora.Application": "[0.10.0, )",
+          "Nexora.Domain": "[0.10.0, )"
         }
       },
       "nexora.application": {
@@ -53,7 +53,7 @@
         "dependencies": {
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.12, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )",
-          "Nexora.Domain": "[0.1.0, )"
+          "Nexora.Domain": "[0.10.0, )"
         }
       },
       "nexora.domain": {
@@ -64,8 +64,8 @@
         "dependencies": {
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.12, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )",
-          "Nexora.Application": "[0.1.0, )",
-          "Nexora.Domain": "[0.1.0, )",
+          "Nexora.Application": "[0.10.0, )",
+          "Nexora.Domain": "[0.10.0, )",
           "PDFsharp": "[6.2.4, )",
           "System.Security.Cryptography.Pkcs": "[10.0.13, )",
           "ZXing.Net": "[0.16.11, )"

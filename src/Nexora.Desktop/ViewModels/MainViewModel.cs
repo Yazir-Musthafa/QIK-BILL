@@ -33,39 +33,41 @@ public sealed partial class MainViewModel(
     {
         _preferences = await workspace.GetPreferencesAsync();
         theme.Apply(_preferences.Theme);
-        var activation = services.GetRequiredService<Nexora.Infrastructure.Licensing.ActivationClient>();
-        activation.Load();
-        if (!activation.IsActive) { ShowActivation(); return; }
-        if (await workspace.NeedsSetupAsync()) ShowSetup();
-        else ShowLogin();
-    }
-
-    private void ShowActivation()
-    {
-        if (Current is ActivationViewModel) return;
-        workspace.SignOut();
-        Dialogs.CancelActive();
-        Toasts.Items.Clear();
-        var activation = services.GetRequiredService<ActivationViewModel>();
-        activation.Activated += async (_, _) => await InitializeAsync();
-        Current = activation;
+        await services.GetRequiredService<Nexora.Application.Licensing.ILocalActivationStore>().InitializeAsync();
+        ShowLogin();
     }
 
     private void ShowSetup()
     {
         var setup = services.GetRequiredService<SetupWizardViewModel>();
-        setup.Completed += async (_, session) => await ShowShellAsync(session, welcome: true);
+        setup.Completed += (_, _) => ShowLogin();
+        setup.Cancelled += (_, _) => ShowLogin();
         Current = setup;
+    }
+
+    private void ShowAdmin()
+    {
+        workspace.SignOut();
+        Dialogs.CancelActive();
+        Toasts.Items.Clear();
+        var admin = services.GetRequiredService<LocalAdminViewModel>();
+        admin.SignedOut += (_, _) => ShowLogin();
+        Current = admin;
+        admin.RefreshCommand.Execute(null);
     }
 
     private void ShowLogin()
     {
-        if (!services.GetRequiredService<Nexora.Infrastructure.Licensing.ActivationClient>().IsActive) { ShowActivation(); return; }
+        services.GetRequiredService<Nexora.Application.Licensing.LocalAdministrator>().SignOut();
+        workspace.SignOut();
         Dialogs.CancelActive();
         Toasts.Items.Clear();
         var login = services.GetRequiredService<LoginViewModel>();
         login.SignedIn += async (_, session) => await ShowShellAsync(session, welcome: false);
+        login.AdminSignedIn += (_, _) => ShowAdmin();
+        login.RegisterRequested += (_, _) => ShowSetup();
         Current = login;
+        login.InitializeCommand.Execute(null);
     }
 
     private async Task ShowShellAsync(SessionInfo session, bool welcome)
@@ -104,8 +106,8 @@ public sealed partial class MainViewModel(
         Toasts.Items.Clear();
         foreach (var window in System.Windows.Application.Current.Windows.Cast<System.Windows.Window>().ToArray())
             if (window != System.Windows.Application.Current.MainWindow) window.Close();
-        if (!services.GetRequiredService<Nexora.Infrastructure.Licensing.ActivationClient>().IsActive) { ShowActivation(); return; }
         if (services.GetRequiredService<BackupMonitor>().IsRestoring) Current = null;
+        else if (Current is LocalAdminViewModel && services.GetRequiredService<Nexora.Application.Licensing.LocalAdministrator>().IsSignedIn) return;
         else if (Current is not (LoginViewModel or SetupWizardViewModel)) ShowLogin();
     }
 
@@ -113,6 +115,7 @@ public sealed partial class MainViewModel(
     private void LockSession()
     {
         workspace.SignOut();
+        services.GetRequiredService<Nexora.Application.Licensing.LocalAdministrator>().SignOut();
         HideSession();
     }
 

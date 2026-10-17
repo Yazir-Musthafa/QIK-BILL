@@ -29,6 +29,9 @@ public sealed partial class SetupWizardViewModel : ObservableObject
     }
 
     public event EventHandler<SessionInfo>? Completed;
+    public event EventHandler? Cancelled;
+    [RelayCommand(CanExecute = nameof(IsIdle))]
+    private void Cancel() => Cancelled?.Invoke(this, EventArgs.Empty);
 
     public IReadOnlyList<IndianState> States { get; } = IndianState.All;
 
@@ -161,9 +164,9 @@ public sealed partial class SetupWizardViewModel : ObservableObject
     {
         var errors = SetupValidator.ValidateAdministrator(DisplayName, Username, Password, PasswordConfirmation);
         DisplayNameError = errors.GetValueOrDefault(SetupValidator.DisplayName);
-        UsernameError = errors.GetValueOrDefault(SetupValidator.Username);
+        UsernameError = Nexora.Application.Licensing.LocalAdministrator.IsAdminUsername(Username) ? "The username admin is reserved. Choose your own username." : errors.GetValueOrDefault(SetupValidator.Username);
         PasswordError = errors.GetValueOrDefault(SetupValidator.Password);
         ConfirmationError = errors.GetValueOrDefault(SetupValidator.PasswordConfirmation);
-        return errors.Count == 0;
+        return errors.Count == 0 && UsernameError is null;
     }
 }

@@ -42,8 +42,9 @@ public sealed class WorkspaceService(
 
     public async Task<SessionInfo> CompleteSetupAsync(SetupRequest request, CancellationToken cancellationToken = default)
     {
-        activation?.Demand();
         ArgumentNullException.ThrowIfNull(request);
+        if (activation is not null && Licensing.LocalAdministrator.IsAdminUsername(request.Username))
+            throw new WorkspaceValidationException("The username admin is reserved. Choose your own username.");
         var errors = SetupValidator.ValidateCompany(request.CompanyName, request.StateCode, request.FinancialYearStartYear)
             .Concat(SetupValidator.ValidateAdministrator(request.DisplayName, request.Username, request.Password, request.Password))
             .ToList();
@@ -75,7 +76,7 @@ public sealed class WorkspaceService(
             provisioning.Count, request.CreateDemoCompany);
         var access = (await store.GetAccessAsync(administrator.Id, cancellationToken)).Single(a => a.Company.Id == company.Id);
         await RememberCompanyAsync(company.Id, cancellationToken);
-        return Open(administrator, access);
+        return activation is not null && !activation.IsActive ? DescribeSession(administrator, access) : Open(administrator, access);
     }
 
     public async Task<LoginResult> SignInAsync(string username, string password, CancellationToken cancellationToken = default)

@@ -199,8 +199,8 @@
         "dependencies": {
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.12, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )",
-          "Nexora.Application": "[0.1.0, )",
-          "Nexora.Domain": "[0.1.0, )"
+          "Nexora.Application": "[0.10.0, )",
+          "Nexora.Domain": "[0.10.0, )"
         }
       },
       "nexora.application": {
@@ -208,7 +208,7 @@
         "dependencies": {
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.12, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )",
-          "Nexora.Domain": "[0.1.0, )"
+          "Nexora.Domain": "[0.10.0, )"
         }
       },
       "nexora.domain": {
@@ -218,7 +218,7 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.EntityFrameworkCore.Sqlite": "[10.0.12, )",
-          "Nexora.Application": "[0.1.0, )",
+          "Nexora.Application": "[0.10.0, )",
           "System.Security.Cryptography.ProtectedData": "[10.0.13, )"
         }
       },
@@ -227,8 +227,8 @@
         "dependencies": {
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.12, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )",
-          "Nexora.Application": "[0.1.0, )",
-          "Nexora.Domain": "[0.1.0, )",
+          "Nexora.Application": "[0.10.0, )",
+          "Nexora.Domain": "[0.10.0, )",
           "PDFsharp": "[6.2.4, )",
           "System.Security.Cryptography.Pkcs": "[10.0.13, )",
           "ZXing.Net": "[0.16.11, )"
@@ -240,10 +240,10 @@
           "DocumentFormat.OpenXml": "[3.5.1, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.12, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )",
-          "Nexora.Accounting": "[0.1.0, )",
-          "Nexora.Application": "[0.1.0, )",
-          "Nexora.Domain": "[0.1.0, )",
-          "Nexora.Printing": "[0.1.0, )"
+          "Nexora.Accounting": "[0.10.0, )",
+          "Nexora.Application": "[0.10.0, )",
+          "Nexora.Domain": "[0.10.0, )",
+          "Nexora.Printing": "[0.10.0, )"
         }
       },
       "DocumentFormat.OpenXml": {

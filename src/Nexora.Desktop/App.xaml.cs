@@ -94,16 +94,21 @@ public partial class App : System.Windows.Application
         services.AddNexoraApplication();
         services.AddNexoraAccounting();
         services.AddNexoraInfrastructure(new SqliteDatabaseProvider(databasePath));
-        var metadata = typeof(App).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>().ToDictionary(x => x.Key, x => x.Value);
-        metadata.TryGetValue("QikActivationUrl", out var activationUrl);
-        metadata.TryGetValue("QikActivationPublicKey", out var activationKey);
-        var http = new System.Net.Http.HttpClient(new System.Net.Http.HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(15) };
-        if (Uri.TryCreate(activationUrl, UriKind.Absolute, out var uri) && uri.Scheme == "https") http.BaseAddress = uri;
-        services.AddSingleton(http);
-        services.AddSingleton<Nexora.Infrastructure.Licensing.ActivationClient>(sp => new(http, activationKey ?? "",
-            new Nexora.Infrastructure.Licensing.ProtectedActivationStateStore(Path.Combine(Path.GetDirectoryName(databasePath)!, "activation.dat"),
-                sp.GetRequiredService<Nexora.Infrastructure.Backup.ISecretProtector>())));
-        services.AddSingleton<Nexora.Application.Licensing.IActivationAccess>(sp => sp.GetRequiredService<Nexora.Infrastructure.Licensing.ActivationClient>());
+        var encodedAdminHash = typeof(App).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+            .FirstOrDefault(x => x.Key == "QikAdminPasswordHashBase64")?.Value;
+        var adminHash = string.IsNullOrWhiteSpace(encodedAdminHash)
+            ? throw new InvalidOperationException("This build is missing the private admin password configuration.")
+            : System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(encodedAdminHash));
+        services.AddSingleton<Nexora.Infrastructure.Licensing.LocalActivationStore>(sp => new(
+            Path.Combine(Path.GetDirectoryName(databasePath)!, "local-activation.db"),
+            sp.GetRequiredService<Nexora.Application.Security.IPasswordHasher>(), adminPasswordHash: adminHash));
+        services.AddSingleton<Nexora.Application.Licensing.ILocalActivationStore>(sp => sp.GetRequiredService<Nexora.Infrastructure.Licensing.LocalActivationStore>());
+        services.AddSingleton<Nexora.Application.Licensing.IActivationAccess>(sp => sp.GetRequiredService<Nexora.Infrastructure.Licensing.LocalActivationStore>());
+        services.AddSingleton<Nexora.Application.Licensing.LocalAdministrator>();
+        services.AddSingleton<Nexora.Application.Licensing.LocalAdministrationService>(sp => new(
+            sp.GetRequiredService<Nexora.Application.Licensing.ILocalActivationStore>(),
+            sp.GetRequiredService<Nexora.Application.Abstractions.IWorkspaceStore>(),
+            sp.GetRequiredService<Nexora.Application.Licensing.LocalAdministrator>()));
         services.AddSingleton<Nexora.Application.Abstractions.ISessionContext>(sp => new Nexora.Application.Licensing.LicensedSessionContext(
             new Nexora.Application.Abstractions.SessionContext(), sp.GetRequiredService<Nexora.Application.Licensing.IActivationAccess>()));
         services.AddNexoraPrinting();
@@ -119,7 +124,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<MainViewModel>();
         services.AddTransient<SetupWizardViewModel>();
         services.AddTransient<LoginViewModel>();
-        services.AddTransient<ActivationViewModel>();
+        services.AddTransient<LocalAdminViewModel>();
         services.AddTransient<ViewModels.Settings.ChangePasswordViewModel>();
         services.AddSingleton<MainWindow>();
         return services;

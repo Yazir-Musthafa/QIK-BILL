@@ -172,10 +172,12 @@
             <TextBlock Text="{Binding FormError}" Style="{StaticResource Text.Error}" Margin="0,16,0,0"
                        Visibility="{Binding FormError, Converter={StaticResource VisibleWhen}}" />
 
+            <TextBlock Text="Registration saves your company and account. Contact the admin to activate this installation before signing in." Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,12,0,0" />
+            <Button Content="Back to sign in" Command="{Binding CancelCommand}" HorizontalAlignment="Left" Margin="0,12,0,0" />
             <DockPanel Margin="0,24,0,0" LastChildFill="False">
               <Button DockPanel.Dock="Left" Content="Back" Command="{Binding BackCommand}"
                       Visibility="{Binding CanGoBack, Converter={StaticResource VisibleWhen}}" />
-              <Button DockPanel.Dock="Right" Content="Create workspace" Style="{StaticResource Button.Primary}" IsDefault="True"
+              <Button DockPanel.Dock="Right" Content="Register and request activation" Style="{StaticResource Button.Primary}" IsDefault="True"
                       Command="{Binding FinishCommand}" Visibility="{Binding IsReviewStep, Converter={StaticResource VisibleWhen}}" />
               <Button DockPanel.Dock="Right" Content="Next" Style="{StaticResource Button.Primary}" IsDefault="True"
                       Command="{Binding NextCommand}" Visibility="{Binding IsReviewStep, Converter={StaticResource VisibleWhen}, ConverterParameter=invert}" />

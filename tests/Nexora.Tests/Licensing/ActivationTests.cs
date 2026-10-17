@@ -1,7 +1,4 @@
-using System.Net;
-using System.Net.Http.Json;
-using System.Security.Cryptography;
-using System.Text.Json;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Nexora.Application;
@@ -9,12 +6,13 @@ using Nexora.Application.Abstractions;
 using Nexora.Application.Licensing;
 using Nexora.Application.Security;
 using Nexora.Infrastructure.Licensing;
+using Nexora.Tests.Infrastructure;
 
 namespace Nexora.Tests.Licensing;
 
 public sealed class ActivationTime : TimeProvider
 {
-    public DateTimeOffset Now { get; set; } = new(2026, 10, 17, 0, 0, 0, TimeSpan.Zero);
+    public DateTimeOffset Now { get; set; } = new(2026, 10, 18, 0, 0, 0, TimeSpan.Zero);
     public long Ticks { get; set; }
     public override DateTimeOffset GetUtcNow() => Now;
     public override long GetTimestamp() => Ticks;
@@ -22,201 +20,171 @@ public sealed class ActivationTime : TimeProvider
     public void Advance(TimeSpan duration) { Now += duration; Ticks += duration.Ticks; }
 }
 
-public sealed class ActivationTests : IDisposable
+public sealed class LocalActivationFixture : IAsyncDisposable
 {
-    private readonly RSA _key = RSA.Create(2048);
-    private readonly Guid _installation = Guid.NewGuid();
-    private readonly ActivationTime _time = new();
-    private string PublicKey => Convert.ToBase64String(_key.ExportSubjectPublicKeyInfo());
-    private SignedActivation Sign(TimeSpan? duration = null) => ActivationSignature.Sign(new(Guid.NewGuid(), _installation,
-        _time.Now, _time.Now + (duration ?? TimeSpan.FromDays(30))), _key);
-
-    [Fact]
-    public void Signature_binds_installation_expiry_and_maximum_thirty_days()
+    private readonly string _directory = Path.Combine(Path.GetTempPath(), "qik-local-activation", Guid.NewGuid().ToString("N"));
+    public ActivationTime Time { get; } = new();
+    public Pbkdf2PasswordHasher Hasher { get; } = new(1000);
+    public LocalActivationStore Store { get; }
+    public LocalAdministrator Admin { get; }
+    public LocalAdministrationService Service { get; }
+    public SqliteTestDatabase Workspace { get; }
+    public string DatabasePath => Path.Combine(_directory, "local-activation.db");
+    public const string AdminPassword = "owner secret phrase 42";
+    public string Hash { get; }
+    public static SetupRequest Registration => new("Test Traders", "Asha", "asha", "quiet ledger 42", "27", 2026, false);
+    public LocalActivationFixture()
     {
-        var signed = Sign();
-        Assert.NotNull(ActivationSignature.Verify(signed, PublicKey, _installation, _time.Now));
-        Assert.Null(ActivationSignature.Verify(signed, PublicKey, Guid.NewGuid(), _time.Now));
-        Assert.Null(ActivationSignature.Verify(signed, PublicKey, _installation, _time.Now.AddDays(30)));
-        Assert.Null(ActivationSignature.Verify(Sign(TimeSpan.FromDays(31)), PublicKey, _installation, _time.Now));
-        Assert.Null(ActivationSignature.Verify(signed, PublicKey, _installation, _time.Now.AddSeconds(-1)));
-        var grant = JsonSerializer.Deserialize<ActivationGrant>(Convert.FromBase64String(signed.Payload))!;
-        var changed = signed with { Payload = Convert.ToBase64String(JsonSerializer.SerializeToUtf8Bytes(grant with { ExpiresUtc = grant.ExpiresUtc.AddDays(1) })) };
-        Assert.Null(ActivationSignature.Verify(changed, PublicKey, _installation, _time.Now));
-        using var other = RSA.Create(2048);
-        Assert.Null(ActivationSignature.Verify(signed, Convert.ToBase64String(other.ExportSubjectPublicKeyInfo()), _installation, _time.Now));
-        Assert.Null(ActivationSignature.Verify(new("invalid", "invalid"), PublicKey, _installation, _time.Now));
-    }
-
-    [Fact]
-    public void Offline_access_survives_restart_but_expires_at_thirty_days_without_network()
-    {
-        var store = new MemoryState { State = new(_installation, "customer", "token", Sign(), _time.Now) };
-        var client = Client(store);
-        client.Load();
-        Assert.True(client.IsActive);
-        _time.Advance(TimeSpan.FromDays(29));
-        client.ObserveClock();
-        var restarted = Client(store);
-        restarted.Load();
-        Assert.True(restarted.IsActive);
-        _time.Advance(TimeSpan.FromDays(1));
-        Assert.False(restarted.IsActive);
-        Assert.Throws<AccessDeniedException>(restarted.Demand);
-    }
-
-    [Fact]
-    public void Clock_rollback_and_monotonic_expiry_cannot_extend_an_open_grant()
-    {
-        var store = new MemoryState { State = new(_installation, "customer", "token", Sign(), _time.Now) };
-        var client = Client(store); client.Load();
-        _time.Advance(TimeSpan.FromDays(2)); client.ObserveClock();
-        _time.Now -= TimeSpan.FromDays(1);
-        Assert.False(client.IsActive);
-        var restarted = Client(store); restarted.Load(); Assert.False(restarted.IsActive);
-        _time.Now = store.State!.LastSeenUtc;
-        var next = Client(store); next.Load();
-        _time.Ticks += TimeSpan.FromDays(30).Ticks;
-        Assert.False(next.IsActive);
-    }
-
-    [Fact]
-    public async Task Network_failure_does_not_extend_or_destroy_a_valid_grant()
-    {
-        var store = new MemoryState { State = new(_installation, "customer", "token", Sign(), _time.Now) };
-        var client = Client(store); client.Load();
-        var expiry = client.ExpiresUtc;
-        await client.CheckAsync();
-        Assert.True(client.IsActive);
-        Assert.Equal(expiry, client.ExpiresUtc);
-        _time.Advance(TimeSpan.FromDays(30));
-        await client.CheckAsync();
-        Assert.False(client.IsActive);
-        Assert.Contains("Internet is needed", client.Message);
-    }
-
-    [Theory]
-    [InlineData("Pending")]
-    [InlineData("Suspended")]
-    [InlineData("SignInRequired")]
-    public async Task Explicit_server_denial_removes_cached_access(string status)
-    {
-        var store = new MemoryState { State = new(_installation, "customer", "token", Sign(), _time.Now) };
-        var client = Client(store, new ReplyHandler(new(status, "Contact admin"))); client.Load();
-        await client.CheckAsync();
-        Assert.False(client.IsActive);
-        Assert.Null(store.State!.Lease);
-        if (status == "SignInRequired") Assert.Null(store.State.Token);
-    }
-
-    [Fact]
-    public async Task Forged_server_response_or_failed_save_cannot_open_the_desktop()
-    {
-        var store = new MemoryState { State = new(_installation) };
-        var client = Client(store, new ReplyHandler(new("Active", "Active", Lease: new("fake", "fake")))); client.Load();
-        await client.CheckAsync(); Assert.False(client.IsActive);
-        store.FailWrites = true;
-        client = Client(store, new ReplyHandler(new("Active", "Active", Lease: Sign()))); client.Load();
-        await client.CheckAsync(); Assert.False(client.IsActive);
-    }
-
-    [Fact]
-    public void Missing_configuration_is_fail_closed_and_installation_id_is_saved_before_registration()
-    {
-        var store = new MemoryState();
-        var client = new ActivationClient(new HttpClient(), "", store, _time);
-        client.Load();
-        Assert.NotEqual(Guid.Empty, store.State!.InstallationId);
-        Assert.False(client.IsActive);
-        Assert.False(client.IsConfigured);
-    }
-
-    [Fact]
-    public async Task Registration_initializes_and_persists_the_installation_before_sending()
-    {
-        var store = new MemoryState();
-        var handler = new RegistrationHandler(store);
-        var client = Client(store, handler);
-        await client.RegisterAsync("customer", "quiet ledger 42", "Test Traders", "owner@example.test");
-        Assert.NotEqual(Guid.Empty, handler.SentInstallation);
-        Assert.Equal(store.State!.InstallationId, handler.SentInstallation);
-        Assert.False(client.IsActive);
-        Assert.Equal("pending-token", store.State.Token);
-    }
-
-    [Fact]
-    public void Service_permissions_and_session_refresh_fail_when_activation_expires()
-    {
-        var store = new MemoryState { State = new(_installation, "customer", "token", Sign(), _time.Now) };
-        var client = Client(store); client.Load();
-        var inner = new SessionContext();
-        var sessions = new LicensedSessionContext(inner, client);
-        var session = new SessionInfo(Guid.NewGuid(), "staff", "Staff", Guid.NewGuid(), "Customer", false, 2026,
-            Guid.NewGuid(), "Administrator", new HashSet<string> { "sales.view" }, 100, false);
-        sessions.Set(session);
-        Assert.Same(session, new Authorizer(sessions).Demand("sales.view"));
-        _time.Advance(TimeSpan.FromDays(30));
-        Assert.Throws<AccessDeniedException>(() => new Authorizer(sessions).Demand("sales.view"));
-        Assert.Null(sessions.Current);
-        Assert.Null(inner.Current);
-        Assert.False(sessions.TryUpdate(session, session));
-        Assert.Throws<AccessDeniedException>(() => sessions.Set(session));
-    }
-
-    private ActivationClient Client(MemoryState state, HttpMessageHandler? handler = null) => new(new HttpClient(handler ?? new OfflineHandler())
-        { BaseAddress = new Uri("https://activation.example/") }, PublicKey, state, _time);
-
-    [Fact]
-    public async Task Real_workspace_and_database_access_are_blocked_before_activation_and_after_expiry()
-    {
-        var store = new MemoryState { State = new(_installation) };
-        var client = Client(store, new ReplyHandler(new("Active", "Active", Lease: Sign()))); client.Load();
-        await using var db = new Infrastructure.SqliteTestDatabase(services =>
+        Hash = Hasher.Hash(AdminPassword);
+        Store = new(DatabasePath, Hasher, Time, Hash);
+        Admin = new(Store, Time);
+        Workspace = new(services =>
         {
-            services.AddSingleton<IActivationAccess>(client);
-            services.AddSingleton<ISessionContext>(new LicensedSessionContext(new SessionContext(), client));
+            services.AddSingleton<IActivationAccess>(Store);
+            services.AddSingleton<ISessionContext>(new LicensedSessionContext(new SessionContext(Time), Store));
         });
-        await db.Workspace.InitializeAsync();
-        var setup = new SetupRequest("Licensed Company", "Asha", "asha", "quiet ledger 42", "27", 2026, false);
-        await Assert.ThrowsAsync<AccessDeniedException>(() => db.Workspace.CompleteSetupAsync(setup));
-        Assert.True(await db.Workspace.NeedsSetupAsync());
-        await client.CheckAsync();
-        await db.Workspace.CompleteSetupAsync(setup);
-        var companies = db.Get<Nexora.Application.Companies.CompanyService>();
-        Assert.NotNull(await companies.GetDetailsAsync());
-        await using var context = await db.Get<IDbContextFactory<Nexora.Infrastructure.Persistence.NexoraDbContext>>().CreateDbContextAsync();
-        Assert.Single(await context.Companies.ToListAsync());
-        _time.Advance(TimeSpan.FromDays(30));
-        await Assert.ThrowsAsync<AccessDeniedException>(() => companies.GetDetailsAsync());
-        await Assert.ThrowsAsync<AccessDeniedException>(() => db.Workspace.SignInAsync("asha", "quiet ledger 42"));
+        Service = new(Store, Workspace.Get<IWorkspaceStore>(), Admin);
+    }
+    public async Task InitializeAsync()
+    {
+        await Store.InitializeAsync();
+        await Workspace.Workspace.InitializeAsync();
+    }
+    public async Task RegisterAsync() => await Workspace.Workspace.CompleteSetupAsync(Registration);
+    public async Task ActivateAsync()
+    {
+        Assert.True(await Admin.SignInAsync("admin", AdminPassword));
+        await Service.ChangeAsync("Active", "Payment received");
+        Admin.SignOut();
+    }
+    public LocalActivationDb Open() => new(new DbContextOptionsBuilder<LocalActivationDb>().UseSqlite($"Data Source={DatabasePath}").Options);
+    public void ClearPools()
+    {
+        using var applicationConnection = new SqliteConnection(new SqliteConnectionStringBuilder
+            { DataSource = DatabasePath, ForeignKeys = true, DefaultTimeout = 5 }.ToString());
+        SqliteConnection.ClearPool(applicationConnection);
+        using var inspectionConnection = new SqliteConnection($"Data Source={DatabasePath}");
+        SqliteConnection.ClearPool(inspectionConnection);
+    }
+    public async ValueTask DisposeAsync()
+    {
+        await Workspace.DisposeAsync();
+        ClearPools();
+        if (Directory.Exists(_directory)) Directory.Delete(_directory, true);
+    }
+}
+
+public sealed class ActivationTests
+{
+    [Fact]
+    public async Task Registration_saves_customer_but_never_opens_pending_workspace()
+    {
+        await using var f = new LocalActivationFixture(); await f.InitializeAsync();
+        await f.RegisterAsync();
+        Assert.False(await f.Workspace.Workspace.NeedsSetupAsync());
+        Assert.Null(f.Workspace.Workspace.CurrentSession);
+        Assert.False(f.Store.IsActive);
+        Assert.Equal("Pending", (await f.Store.GetAsync()).Status);
+        await Assert.ThrowsAsync<AccessDeniedException>(() => f.Workspace.Workspace.SignInAsync("asha", "quiet ledger 42"));
+        await Assert.ThrowsAsync<AccessDeniedException>(() => f.Workspace.Get<Nexora.Application.Companies.CompanyService>().GetDetailsAsync());
+        await using var context = await f.Workspace.Get<IDbContextFactory<Nexora.Infrastructure.Persistence.NexoraDbContext>>().CreateDbContextAsync();
         Assert.Empty(await context.Companies.ToListAsync());
     }
-    public void Dispose() => _key.Dispose();
-    private sealed class MemoryState : IActivationStateStore
+    [Fact]
+    public async Task Customer_uses_registration_password_after_local_admin_approval()
     {
-        public ActivationState? State { get; set; }
-        public bool FailWrites { get; set; }
-        public ActivationState? Read() => State;
-        public void Write(ActivationState state) { if (FailWrites) throw new IOException(); State = state; }
+        await using var f = new LocalActivationFixture(); await f.InitializeAsync(); await f.RegisterAsync(); await f.ActivateAsync();
+        Assert.False((await f.Workspace.Workspace.SignInAsync("asha", "wrong")).Succeeded);
+        Assert.True((await f.Workspace.Workspace.SignInAsync("asha", "quiet ledger 42")).Succeeded);
+        Assert.NotNull(await f.Workspace.Get<Nexora.Application.Companies.CompanyService>().GetDetailsAsync());
     }
-    private sealed class OfflineHandler : HttpMessageHandler
+    [Fact]
+    public async Task Suspension_immediately_invalidates_services_sessions_and_database_filters()
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => throw new HttpRequestException("Offline");
+        await using var f = new LocalActivationFixture(); await f.InitializeAsync(); await f.RegisterAsync(); await f.ActivateAsync();
+        await f.Workspace.Workspace.SignInAsync("asha", "quiet ledger 42");
+        var sessions = f.Workspace.Get<ISessionContext>(); var current = sessions.Current!;
+        await using var context = await f.Workspace.Get<IDbContextFactory<Nexora.Infrastructure.Persistence.NexoraDbContext>>().CreateDbContextAsync();
+        Assert.Single(await context.Companies.ToListAsync());
+        Assert.True(await f.Admin.SignInAsync("admin", LocalActivationFixture.AdminPassword));
+        await f.Service.ChangeAsync("Suspended", "Payment pending");
+        Assert.Null(sessions.Current);
+        Assert.False(sessions.TryUpdate(current, current));
+        Assert.Throws<AccessDeniedException>(() => sessions.Set(current));
+        await Assert.ThrowsAsync<AccessDeniedException>(() => f.Workspace.Get<Nexora.Application.Companies.CompanyService>().GetDetailsAsync());
+        await Assert.ThrowsAsync<AccessDeniedException>(() => f.Workspace.Workspace.RefreshSessionAsync());
+        await Assert.ThrowsAsync<AccessDeniedException>(() => f.Workspace.Workspace.SignInAsync("asha", "quiet ledger 42"));
+        Assert.Empty(await context.Companies.ToListAsync());
     }
-    private sealed class ReplyHandler(ActivationReply reply) : HttpMessageHandler
+    [Fact]
+    public async Task Reactivation_requires_fresh_customer_login_and_preserves_company_data()
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
-            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(reply) });
+        await using var f = new LocalActivationFixture(); await f.InitializeAsync(); await f.RegisterAsync(); await f.ActivateAsync();
+        await f.Workspace.Workspace.SignInAsync("asha", "quiet ledger 42");
+        Assert.True(await f.Admin.SignInAsync("admin", LocalActivationFixture.AdminPassword));
+        await f.Service.ChangeAsync("Suspended", "Overdue");
+        Assert.Null(f.Workspace.Workspace.CurrentSession);
+        await f.Service.ChangeAsync("Active", "Paid");
+        Assert.Null(f.Workspace.Workspace.CurrentSession);
+        Assert.True((await f.Workspace.Workspace.SignInAsync("asha", "quiet ledger 42")).Succeeded);
+        Assert.Single(await f.Workspace.Workspace.GetCompaniesAsync());
     }
-    private sealed class RegistrationHandler(MemoryState store) : HttpMessageHandler
+    [Fact]
+    public async Task Offline_activation_survives_restart_and_more_than_thirty_days()
     {
-        public Guid SentInstallation { get; private set; }
-        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            var registration = (await request.Content!.ReadFromJsonAsync<ActivationRegistration>(cancellationToken))!;
-            SentInstallation = registration.InstallationId;
-            Assert.Equal(store.State!.InstallationId, SentInstallation);
-            return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new ActivationReply("Pending", "Contact admin", "pending-token")) };
-        }
+        await using var f = new LocalActivationFixture(); await f.InitializeAsync(); await f.RegisterAsync(); await f.ActivateAsync();
+        f.Time.Advance(TimeSpan.FromDays(365));
+        var restarted = new LocalActivationStore(f.DatabasePath, f.Hasher, f.Time, f.Hash);
+        await restarted.InitializeAsync();
+        Assert.True(restarted.IsActive);
+        restarted.Demand();
+        Assert.True((await f.Workspace.Workspace.SignInAsync("asha", "quiet ledger 42")).Succeeded);
+    }
+    [Fact]
+    public async Task Different_installation_stays_pending_and_shared_store_sees_suspension()
+    {
+        await using var f = new LocalActivationFixture(); await f.InitializeAsync(); await f.RegisterAsync(); await f.ActivateAsync();
+        await using var other = new LocalActivationFixture(); await other.InitializeAsync();
+        Assert.False(other.Store.IsActive);
+        var secondProcess = new LocalActivationStore(f.DatabasePath, f.Hasher, f.Time, f.Hash);
+        Assert.True(secondProcess.IsActive);
+        await f.Admin.SignInAsync("admin", LocalActivationFixture.AdminPassword);
+        await f.Service.ChangeAsync("Suspended", "Unpaid");
+        Assert.False(secondProcess.IsActive);
+    }
+    [Fact]
+    public async Task Missing_or_corrupt_activation_database_fails_closed()
+    {
+        await using var f = new LocalActivationFixture(); await f.InitializeAsync(); await f.RegisterAsync(); await f.ActivateAsync();
+        f.ClearPools(); File.Delete(f.DatabasePath);
+        Assert.False(f.Store.IsActive); Assert.Throws<AccessDeniedException>(f.Store.Demand);
+        f.ClearPools(); File.WriteAllText(f.DatabasePath, "corrupt");
+        Assert.False(f.Store.IsActive);
+    }
+    [Fact]
+    public async Task Reserved_admin_username_cannot_be_registered_as_customer()
+    {
+        await using var f = new LocalActivationFixture(); await f.InitializeAsync();
+        await Assert.ThrowsAsync<WorkspaceValidationException>(() => f.Workspace.Workspace.CompleteSetupAsync(LocalActivationFixture.Registration with { Username = " Admin " }));
+        Assert.True(await f.Workspace.Workspace.NeedsSetupAsync());
+    }
+    [Fact]
+    public async Task Repeat_registration_cannot_replace_customer_or_reset_status()
+    {
+        await using var f = new LocalActivationFixture(); await f.InitializeAsync(); await f.RegisterAsync(); await f.ActivateAsync();
+        await Assert.ThrowsAsync<WorkspaceValidationException>(() => f.Workspace.Workspace.CompleteSetupAsync(LocalActivationFixture.Registration with { Username = "another" }));
+        Assert.True(f.Store.IsActive);
+    }
+    [Fact]
+    public async Task Staff_login_shares_activation_and_is_blocked_when_installation_suspended()
+    {
+        await using var f = new LocalActivationFixture(); await f.InitializeAsync(); await f.RegisterAsync(); await f.ActivateAsync();
+        var inner = new SessionContext(f.Time); var session = new LicensedSessionContext(inner, f.Store);
+        var staff = new SessionInfo(Guid.NewGuid(), "staff", "Staff", Guid.NewGuid(), "Customer", false, 2026,
+            Guid.NewGuid(), "Sales", new HashSet<string> { "sales.view" }, 0, false);
+        session.Set(staff); Assert.Same(staff, new Authorizer(session).Demand("sales.view"));
+        await f.Admin.SignInAsync("admin", LocalActivationFixture.AdminPassword); await f.Service.ChangeAsync("Suspended", "Overdue");
+        session.RecordActivity(); Assert.Null(inner.Current);
+        Assert.Throws<AccessDeniedException>(() => new Authorizer(session).Demand("sales.view"));
     }
 }

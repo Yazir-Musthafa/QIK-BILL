@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <AssemblyMetadata Include="QikActivationUrl" Value="$(QikActivationUrl)" />
-    <AssemblyMetadata Include="QikActivationPublicKey" Value="$(QikActivationPublicKey)" />
+    <AssemblyMetadata Include="QikAdminPasswordHashBase64" Value="$(QikAdminPasswordHashBase64)" />
   </ItemGroup>
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
