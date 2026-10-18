@@ -65,4 +65,17 @@ Invoke-Step 'Publish win-x64' {
         --runtime win-x64 --self-contained true --output $publishDir @versionArgs
 }
 
+# Check the actual publish output so an old or unconfigured verifier cannot be packaged.
+$expectedAdminHash = $AdminPasswordHashBase64
+if (-not $expectedAdminHash) {
+    [xml] $privateSettings = Get-Content (Join-Path $root 'admin-build.props') -Raw
+    $expectedAdminHash = [string] $privateSettings.Project.PropertyGroup.QikAdminPasswordHashBase64
+}
+$publishedAssembly = Join-Path $publishDir 'QIKSuite.dll'
+$assemblyContents = [System.Text.Encoding]::UTF8.GetString([System.IO.File]::ReadAllBytes($publishedAssembly))
+if ([string]::IsNullOrWhiteSpace($expectedAdminHash) -or -not $assemblyContents.Contains($expectedAdminHash)) {
+    throw 'Published application does not contain the configured admin password verifier.'
+}
+Write-Host 'Verified the published application contains the configured admin password verifier.'
+
 Write-Host "Published to $publishDir"
