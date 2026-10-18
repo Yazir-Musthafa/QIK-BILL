@@ -41,7 +41,7 @@ public sealed class HelpViewModel
     ];
 
     public string Note =>
-        "Billing function-key shortcuts (F2 new invoice, F4 receipt and similar) arrive with the sales module in Phase 5.";
+        "To buy stock: Add Supplier → Purchase → choose supplier → add items → Save purchase. To pay later, use Credit; record the payment under Purchase → Payments. Open Suppliers for bills, balances, ledgers and journals. Show all tools reveals advanced accounts and business tools; Ctrl+K searches them too. Save a draft before signing out or switching company.";
 }
 
 public sealed record GalleryRow(string Number, string Party, DateOnly Date, decimal Amount, string Status)

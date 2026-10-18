@@ -50,6 +50,7 @@
   <DataTemplate DataType="{x:Type ivm:InventorySettingsViewModel}"><iviews:InventorySettingsView /></DataTemplate>
   <!-- Sales and purchases share one view each; WPF matches the template on the base view model. -->
   <DataTemplate DataType="{x:Type bvm:BillingViewModel}"><bviews:BillingView /></DataTemplate>
+  <DataTemplate DataType="{x:Type bvm:AddSupplierViewModel}"><bviews:AddSupplierView /></DataTemplate>
   <DataTemplate DataType="{x:Type bvm:PartiesViewModel}"><bviews:PartiesView /></DataTemplate>
   <DataTemplate DataType="{x:Type pvm:PrintCentreViewModel}"><pviews:PrintCentreView /></DataTemplate>
   <DataTemplate DataType="{x:Type evm:ExpensesViewModel}"><eviews:ExpensesView /></DataTemplate>

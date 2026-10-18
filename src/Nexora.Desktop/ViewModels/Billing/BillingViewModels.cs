@@ -34,6 +34,7 @@ public sealed record StateChoice(string Code, string Name)
 public sealed partial class BillingLineEditor : ObservableObject
 {
     [ObservableProperty] private ProductRow? _product;
+    [ObservableProperty] private string _productSearch = string.Empty;
     [ObservableProperty] private string _quantity = "1";
     [ObservableProperty] private UnitRow? _unit;
     [ObservableProperty] private string _rate = string.Empty;
@@ -78,11 +79,13 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
     private readonly IAuthorizer _authorizer;
     private readonly DialogService _dialogs;
     private readonly PrintActions _print;
+    private readonly PrintingService _printing;
 
     protected BillingViewModel(PartyKind side, BillingService billing, PartyService parties, SettlementService settlements, InventoryCatalogueService catalogue,
-        CompanyService companies, IAuthorizer authorizer, DialogService dialogs, PrintActions print, ToastService toasts, ILogger logger) : base(logger, toasts)
+        CompanyService companies, IAuthorizer authorizer, DialogService dialogs, PrintActions print, PrintingService printing, ToastService toasts, ILogger logger) : base(logger, toasts)
     {
         _print = print;
+        _printing = printing;
         Side = side;
         _billing = billing;
         _parties = parties;
@@ -94,22 +97,96 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
         var sales = side == PartyKind.Customer;
         Sections =
         [
-            new("documents", sales ? "Invoices" : "Bills"),
-            new("editor", sales ? "Invoice editor" : "Bill editor"),
-            new("returns", sales ? "Credit notes" : "Debit notes"),
+            new("documents", sales ? "Saved invoices" : "Saved purchases"),
+            new("editor", sales ? "New invoice" : "New purchase"),
+            new("returns", sales ? "Sales returns" : "Purchase returns"),
             new("settlements", sales ? "Receipts" : "Payments"),
         ];
         SettlementKinds = sales ? [SettlementKind.CustomerReceipt, SettlementKind.CustomerRefund] : [SettlementKind.SupplierPayment, SettlementKind.SupplierRefund];
-        _section = Sections[0];
+        _section = Sections[1];
         _settlementKind = SettlementKinds[0];
         StartDocument();
+    }
+
+    public Action<string>? NavigateTo { get; set; }
+
+    public Action<Guid?>? NavigateToSupplier { get; set; }
+
+    public bool IsPurchase => !IsSales;
+
+    public bool CanAddItem => IsPurchase && !IsReturnEditor && CanCreate && _authorizer.Has(Permissions.InventoryManage);
+
+    public string WorkflowHint => IsSales ? "1. Choose customer   2. Add items   3. Save invoice"
+        : "1. Choose supplier   2. Add items   3. Save purchase";
+
+    public string SaveLabel => IsSales ? "Save invoice" : "Save purchase";
+
+    public ObservableCollection<LabelLayoutRow> LabelLayouts { get; } = [];
+
+    public ObservableCollection<PurchaseLabelEditor> PurchaseLabels { get; } = [];
+
+    [ObservableProperty] private LabelLayoutRow? _labelLayout;
+
+    public bool CanPrintPurchaseLabels => IsPurchase && Preview is not null && _authorizer.Has(Permissions.InventoryView);
+
+    public ObservableCollection<TaxCategoryRow> TaxCategories { get; } = [];
+
+    [ObservableProperty] private string _newItemCode = string.Empty;
+    [ObservableProperty] private string _newItemName = string.Empty;
+    [ObservableProperty] private string _newItemRate = string.Empty;
+    [ObservableProperty] private string _newItemSellingPrice = string.Empty;
+    [ObservableProperty] private string _newItemMrp = string.Empty;
+    [ObservableProperty] private string _newItemHsn = string.Empty;
+    [ObservableProperty] private UnitRow? _newItemUnit;
+    [ObservableProperty] private TaxCategoryRow? _newItemTax;
+    [ObservableProperty] private Domain.Inventory.TrackingMode _newItemTracking;
+    [ObservableProperty] private bool _newItemTracksExpiry;
+    [ObservableProperty] private bool _showNewItem;
+    private bool _referenceDataLoaded;
+    private bool _reloadingParties;
+    private bool _defaultsLoaded;
+    private bool _defaultPricesIncludeTax;
+    private bool _defaultRoundToRupee;
+    private Task? _referenceLoad;
+    private long _previewRequest;
+    private Guid? _allocationPartyId;
+    private SettlementKind? _allocationKind;
+
+    public IReadOnlyList<Domain.Inventory.TrackingMode> TrackingModes { get; } = Enum.GetValues<Domain.Inventory.TrackingMode>();
+
+    [RelayCommand]
+    private void OpenAddSupplier() => NavigateTo?.Invoke("purchases.add-supplier");
+
+    [RelayCommand]
+    private void OpenSupplierAccounts() => NavigateToSupplier?.Invoke(Party?.Id);
+
+    [RelayCommand]
+    private async Task AddNewItemAsync()
+    {
+        if (!CanAddItem) return;
+        await RunAsync(async () =>
+        {
+            if (NewItemUnit is null) throw new WorkspaceValidationException("Choose the new item's unit.");
+            var id = await _catalogue.AddPurchaseItemAsync(new ProductInput(null,
+                new Domain.Inventory.ProductDetails(NewItemCode, NewItemName, HsnCode: NewItemHsn, TaxCategoryId: NewItemTax?.Id,
+                    PurchasePrice: NumberText.Parse(NewItemRate, "Purchase rate"), SellingPrice: NumberText.Parse(NewItemSellingPrice, "Selling price"),
+                    Mrp: NumberText.Parse(NewItemMrp, "MRP")), NewItemUnit.Id, NewItemTracking, NewItemTracksExpiry));
+            var product = (await _catalogue.ListProductsAsync()).Single(p => p.Id == id);
+            if (Products.All(p => p.Id != id)) Products.Add(product);
+            var line = Lines.FirstOrDefault(l => l.Product is null && string.IsNullOrWhiteSpace(l.Rate));
+            if (line is null) { line = new BillingLineEditor(); Lines.Add(line); }
+            line.Product = Products.Single(p => p.Id == id);
+            (NewItemCode, NewItemName, NewItemRate, NewItemSellingPrice, NewItemMrp, NewItemHsn) = ("", "", "", "", "", "");
+            ShowNewItem = false;
+            Toasts.Show("Item selected. It is saved in Products and ready for this purchase.", ToastKind.Success);
+        });
     }
 
     public PartyKind Side { get; }
 
     public bool IsSales => Side == PartyKind.Customer;
 
-    public string Title => IsSales ? "Sales invoices" : "Purchase bills";
+    public string Title => IsSales ? "Sales invoices" : "Purchase";
 
     public string PartyLabel => IsSales ? "Customer" : "Supplier";
 
@@ -172,6 +249,10 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
     [ObservableProperty] private WarehouseRow? _warehouse;
     [ObservableProperty] private string _date = DateText.From(DateText.Today);
     [ObservableProperty] private string _reference = string.Empty;
+    [ObservableProperty] private string _supplierInvoiceDate = string.Empty;
+    [ObservableProperty] private string _receivedDate = string.Empty;
+    [ObservableProperty] private string _purchaseOrderNumber = string.Empty;
+    [ObservableProperty] private string _purchaseOrderYear = string.Empty;
     [ObservableProperty] private string _narration = string.Empty;
     [ObservableProperty] private string _walkInName = string.Empty;
     [ObservableProperty] private bool _pricesIncludeTax;
@@ -245,12 +326,18 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
     partial void OnOriginalIdChanged(Guid? value)
     {
         OnPropertyChanged(nameof(IsReturnEditor));
+        OnPropertyChanged(nameof(CanAddItem));
         OnPropertyChanged(nameof(CanEditHeader));
         OnPropertyChanged(nameof(ShowWalkIn));
     }
 
     partial void OnPreviewChanged(BillingDocumentView? value)
     {
+        PurchaseLabels.Clear();
+        if (IsPurchase && value is not null)
+            foreach (var group in value.Lines.Where(l => l.ProductId is not null).GroupBy(l => l.ProductId!.Value))
+                PurchaseLabels.Add(new PurchaseLabelEditor(group.Key, group.First().Description));
+        OnPropertyChanged(nameof(CanPrintPurchaseLabels));
         foreach (var name in new[] { nameof(HasPreview), nameof(ShowPreview), nameof(PreviewHasCgst), nameof(PreviewIsDraft), nameof(PreviewCanCancel), nameof(PreviewCanReturn),
                      nameof(PreviewCanDeliveryNote), nameof(PreviewCanPurchaseOrder) })
             OnPropertyChanged(name);
@@ -258,13 +345,17 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
 
     partial void OnSelectedDocumentChanged(BillingDocumentRow? value) => _ = LoadPreviewAsync(value?.Id);
 
-    partial void OnSettlementPartyChanged(PartyRow? value) => _ = LoadOpenItemsAsync();
+    partial void OnSettlementPartyChanged(PartyRow? value)
+    {
+        if (!_reloadingParties) _ = LoadOpenItemsAsync();
+    }
 
     partial void OnSettlementKindChanged(SettlementKind value) => _ = LoadOpenItemsAsync();
 
     public async Task LoadAsync() => await RunAsync(async () =>
     {
-        if (Products.Count == 0) await LoadReferenceDataAsync();
+        if (!_referenceDataLoaded) await EnsureReferenceDataAsync();
+        else await ReloadPartiesAsync();
         switch (Section.Key)
         {
             case "documents":
@@ -274,30 +365,75 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
                 await LoadDocumentsAsync(Returns, ReturnKind);
                 break;
             case "settlements":
+                await LoadOpenItemsAsync();
                 SettlementRows.Clear();
                 foreach (var row in await _settlements.ListAsync(Side)) SettlementRows.Add(row);
                 break;
         }
     });
 
+    private async Task EnsureReferenceDataAsync()
+    {
+        _referenceLoad ??= LoadReferenceDataAsync();
+        try { await _referenceLoad; }
+        finally { _referenceLoad = null; }
+    }
+
     private async Task LoadReferenceDataAsync()
     {
+        var selections = Lines.Select(l => (Line: l, ProductId: l.Product?.Id, UnitId: l.Unit?.Id)).ToList();
+        var warehouseId = Warehouse?.Id;
+        var cashId = CashAccount?.Id;
+        var settlementAccountId = SettlementAccount?.Id;
+        Products.Clear();
+        Units.Clear();
+        Warehouses.Clear();
+        CashAccounts.Clear();
+        TaxCategories.Clear();
+        if (LabelLayouts.Count == 0)
+        {
+            foreach (var layout in await _printing.LabelLayoutsAsync()) LabelLayouts.Add(layout);
+            LabelLayout ??= LabelLayouts.FirstOrDefault();
+        }
+        foreach (var tax in (await _catalogue.ListTaxCategoriesAsync()).Where(t => t.IsActive)) TaxCategories.Add(tax);
         foreach (var product in (await _catalogue.ListProductsAsync()).Where(p => !p.HasVariants)) Products.Add(product);
-        foreach (var unit in await _catalogue.ListUnitsAsync()) Units.Add(unit);
+        foreach (var unit in (await _catalogue.ListUnitsAsync()).Where(u => u.IsActive)) Units.Add(unit);
+        NewItemUnit ??= Units.FirstOrDefault(u => u.Code == "PCS") ?? Units.FirstOrDefault();
         foreach (var warehouse in (await _companies.ListWarehousesAsync()).Where(w => w.IsActive)) Warehouses.Add(warehouse);
         foreach (var (id, name) in await _settlements.CashAndBankAccountsAsync()) CashAccounts.Add(new CashAccountChoice(id, name));
         await ReloadPartiesAsync();
-        Warehouse ??= Warehouses.FirstOrDefault();
-        CashAccount ??= CashAccounts.FirstOrDefault();
-        SettlementAccount ??= CashAccounts.FirstOrDefault();
+        Warehouse = Warehouses.FirstOrDefault(w => w.Id == warehouseId) ?? Warehouses.FirstOrDefault();
+        CashAccount = CashAccounts.FirstOrDefault(a => a.Id == cashId) ?? CashAccounts.FirstOrDefault();
+        SettlementAccount = CashAccounts.FirstOrDefault(a => a.Id == settlementAccountId) ?? CashAccounts.FirstOrDefault();
+        foreach (var selection in selections)
+        {
+            selection.Line.Product = Products.FirstOrDefault(p => p.Id == selection.ProductId);
+            selection.Line.Unit = Units.FirstOrDefault(u => u.Id == selection.UnitId);
+        }
         var settings = await _billing.GetSettingsAsync();
-        (PricesIncludeTax, RoundToRupee) = (IsSales && settings.PricesIncludeTax, settings.RoundToRupee);
+        if (!_defaultsLoaded)
+        {
+            (_defaultPricesIncludeTax, _defaultRoundToRupee) = (settings.PricesIncludeTax, settings.RoundToRupee);
+            (PricesIncludeTax, RoundToRupee) = (_defaultPricesIncludeTax, _defaultRoundToRupee);
+            _defaultsLoaded = true;
+        }
+        _referenceDataLoaded = true;
     }
 
     private async Task ReloadPartiesAsync()
     {
-        Parties.Clear();
-        foreach (var party in await _parties.ListAsync(Side)) Parties.Add(party);
+        var partyId = Party?.Id;
+        var settlementPartyId = SettlementParty?.Id;
+        var rows = await _parties.ListAsync(Side);
+        _reloadingParties = true;
+        try
+        {
+            Parties.Clear();
+            foreach (var party in rows) Parties.Add(party);
+            Party = Parties.FirstOrDefault(p => p.Id == partyId);
+            SettlementParty = Parties.FirstOrDefault(p => p.Id == settlementPartyId);
+        }
+        finally { _reloadingParties = false; }
     }
 
     private async Task LoadDocumentsAsync(ObservableCollection<BillingDocumentRow> target, BillingDocumentKind kind)
@@ -311,23 +447,31 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
 
     private async Task LoadPreviewAsync(Guid? id)
     {
+        var request = ++_previewRequest;
         if (id is not { } documentId)
         {
             Preview = null;
             return;
         }
 
-        await RunAsync(async () => Preview = await _billing.GetAsync(documentId));
+        await RunAsync(async () =>
+        {
+            var preview = await _billing.GetAsync(documentId);
+            if (request == _previewRequest) Preview = preview;
+        });
     }
 
     // ----- Editor -----
 
-    [RelayCommand]
     private void StartDocument()
     {
         (EditingId, OriginalId, DraftTotals) = (null, null, null);
+        if (_defaultsLoaded) (PricesIncludeTax, RoundToRupee) = (_defaultPricesIncludeTax, _defaultRoundToRupee);
         EditorHeading = IsSales ? "New sales invoice" : "New purchase bill";
         (Party, Mode, Reference, Narration, WalkInName) = (null, SettlementMode.Credit, string.Empty, string.Empty, string.Empty);
+        Date = DateText.From(DateText.Today);
+        (SupplierInvoiceDate, ReceivedDate, PurchaseOrderNumber, PurchaseOrderYear) = ("", "", "", "");
+        Section = Sections[1];
         Lines.Clear();
         Lines.Add(new BillingLineEditor());
     }
@@ -368,7 +512,7 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
             Toasts.Show($"Posted {number}.", ToastKind.Success);
             var posted = IsReturnEditor;
             StartDocument();
-            Products.Clear();
+            _referenceDataLoaded = false;
             Section = posted ? Sections[2] : Sections[0];
         }
     }
@@ -376,7 +520,7 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
     private async Task SaveCoreAsync()
     {
         if (Warehouse is null) throw new WorkspaceValidationException("Choose a warehouse. Add one under Settings → Branches and warehouses.");
-        var lines = Lines.Where(l => l.Product is not null || l.IsReturnLine || !string.IsNullOrWhiteSpace(l.Rate))
+        var lines = Lines.Where(l => l.Product is not null || l.IsReturnLine || !string.IsNullOrWhiteSpace(l.Rate) || !string.IsNullOrWhiteSpace(l.ProductSearch))
             .Select((l, i) =>
             {
                 var number = i + 1;
@@ -397,8 +541,11 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
             .ToList();
         var kind = IsReturnEditor ? ReturnKind : DocumentKind;
         EditingId = await _billing.SaveDraftAsync(new BillingDraftInput(EditingId, kind, DateText.Parse(Date, "Date"), Party?.Id, Warehouse.Id, Mode, lines,
-            IsCash ? CashAccount?.Id : null, OriginalId, Reference, Narration, IsSales ? PricesIncludeTax : null, RoundToRupee,
-            ShowWalkIn ? NullIfBlank(WalkInName) : null));
+            IsCash ? CashAccount?.Id : null, OriginalId, Reference, Narration, PricesIncludeTax, RoundToRupee,
+            ShowWalkIn ? NullIfBlank(WalkInName) : null,
+            IsPurchase && !IsReturnEditor && !string.IsNullOrWhiteSpace(SupplierInvoiceDate) ? DateText.Parse(SupplierInvoiceDate, "Invoice date") : null,
+            IsPurchase && !IsReturnEditor && !string.IsNullOrWhiteSpace(ReceivedDate) ? DateText.Parse(ReceivedDate, "Received date") : null,
+            IsPurchase && !IsReturnEditor ? PurchaseOrderNumber : "", IsPurchase && !IsReturnEditor ? PurchaseOrderYear : ""));
     }
 
     private async Task LoadDraftTotalsAsync()
@@ -415,7 +562,11 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
             // The editor handles goods lines only; service and issued-part lines are changed where they came from.
             if (draft.Lines.Any(l => l.LineType != BillingLineType.Goods))
                 throw new WorkspaceValidationException("This draft has service or issued-part lines, which this editor cannot change. Post it as it is, or change it on its service job.");
-            if (Products.Count == 0) await LoadReferenceDataAsync();
+            if (!_referenceDataLoaded) await EnsureReferenceDataAsync();
+            SupplierInvoiceDate = draft.SupplierInvoiceDate is { } invoiceDate ? DateText.From(invoiceDate) : "";
+            ReceivedDate = draft.ReceivedDate is { } receivedDate ? DateText.From(receivedDate) : "";
+            PurchaseOrderNumber = draft.PurchaseOrderNumber;
+            PurchaseOrderYear = draft.PurchaseOrderYear;
             EditingId = draft.Id;
             OriginalId = draft.OriginalDocumentId;
             EditorHeading = $"Draft {draft.Kind.Label().ToLowerInvariant()}";
@@ -456,7 +607,7 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
         if (Preview is not { } original || !PreviewCanReturn) return;
         await RunAsync(async () =>
         {
-            if (Products.Count == 0) await LoadReferenceDataAsync();
+            if (!_referenceDataLoaded) await EnsureReferenceDataAsync();
             var returnable = await _billing.ReturnableLinesAsync(original.Id);
             if (returnable.All(l => l.Remaining <= 0)) throw new WorkspaceValidationException($"Everything on {original.Number} has already been returned.");
             (EditingId, OriginalId, DraftTotals) = (null, original.Id, null);
@@ -498,7 +649,7 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
         if (await RunAsync(async () => number = await PostCheckingCreditAsync(draft.Id)) && number.Length > 0)
         {
             Toasts.Show($"Posted {number}.", ToastKind.Success);
-            Products.Clear();
+            _referenceDataLoaded = false;
             await LoadAsync();
             await LoadPreviewAsync(draft.Id);
         }
@@ -526,7 +677,7 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
         if (await RunAsync(() => _billing.CancelAsync(document.Id, DateText.Parse(ActionDate, "Cancellation date"), CancelReason), $"{document.Number} cancelled."))
         {
             CancelReason = string.Empty;
-            Products.Clear();
+            _referenceDataLoaded = false;
             await LoadAsync();
             await LoadPreviewAsync(document.Id);
         }
@@ -536,20 +687,31 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
 
     private async Task LoadOpenItemsAsync()
     {
-        OpenItems.Clear();
-        OnPropertyChanged(nameof(AllocationTotal));
-        if (SettlementParty is not { } party) return;
+        var partyId = SettlementParty?.Id;
+        var kind = SettlementKind;
+        var previous = _allocationPartyId == partyId && _allocationKind == kind
+            ? OpenItems.ToDictionary(o => o.Item.Id, o => o.Amount) : [];
+        if (partyId is null)
+        {
+            OpenItems.Clear();
+            _allocationPartyId = null;
+            OnPropertyChanged(nameof(AllocationTotal));
+            return;
+        }
         await RunAsync(async () =>
         {
-            // A receipt or payment settles invoices and bills; a refund settles returns and advances.
-            var wantCharges = !SettlementKind.IsCharge();
-            foreach (var item in await _parties.OpenItemsAsync(party.Id, openOnly: true))
+            var items = await _parties.OpenItemsAsync(partyId.Value, openOnly: true);
+            if (SettlementParty?.Id != partyId || SettlementKind != kind) return;
+            OpenItems.Clear();
+            _allocationPartyId = partyId;
+            _allocationKind = kind;
+            foreach (var item in items.Where(i => i.IsCharge == !kind.IsCharge()))
             {
-                if (item.IsCharge != wantCharges) continue;
-                var editor = new AllocationEditor(item);
+                var editor = new AllocationEditor(item) { Amount = previous.GetValueOrDefault(item.Id, string.Empty) };
                 editor.PropertyChanged += (_, _) => OnPropertyChanged(nameof(AllocationTotal));
                 OpenItems.Add(editor);
             }
+            OnPropertyChanged(nameof(AllocationTotal));
         });
     }
 
@@ -592,6 +754,7 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
         {
             Toasts.Show($"Posted {result.Number}.", ToastKind.Success);
             (SettlementAmount, SettlementReference, SettlementNarration) = (string.Empty, string.Empty, string.Empty);
+            OpenItems.Clear();
             await LoadOpenItemsAsync();
             await LoadAsync();
         }
@@ -632,6 +795,40 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
     }
 
     // ----- Printing (rendered and recorded by the print centre; figures are the stored ones) -----
+
+    [RelayCommand]
+    private async Task PreviewPurchaseLabelsAsync() => await PurchaseLabelsAsync(false);
+
+    [RelayCommand]
+    private async Task PrintPurchaseLabelsAsync() => await PurchaseLabelsAsync(true);
+
+    private async Task PurchaseLabelsAsync(bool printNow)
+    {
+        if (!CanPrintPurchaseLabels) return;
+        await RunAsync(async () =>
+        {
+            if (LabelLayout is null) throw new WorkspaceValidationException("Choose a label layout.");
+            var items = PurchaseLabels.Select(l =>
+            {
+                var count = NumberText.Parse(l.Quantity, "Label count");
+                if (count < 0 || count > 10000 || decimal.Truncate(count) != count)
+                    throw new WorkspaceValidationException("Use a whole label count from 0 to 10,000. Zero skips an item.");
+                return new LabelRequest(l.ProductId, (int)count);
+            }).Where(l => l.Quantity > 0).ToList();
+            if (items.Count == 0) throw new WorkspaceValidationException("Enter a label count for at least one item.");
+            var subject = new LabelSubject(LabelLayout.Id, items);
+            if (printNow) await _print.PrintAsync(subject);
+            else await _print.PreviewAsync(subject);
+        });
+    }
+
+    [RelayCommand]
+    private async Task StartNewAsync()
+    {
+        if (Lines.Any(l => l.Product is not null || !string.IsNullOrWhiteSpace(l.ProductSearch) || !string.IsNullOrWhiteSpace(l.Rate))
+            && !await _dialogs.ConfirmAsync("Start a new bill?", "Unsaved changes in this entry will be cleared. Saved drafts stay in the list.", "Start new")) return;
+        StartDocument();
+    }
 
     [RelayCommand]
     private async Task PreviewDocumentAsync()
@@ -696,7 +893,7 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
         if (!ShowEditor || IsReturnEditor) return;
         await RunAsync(async () =>
         {
-            if (Products.Count == 0) await LoadReferenceDataAsync();
+            if (!_referenceDataLoaded) await EnsureReferenceDataAsync();
             var found = await _catalogue.FindByCodeAsync(code) ?? throw new WorkspaceValidationException($"No product has the code {code}.");
             var product = Products.FirstOrDefault(p => p.Id == found.Id) ?? throw new WorkspaceValidationException($"{found.Sku} has variants or is archived; choose a variant.");
             var line = Lines.FirstOrDefault(l => l.Product?.Id == product.Id && string.IsNullOrWhiteSpace(l.Serial) && string.IsNullOrWhiteSpace(l.Batch));
@@ -720,10 +917,7 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
     [RelayCommand]
     private async Task RefreshAsync()
     {
-        Products.Clear();
-        Units.Clear();
-        Warehouses.Clear();
-        CashAccounts.Clear();
+        _referenceDataLoaded = false;
         await LoadAsync();
     }
 
@@ -731,27 +925,31 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
 }
 
 public sealed class SalesBillingViewModel(BillingService billing, PartyService parties, SettlementService settlements, InventoryCatalogueService catalogue,
-    CompanyService companies, IAuthorizer authorizer, DialogService dialogs, PrintActions print, ToastService toasts, ILogger<SalesBillingViewModel> logger)
-    : BillingViewModel(PartyKind.Customer, billing, parties, settlements, catalogue, companies, authorizer, dialogs, print, toasts, logger);
+    CompanyService companies, IAuthorizer authorizer, DialogService dialogs, PrintActions print, PrintingService printing, ToastService toasts, ILogger<SalesBillingViewModel> logger)
+    : BillingViewModel(PartyKind.Customer, billing, parties, settlements, catalogue, companies, authorizer, dialogs, print, printing, toasts, logger);
 
 public sealed class PurchaseBillingViewModel(BillingService billing, PartyService parties, SettlementService settlements, InventoryCatalogueService catalogue,
-    CompanyService companies, IAuthorizer authorizer, DialogService dialogs, PrintActions print, ToastService toasts, ILogger<PurchaseBillingViewModel> logger)
-    : BillingViewModel(PartyKind.Supplier, billing, parties, settlements, catalogue, companies, authorizer, dialogs, print, toasts, logger);
+    CompanyService companies, IAuthorizer authorizer, DialogService dialogs, PrintActions print, PrintingService printing, ToastService toasts, ILogger<PurchaseBillingViewModel> logger)
+    : BillingViewModel(PartyKind.Supplier, billing, parties, settlements, catalogue, companies, authorizer, dialogs, print, printing, toasts, logger);
 
 /// <summary>Customers or suppliers: profiles, GST details, balances from the ledger and open items.</summary>
 public abstract partial class PartiesViewModel : PageViewModel, ILoadable
 {
     private readonly PartyService _parties;
+    private readonly BillingService _billing;
+    private readonly SettlementService _settlements;
     private readonly IAuthorizer _authorizer;
     private readonly DialogService _dialogs;
     private readonly PrintActions _print;
 
-    protected PartiesViewModel(PartyKind kind, PartyService parties, IAuthorizer authorizer, DialogService dialogs, PrintActions print, ToastService toasts, ILogger logger)
+    protected PartiesViewModel(PartyKind kind, PartyService parties, BillingService billing, SettlementService settlements, IAuthorizer authorizer, DialogService dialogs, PrintActions print, ToastService toasts, ILogger logger)
         : base(logger, toasts)
     {
         _print = print;
         Kind = kind;
         _parties = parties;
+        _billing = billing;
+        _settlements = settlements;
         _authorizer = authorizer;
         _dialogs = dialogs;
         States = new[] { new StateChoice(string.Empty, string.Empty) }.Concat(IndianState.All.Select(s => new StateChoice(s.Code, s.Name))).ToList();
@@ -760,13 +958,39 @@ public abstract partial class PartiesViewModel : PageViewModel, ILoadable
 
     public PartyKind Kind { get; }
 
-    public string Title => Kind == PartyKind.Customer ? "Customers" : "Suppliers";
+    public virtual bool IsAddPage => false;
+
+    public Action<string>? NavigateTo { get; set; }
+
+    public Guid? InitialSelectionId { get; set; }
+
+    public string Title => IsAddPage ? "Add Supplier" : Kind == PartyKind.Customer ? "Customers" : "Suppliers";
+
+    public string NumberLabel => Kind == PartyKind.Customer ? "Customer number" : "Supplier number";
+
+    public string Number => Selected?.Number ?? "Assigned automatically when saved";
+
+    public bool CanEditProfile => CanEdit && (Kind == PartyKind.Customer || IsAddPage || HasSelected);
+
+    public bool CanViewJournal => _authorizer.Has(Permissions.VouchersView);
+
+    public bool HasSelected => Selected is not null;
+
+    public ObservableCollection<BillingDocumentRow> HistoryBills { get; } = [];
+
+    public ObservableCollection<SettlementRow> HistoryPayments { get; } = [];
+
+    public ObservableCollection<StatementLine> LedgerLines { get; } = [];
+
+    public ObservableCollection<PartyJournalLine> JournalLines { get; } = [];
+
+    [ObservableProperty] private PartyStatement? _statement;
 
     public string Noun => Kind == PartyKind.Customer ? "customer" : "supplier";
 
     public string BalanceHeader => Kind == PartyKind.Customer ? "Receivable" : "Payable";
 
-    public string NewLabel => Kind == PartyKind.Customer ? "New customer" : "New supplier";
+    public string NewLabel => Kind == PartyKind.Customer ? "New customer" : "Add Supplier";
 
     public bool CanEdit => _authorizer.Has(Kind == PartyKind.Customer ? Permissions.SalesCreate : Permissions.PurchasesCreate);
 
@@ -799,17 +1023,27 @@ public abstract partial class PartiesViewModel : PageViewModel, ILoadable
 
     partial void OnSelectedChanged(PartyRow? value)
     {
+        OnPropertyChanged(nameof(Number));
+        OnPropertyChanged(nameof(HasSelected));
+        OnPropertyChanged(nameof(CanEditProfile));
+        Statement = null;
+        HistoryBills.Clear();
+        HistoryPayments.Clear();
+        LedgerLines.Clear();
+        JournalLines.Clear();
+        OpenItems.Clear();
         if (value is null) return;
         IsNew = false;
         (Name, Phone, Email, Gstin, Address, City, Pincode) = (value.Name, value.Phone, value.Email, value.Gstin, value.Address, value.City, value.Pincode);
         State = States.FirstOrDefault(s => s.Code == value.StateCode) ?? States[0];
         CreditLimit = value.CreditLimit == 0 ? string.Empty : NumberText.Format(value.CreditLimit);
-        _ = LoadOpenItemsAsync(value.Id);
+        _ = LoadAccountsAsync(value.Id);
     }
 
     public async Task LoadAsync() => await RunAsync(async () =>
     {
-        var keep = Selected?.Id;
+        var keep = InitialSelectionId ?? Selected?.Id;
+        InitialSelectionId = null;
         Parties.Clear();
         foreach (var party in await _parties.ListAsync(Kind, ShowInactive)) Parties.Add(party);
         Selected = Parties.FirstOrDefault(p => p.Id == keep);
@@ -818,6 +1052,11 @@ public abstract partial class PartiesViewModel : PageViewModel, ILoadable
     [RelayCommand]
     private void New()
     {
+        if (Kind == PartyKind.Supplier && !IsAddPage)
+        {
+            NavigateTo?.Invoke("purchases.add-supplier");
+            return;
+        }
         Selected = null;
         IsNew = true;
         (Name, Phone, Email, Gstin, Address, City, Pincode, CreditLimit) = (string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty);
@@ -828,6 +1067,11 @@ public abstract partial class PartiesViewModel : PageViewModel, ILoadable
     [RelayCommand]
     private async Task SaveAsync()
     {
+        if (Kind == PartyKind.Supplier && IsNew && !IsAddPage)
+        {
+            NavigateTo?.Invoke("purchases.add-supplier");
+            return;
+        }
         Guid saved = Guid.Empty;
         if (await RunAsync(async () => saved = await _parties.SaveAsync(new PartyInput(IsNew ? null : Selected?.Id, Kind,
                 new PartyDetails(Name, Phone, Email, Gstin, State.Code, Address, City, Pincode, NumberText.Parse(CreditLimit, "Credit limit")))),
@@ -880,22 +1124,65 @@ public abstract partial class PartiesViewModel : PageViewModel, ILoadable
         if (StatementSubjectNow() is { } subject) await _print.ExportPdfAsync(subject);
     }
 
-    private async Task LoadOpenItemsAsync(Guid partyId)
+    [RelayCommand]
+    private void OpenPurchase() => NavigateTo?.Invoke("purchases.invoices");
+
+    [RelayCommand]
+    private void OpenSuppliers() => NavigateTo?.Invoke("purchases.suppliers");
+
+    [RelayCommand]
+    private async Task RefreshStatementAsync()
     {
-        try
-        {
-            OpenItems.Clear();
-            foreach (var item in await _parties.OpenItemsAsync(partyId)) OpenItems.Add(item);
-        }
-        catch (Exception)
-        {
-            // The open items list is secondary; the editor stays usable without it.
-        }
+        if (Selected is { } party) await LoadAccountsAsync(party.Id);
     }
+
+    private async Task LoadAccountsAsync(Guid partyId)
+    {
+        await RunAsync(async () =>
+        {
+            var from = DateText.Parse(StatementFrom, "From");
+            var to = DateText.Parse(StatementTo, "To");
+            var statement = await _parties.StatementAsync(partyId, from, to);
+            var items = await _parties.OpenItemsAsync(partyId);
+            var kinds = Kind == PartyKind.Supplier ? new[] { BillingDocumentKind.PurchaseBill, BillingDocumentKind.PurchaseReturn }
+                : new[] { BillingDocumentKind.SalesInvoice, BillingDocumentKind.SalesReturn };
+            var bills = await _billing.ListAsync(new BillingListFilter(kinds, From: from, To: to, PartyId: partyId));
+            var payments = (await _settlements.ListAsync(Kind)).Where(p => p.PartyId == partyId && p.Date >= from && p.Date <= to).ToList();
+            var journals = CanViewJournal ? await _parties.JournalsAsync(partyId, from, to) : [];
+            if (Selected?.Id != partyId) return;
+            Statement = statement;
+            HistoryBills.Clear();
+            HistoryPayments.Clear();
+            foreach (var bill in bills) HistoryBills.Add(bill);
+            foreach (var payment in payments) HistoryPayments.Add(payment);
+            LedgerLines.Clear();
+            JournalLines.Clear();
+            OpenItems.Clear();
+            foreach (var line in statement.Lines) LedgerLines.Add(line);
+            foreach (var line in journals) JournalLines.Add(line);
+            foreach (var item in items) OpenItems.Add(item);
+        });
+    }
+
 }
 
-public sealed class CustomersViewModel(PartyService parties, IAuthorizer authorizer, DialogService dialogs, PrintActions print, ToastService toasts,
-    ILogger<CustomersViewModel> logger) : PartiesViewModel(PartyKind.Customer, parties, authorizer, dialogs, print, toasts, logger);
+public sealed class CustomersViewModel(PartyService parties, BillingService billing, SettlementService settlements, IAuthorizer authorizer, DialogService dialogs, PrintActions print, ToastService toasts,
+    ILogger<CustomersViewModel> logger) : PartiesViewModel(PartyKind.Customer, parties, billing, settlements, authorizer, dialogs, print, toasts, logger);
 
-public sealed class SuppliersViewModel(PartyService parties, IAuthorizer authorizer, DialogService dialogs, PrintActions print, ToastService toasts,
-    ILogger<SuppliersViewModel> logger) : PartiesViewModel(PartyKind.Supplier, parties, authorizer, dialogs, print, toasts, logger);
+public sealed class SuppliersViewModel(PartyService parties, BillingService billing, SettlementService settlements, IAuthorizer authorizer, DialogService dialogs, PrintActions print, ToastService toasts,
+    ILogger<SuppliersViewModel> logger) : PartiesViewModel(PartyKind.Supplier, parties, billing, settlements, authorizer, dialogs, print, toasts, logger);
+
+public sealed class AddSupplierViewModel(PartyService parties, BillingService billing, SettlementService settlements, IAuthorizer authorizer, DialogService dialogs, PrintActions print, ToastService toasts,
+    ILogger<AddSupplierViewModel> logger) : PartiesViewModel(PartyKind.Supplier, parties, billing, settlements, authorizer, dialogs, print, toasts, logger)
+{
+    public override bool IsAddPage => true;
+}
+
+public sealed partial class PurchaseLabelEditor(Guid productId, string name) : ObservableObject
+{
+    public Guid ProductId { get; } = productId;
+
+    public string Name { get; } = name;
+
+    [ObservableProperty] private string _quantity = "1";
+}

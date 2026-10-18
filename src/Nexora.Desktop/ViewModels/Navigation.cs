@@ -23,7 +23,8 @@ public static class NavCatalog
         new("sales.invoices", "Sales invoices", "", "Sales", null, "Tax invoices, cash and credit sales, credit notes and customer receipts.", Nexora.Domain.Security.Permissions.SalesView),
         new("sales.quotations", "Quotations", "", "Sales", 5, "Enquiries, quotations, sales orders and delivery notes.", Nexora.Domain.Security.Permissions.SalesView),
         new("sales.customers", "Customers", "", "Sales", null, "Customer profiles, GST details, balances and open items.", Nexora.Domain.Security.Permissions.SalesView),
-        new("purchases.invoices", "Purchase bills", "", "Purchases", null, "Supplier bills with stock receipt, debit notes and supplier payments.", Nexora.Domain.Security.Permissions.PurchasesView),
+        new("purchases.invoices", "Purchase", "", "Purchases", null, "Supplier bills with stock receipt, debit notes and supplier payments.", Nexora.Domain.Security.Permissions.PurchasesView),
+        new("purchases.add-supplier", "Add Supplier", "", "Purchases", null, "Add a supplier with an automatic number, name, address, mobile and GSTIN.", Nexora.Domain.Security.Permissions.PurchasesCreate),
         new("purchases.suppliers", "Suppliers", "", "Purchases", null, "Supplier profiles, GST details, balances and open items.", Nexora.Domain.Security.Permissions.PurchasesView),
         new("inventory.products", "Products", "", "Inventory", null, "Products, variants, units, prices and barcodes.", Nexora.Domain.Security.Permissions.InventoryView),
         new("inventory.stock", "Stock", "", "Inventory", null, "Stock balances, receipts, issues, transfers, counts, valuation and reconciliation.", Nexora.Domain.Security.Permissions.InventoryView),
@@ -43,6 +44,10 @@ public static class NavCatalog
         new(Settings, "Settings", "", "System", null, "Appearance, company profile, users, roles and the audit trail."),
         new(Help, "Help", "", "System", null, "Keyboard shortcuts and getting started."),
     ];
+
+    public static bool IsEveryday(string key) => key is Dashboard or "sales.invoices" or "sales.customers"
+        or "purchases.invoices" or "purchases.suppliers" or "purchases.add-supplier" or "inventory.products"
+        or "inventory.stock" or "accounts.expenses" or "reports" or Settings or Help;
 
     /// <summary>Hidden destination; opened with Ctrl+Shift+G and not listed in the sidebar.</summary>
     public static NavItem GalleryItem { get; } =

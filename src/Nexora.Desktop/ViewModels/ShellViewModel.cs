@@ -25,6 +25,8 @@ public sealed partial class ShellViewModel : ObservableObject
     private readonly IServiceProvider _services;
     private readonly IAuthorizer _authorizer;
     private bool _suppressCompanySwitch;
+    private Guid? _supplierSelection;
+    private readonly Dictionary<string, Billing.BillingViewModel> _billingPages = [];
 
     public ShellViewModel(IWorkspaceService workspace, IThemeService theme, DialogService dialogs, ToastService toasts,
         ILoggerFactory loggers, IServiceProvider services, IAuthorizer authorizer, SessionInfo session, bool sidebarCollapsed)
@@ -49,6 +51,21 @@ public sealed partial class ShellViewModel : ObservableObject
     /// <summary>Destinations the current role may open. Hiding is a convenience; services enforce permissions.</summary>
     [ObservableProperty]
     private IReadOnlyList<NavItem> _navItems;
+
+    [ObservableProperty] private bool _showAllTools;
+
+    public string ToolsToggleLabel => ShowAllTools ? "Show everyday tasks" : "Show all tools";
+
+    partial void OnShowAllToolsChanged(bool value)
+    {
+        var selected = SelectedNavItem;
+        NavItems = VisibleNavItems();
+        SelectedNavItem = selected is not null && NavItems.Contains(selected) ? selected : null;
+        OnPropertyChanged(nameof(ToolsToggleLabel));
+    }
+
+    [RelayCommand]
+    private void ToggleAllTools() => ShowAllTools = !ShowAllTools;
 
     public ObservableCollection<CompanySummary> Companies { get; } = [];
 
@@ -272,13 +289,36 @@ public sealed partial class ShellViewModel : ObservableObject
             default:
                 if (PageTypes.TryGetValue(item.Key, out var pageType))
                 {
+                    if (_billingPages.TryGetValue(item.Key, out var savedPage))
+                    {
+                        _ = savedPage.LoadAsync();
+                        return savedPage;
+                    }
                     var page = ActivatorUtilities.CreateInstance(_services, pageType);
+                    if (page is Billing.BillingViewModel billing)
+                    {
+                        billing.NavigateTo = Navigate;
+                        billing.NavigateToSupplier = OpenSupplierAccounts;
+                        _billingPages[item.Key] = billing;
+                    }
+                    if (page is Billing.PartiesViewModel parties)
+                    {
+                        parties.NavigateTo = Navigate;
+                        if (item.Key == "purchases.suppliers") parties.InitialSelectionId = _supplierSelection;
+                    }
                     if (page is ILoadable loadable) _ = loadable.LoadAsync();
                     return page;
                 }
 
                 return new PlaceholderViewModel(item, Navigate);
         }
+    }
+
+    private void OpenSupplierAccounts(Guid? supplierId)
+    {
+        _supplierSelection = supplierId;
+        try { Navigate("purchases.suppliers"); }
+        finally { _supplierSelection = null; }
     }
 
     /// <summary>Pages built through DI. Each loads its own data and handles its own errors.</summary>
@@ -298,6 +338,7 @@ public sealed partial class ShellViewModel : ObservableObject
         ["sales.invoices"] = typeof(Billing.SalesBillingViewModel),
         ["sales.customers"] = typeof(Billing.CustomersViewModel),
         ["purchases.invoices"] = typeof(Billing.PurchaseBillingViewModel),
+        ["purchases.add-supplier"] = typeof(Billing.AddSupplierViewModel),
         ["purchases.suppliers"] = typeof(Billing.SuppliersViewModel),
         ["printing"] = typeof(Printing.PrintCentreViewModel),
         ["accounts.expenses"] = typeof(Expenses.ExpensesViewModel),
@@ -308,7 +349,7 @@ public sealed partial class ShellViewModel : ObservableObject
     private void RefreshPalette()
     {
         var query = PaletteQuery.Trim();
-        var entries = NavItems
+        var entries = AuthorizedNavItems()
             .Select(i => new PaletteEntry(i.Label, i.IsAvailable ? i.Group : $"{i.Group} · Phase {i.Phase}", i.Glyph, () => Navigate(i.Key)))
             .Concat(
             [
@@ -334,13 +375,17 @@ public sealed partial class ShellViewModel : ObservableObject
             return;
         }
 
+        _billingPages.Clear();
         Session = current;
         NavItems = VisibleNavItems();
         await ReloadCompaniesAsync();
     }
 
     private IReadOnlyList<NavItem> VisibleNavItems() =>
-        NavCatalog.Items.Where(i => i.Permission is null || _authorizer.Has(i.Permission)).ToList();
+        AuthorizedNavItems().Where(i => ShowAllTools || NavCatalog.IsEveryday(i.Key)).ToList();
+
+    private IEnumerable<NavItem> AuthorizedNavItems() =>
+        NavCatalog.Items.Where(i => i.IsAvailable && (i.Permission is null || _authorizer.Has(i.Permission)));
 
     private async Task SwitchCompanyAsync(CompanySummary company)
     {
@@ -348,6 +393,7 @@ public sealed partial class ShellViewModel : ObservableObject
         try
         {
             Session = await _workspace.SwitchCompanyAsync(company.Id);
+            _billingPages.Clear();
             NavItems = VisibleNavItems();
             _toasts.Show($"Switched to {company.Name} as {Session.RoleName}.");
             Navigate(CurrentPageKey ?? NavCatalog.Dashboard);

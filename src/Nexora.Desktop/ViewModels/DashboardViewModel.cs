@@ -31,8 +31,8 @@ public sealed partial class DashboardViewModel(
     [
         new("New invoice", "", "sales.invoices"),
         new("Purchase", "", "purchases.invoices"),
-        new("Payment", "", "accounts.vouchers"),
-        new("Receipt", "", "accounts.vouchers"),
+        new("Add Supplier", "", "purchases.add-supplier"),
+        new("Supplier accounts", "", "purchases.suppliers"),
         new("Product", "", "inventory.products"),
         new("Customer", "", "sales.customers"),
     ];

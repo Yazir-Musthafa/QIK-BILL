@@ -203,12 +203,20 @@
           <Grid>
             <Border x:Name="Frame" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
                     BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{StaticResource ControlRadius}" />
-            <ContentPresenter Margin="{TemplateBinding Padding}" IsHitTestVisible="False" VerticalAlignment="Center"
+            <ContentPresenter x:Name="SelectionDisplay" Margin="{TemplateBinding Padding}" IsHitTestVisible="False" VerticalAlignment="Center"
                               Content="{TemplateBinding SelectionBoxItem}"
                               ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
                               ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
                               ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}" />
-            <ToggleButton Style="{StaticResource ComboBoxToggle}" ClickMode="Press"
+            <TextBox x:Name="PART_EditableTextBox" Visibility="Collapsed" Margin="{TemplateBinding Padding}" Padding="0"
+                     Background="Transparent" BorderThickness="0" Foreground="{TemplateBinding Foreground}"
+                     FontFamily="{TemplateBinding FontFamily}" FontSize="{TemplateBinding FontSize}"
+                     IsReadOnly="{TemplateBinding IsReadOnly}" VerticalContentAlignment="Center">
+              <TextBox.Template>
+                <ControlTemplate TargetType="TextBox"><ScrollViewer x:Name="PART_ContentHost" Focusable="False" /></ControlTemplate>
+              </TextBox.Template>
+            </TextBox>
+            <ToggleButton x:Name="DropDownToggle" Style="{StaticResource ComboBoxToggle}" ClickMode="Press"
                           IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" />
             <Popup x:Name="PART_Popup" Placement="Bottom" AllowsTransparency="True" Focusable="False"
                    IsOpen="{TemplateBinding IsDropDownOpen}" PopupAnimation="Fade">
@@ -223,6 +231,13 @@
             </Popup>
           </Grid>
           <ControlTemplate.Triggers>
+            <Trigger Property="IsEditable" Value="True">
+              <Setter TargetName="SelectionDisplay" Property="Visibility" Value="Collapsed" />
+              <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible" />
+              <Setter TargetName="DropDownToggle" Property="HorizontalAlignment" Value="Right" />
+              <Setter TargetName="DropDownToggle" Property="Width" Value="28" />
+              <Setter Property="IsTabStop" Value="False" />
+            </Trigger>
             <Trigger Property="IsMouseOver" Value="True">
               <Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource TextSecondaryBrush}" />
             </Trigger>

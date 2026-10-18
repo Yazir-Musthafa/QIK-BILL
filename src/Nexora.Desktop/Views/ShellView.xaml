@@ -28,6 +28,8 @@
                      Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource VisibleWhen}, ConverterParameter=invert}" />
         </Grid>
 
+        <Button DockPanel.Dock="Bottom" Content="{Binding ToolsToggleLabel}" Command="{Binding ToggleAllToolsCommand}"
+                Margin="8" ToolTip="Switch between everyday tasks and all accounting and business tools" />
         <ListBox ItemsSource="{Binding Source={StaticResource NavSource}}" SelectedItem="{Binding SelectedNavItem}"
                  ItemContainerStyle="{StaticResource NavItem}" KeyboardNavigation.TabNavigation="Once"
                  AutomationProperties.Name="Navigation" Padding="0,0,0,8">
