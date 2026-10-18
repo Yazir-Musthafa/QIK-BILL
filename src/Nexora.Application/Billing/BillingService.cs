@@ -42,7 +42,8 @@ public sealed class CreditLimitExceededException(string message, decimal limit, 
 /// </summary>
 public sealed record BillingDraftInput(Guid? Id, BillingDocumentKind Kind, DateOnly Date, Guid? PartyId, Guid WarehouseId, SettlementMode Mode,
     IReadOnlyList<BillingLineInput> Lines, Guid? CashAccountId = null, Guid? OriginalDocumentId = null, string Reference = "", string Narration = "",
-    bool? PricesIncludeTax = null, bool? RoundToRupee = null, string? WalkInName = null);
+    bool? PricesIncludeTax = null, bool? RoundToRupee = null, string? WalkInName = null, DateOnly? SupplierInvoiceDate = null,
+    DateOnly? ReceivedDate = null, string PurchaseOrderNumber = "", string PurchaseOrderYear = "");
 
 public enum PaymentStatus
 {
@@ -82,7 +83,8 @@ public sealed record BillingDocumentView(Guid Id, BillingDocumentKind Kind, Bill
     string Warehouse, Guid? OriginalDocumentId, string? OriginalNumber, string Reference, string Narration, bool PricesIncludeTax, bool RoundToRupee,
     decimal Gross, decimal Discount, decimal Taxable, decimal Cgst, decimal Sgst, decimal Igst, decimal RoundOff, decimal Total, decimal? CostOfGoods,
     decimal Outstanding, PaymentStatus Status, string? CancellationReason, IReadOnlyList<BillingLineView> Lines, IReadOnlyList<AllocationView> Allocations,
-    IReadOnlyList<string> Returns, string CompanyName, string CompanyGstin, string CompanyStateCode)
+    IReadOnlyList<string> Returns, string CompanyName, string CompanyGstin, string CompanyStateCode,
+    DateOnly? SupplierInvoiceDate = null, DateOnly? ReceivedDate = null, string PurchaseOrderNumber = "", string PurchaseOrderYear = "")
 {
     public decimal Tax => Cgst + Sgst + Igst;
 
@@ -186,7 +188,8 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
                 l.DiscountPercent == 0 ? l.DiscountAmount : 0, l.BatchId, l.BatchNumber, l.ExpiresOn, l.SerialNumber, l.OriginalLineId, l.Description,
                 l.LineType, l.TaxCategoryId, l.HsnCode, l.SourceId)).ToList(),
             document.CashAccountId, document.OriginalDocumentId, document.Reference, document.Narration, document.PricesIncludeTax, document.RoundToRupee,
-            document.PartyId is null ? document.PartyName : null);
+            document.PartyId is null ? document.PartyName : null, document.SupplierInvoiceDate, document.ReceivedDate,
+            document.PurchaseOrderNumber, document.PurchaseOrderYear);
         foreach (var line in stored) unit.Remove(line);
         var lines = await ComposeAsync(unit, session, document, input, cancellationToken);
         if (lines.Count == 0) throw new WorkspaceValidationException("Add at least one line.");
@@ -364,7 +367,8 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
                 l.TaxableAmount, l.TaxRatePercent, l.Cgst, l.Sgst, l.Igst, l.Total, l.BatchId,
                 l.BatchId is { } b && batches.TryGetValue(b, out var batch) ? batch.Number : l.BatchNumber, l.ExpiresOn, l.SerialNumber, l.OriginalLineId,
                 showCost && l.IsLocked ? l.CostValue : null, l.LineType, l.TaxCategoryId, l.SourceId)).ToList(),
-            allocations, returns, company.LegalName.Length > 0 ? company.LegalName : company.Name, company.Gstin, company.StateCode);
+            allocations, returns, company.LegalName.Length > 0 ? company.LegalName : company.Name, company.Gstin, company.StateCode,
+            d.SupplierInvoiceDate, d.ReceivedDate, d.PurchaseOrderNumber, d.PurchaseOrderYear);
     }
 
     public async Task<IReadOnlyList<ReturnableLine>> ReturnableLinesAsync(Guid originalId, CancellationToken cancellationToken = default)
@@ -457,6 +461,7 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
         var placeOfSupply = original?.PlaceOfSupply ?? (party is { StateCode.Length: > 0 } ? party.StateCode : company.StateCode);
         var interState = original?.IsInterState ?? (placeOfSupply != company.StateCode);
         var name = party?.Name ?? (string.IsNullOrWhiteSpace(input.WalkInName) ? string.Empty : input.WalkInName.Trim());
+        Guard(() => document.SetPurchaseDetails(input.SupplierInvoiceDate, input.ReceivedDate, input.PurchaseOrderNumber, input.PurchaseOrderYear));
         Guard(() => document.UpdateDraft(input.Date, partyId, name, party?.Gstin ?? string.Empty, placeOfSupply, interState, mode, cashAccountId,
             warehouse.Id, original?.Id, input.Reference, input.Narration, pricesIncludeTax, roundToRupee));
 

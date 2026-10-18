@@ -605,6 +605,19 @@ namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
                     b.Property<bool>("PricesIncludeTax")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("PurchaseOrderNumber")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PurchaseOrderYear")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly?>("ReceivedDate")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Reference")
                         .IsRequired()
                         .HasMaxLength(40)
@@ -627,6 +640,9 @@ namespace Nexora.Infrastructure.Persistence.Migrations.Sqlite
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("StockDocumentId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly?>("SupplierInvoiceDate")
                         .HasColumnType("TEXT");
 
                     b.Property<long>("TaxableAmount")

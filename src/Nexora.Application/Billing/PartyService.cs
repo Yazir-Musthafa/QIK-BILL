@@ -18,7 +18,10 @@ public sealed record PartyInput(Guid? Id, PartyKind Kind, PartyDetails Details);
 /// LedgerBalance = Outstanding − Unapplied.
 /// </summary>
 public sealed record PartyRow(Guid Id, PartyKind Kind, string Name, string Phone, string Email, string Gstin, string StateCode, string State,
-    string Address, string City, string Pincode, decimal CreditLimit, bool IsActive, Guid AccountId, decimal LedgerBalance, decimal Outstanding, decimal Unapplied);
+    string Address, string City, string Pincode, decimal CreditLimit, bool IsActive, Guid AccountId, decimal LedgerBalance, decimal Outstanding, decimal Unapplied, string Number = "")
+{
+    public string LookupLabel => $"{Number} · {Name}";
+}
 
 /// <summary>An invoice, bill, return, receipt, payment or refund of a party with what is still open on it.</summary>
 public sealed record OpenItemRow(OpenItemSource Source, Guid Id, string Type, string Number, DateOnly Date, bool IsCharge, decimal Amount,
@@ -27,7 +30,10 @@ public sealed record OpenItemRow(OpenItemSource Source, Guid Id, string Type, st
     public decimal Open => Amount - Allocated;
 }
 
-/// <summary>One posting on a party's ledger. <see cref="Balance"/> is in the party's usual direction (receivable or payable).</summary>
+/// <summary>A posted journal line, including counterpart accounts when accounting access is permitted.</summary>
+public sealed record PartyJournalLine(DateOnly Date, string Voucher, string Type, string Account, string Narration, decimal Debit, decimal Credit);
+
+/// <summary>One posting on a party's ledger; balance is in the party's usual receivable/payable direction.</summary>
 public sealed record StatementLine(DateOnly Date, string Voucher, string Particulars, decimal Debit, decimal Credit, decimal Balance);
 
 /// <summary>A party's ledger for a period, with the balance brought forward and the documents still open.</summary>
@@ -59,12 +65,13 @@ public sealed class PartyService(IUnitOfWorkFactory units, IAuthorizer authorize
         authorizer.Demand(ViewPermission(kind));
         await using var unit = await units.BeginAsync(readOnly: true, cancellationToken);
         var parties = await unit.ListAsync<Party>(p => p.Kind == kind && (includeInactive || p.IsActive), cancellationToken);
+        var numbers = (await unit.ListAsync<Account>(cancellationToken: cancellationToken)).ToDictionary(a => a.Id, a => a.Code);
         var accountIds = parties.Select(p => p.AccountId).ToList();
         var entries = (await unit.ListAsync<LedgerEntry>(e => accountIds.Contains(e.AccountId), cancellationToken))
             .GroupBy(e => e.AccountId).ToDictionary(g => g.Key, g => g.Sum(e => e.Debit - e.Credit));
         var items = await OpenItems.LoadAsync(unit, null, cancellationToken);
         return parties.OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
-            .Select(p => Row(p, entries.GetValueOrDefault(p.AccountId), items.Where(i => i.PartyId == p.Id)))
+            .Select(p => Row(p, entries.GetValueOrDefault(p.AccountId), items.Where(i => i.PartyId == p.Id), numbers.GetValueOrDefault(p.AccountId, string.Empty)))
             .ToList();
     }
 
@@ -74,7 +81,8 @@ public sealed class PartyService(IUnitOfWorkFactory units, IAuthorizer authorize
         var party = await unit.FindAsync<Party>(id, cancellationToken) ?? throw new WorkspaceValidationException("That party no longer exists.");
         authorizer.Demand(ViewPermission(party.Kind));
         var balance = (await unit.ListAsync<LedgerEntry>(e => e.AccountId == party.AccountId, cancellationToken)).Sum(e => e.Debit - e.Credit);
-        return Row(party, balance, await OpenItems.LoadAsync(unit, id, cancellationToken));
+        return Row(party, balance, await OpenItems.LoadAsync(unit, id, cancellationToken),
+            (await unit.FindAsync<Account>(party.AccountId, cancellationToken))?.Code ?? string.Empty);
     }
 
     /// <summary>Every live item of the party, oldest first, with its open amount.</summary>
@@ -119,7 +127,27 @@ public sealed class PartyService(IUnitOfWorkFactory units, IAuthorizer authorize
         var items = await OpenItems.LoadAsync(unit, partyId, cancellationToken);
         var open = items.Where(i => i.Open != 0).OrderBy(i => i.Date).ThenBy(i => i.Number, StringComparer.Ordinal)
             .Select(i => new OpenItemRow(i.Source, i.Id, i.Type, i.Number, i.Date, i.IsCharge, i.Amount, i.Allocated, i.Reference)).ToList();
-        return new PartyStatement(Row(party, debitBalance, items), from, to, opening, lines, balance, open);
+        return new PartyStatement(Row(party, debitBalance, items,
+            (await unit.FindAsync<Account>(party.AccountId, cancellationToken))?.Code ?? string.Empty), from, to, opening, lines, balance, open);
+    }
+
+    /// <summary>Full posted journals touching this party. Requires accounting access because counterpart accounts are shown.</summary>
+    public async Task<IReadOnlyList<PartyJournalLine>> JournalsAsync(Guid partyId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
+    {
+        authorizer.Demand(Permissions.VouchersView);
+        if (to < from) throw new WorkspaceValidationException("The end date must be on or after the start date.");
+        await using var unit = await units.BeginAsync(readOnly: true, cancellationToken);
+        var party = await unit.FindAsync<Party>(partyId, cancellationToken) ?? throw new WorkspaceValidationException("That party no longer exists.");
+        authorizer.Demand(ViewPermission(party.Kind));
+        var ids = (await unit.ListAsync<LedgerEntry>(e => e.AccountId == party.AccountId && e.Date >= from && e.Date <= to, cancellationToken))
+            .Select(e => e.VoucherId).Distinct().ToList();
+        var vouchers = (await unit.ListAsync<Voucher>(v => ids.Contains(v.Id), cancellationToken)).ToDictionary(v => v.Id);
+        var accounts = (await unit.ListAsync<Account>(cancellationToken: cancellationToken)).ToDictionary(a => a.Id, a => a.Name);
+        return (await unit.ListAsync<LedgerEntry>(e => ids.Contains(e.VoucherId), cancellationToken))
+            .OrderBy(e => e.Date).ThenBy(e => vouchers[e.VoucherId].PostedUtc).ThenBy(e => vouchers[e.VoucherId].Number, StringComparer.Ordinal)
+            .ThenBy(e => e.VoucherId).ThenBy(e => e.LineNumber)
+            .Select(e => new PartyJournalLine(e.Date, vouchers[e.VoucherId].Number ?? string.Empty, vouchers[e.VoucherId].Type.ToString(),
+                accounts.GetValueOrDefault(e.AccountId, ""), vouchers[e.VoucherId].Narration, e.Debit, e.Credit)).ToList();
     }
 
     public async Task<Guid> SaveAsync(PartyInput input, CancellationToken cancellationToken = default)
@@ -212,13 +240,13 @@ public sealed class PartyService(IUnitOfWorkFactory units, IAuthorizer authorize
 
     internal static string Noun(PartyKind kind) => kind == PartyKind.Customer ? "customer" : "supplier";
 
-    private static PartyRow Row(Party p, decimal debitBalance, IEnumerable<OpenItems.Item> items)
+    private static PartyRow Row(Party p, decimal debitBalance, IEnumerable<OpenItems.Item> items, string number = "")
     {
         var list = items.ToList();
         var balance = p.Kind == PartyKind.Customer ? debitBalance : -debitBalance;
         return new PartyRow(p.Id, p.Kind, p.Name, p.Phone, p.Email, p.Gstin, p.StateCode, IndianState.FromCode(p.StateCode)?.Name ?? string.Empty,
             p.Address, p.City, p.Pincode, p.CreditLimit, p.IsActive, p.AccountId, balance,
-            list.Where(i => i.IsCharge).Sum(i => i.Open), list.Where(i => !i.IsCharge).Sum(i => i.Open));
+            list.Where(i => i.IsCharge).Sum(i => i.Open), list.Where(i => !i.IsCharge).Sum(i => i.Open), number);
     }
 
     private async Task<Account> GroupAsync(IUnitOfWork unit, PartyKind kind, CancellationToken cancellationToken)

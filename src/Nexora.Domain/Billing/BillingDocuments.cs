@@ -176,6 +176,26 @@ public sealed class BillingDocument : ICompanyOwned, IAudited
     /// <summary>The supplier's bill number for purchases; the customer's order reference for sales.</summary>
     public string Reference { get; private set; }
 
+    public DateOnly? SupplierInvoiceDate { get; private set; }
+
+    public DateOnly? ReceivedDate { get; private set; }
+
+    public string PurchaseOrderNumber { get; private set; } = string.Empty;
+
+    public string PurchaseOrderYear { get; private set; } = string.Empty;
+
+    public void SetPurchaseDetails(DateOnly? invoiceDate, DateOnly? receivedDate, string orderNumber, string orderYear)
+    {
+        EnsureDraft();
+        var number = (orderNumber ?? string.Empty).Trim();
+        var year = (orderYear ?? string.Empty).Trim();
+        if (Kind != BillingDocumentKind.PurchaseBill && (invoiceDate is not null || receivedDate is not null || number.Length > 0 || year.Length > 0))
+            throw new DomainException("Supplier invoice dates and order references belong to purchase bills only.");
+        if (number.Length > 40) throw new DomainException("The purchase order number can have up to 40 characters.");
+        if (year.Length > 12) throw new DomainException("The purchase order year can have up to 12 characters.");
+        (SupplierInvoiceDate, ReceivedDate, PurchaseOrderNumber, PurchaseOrderYear) = (invoiceDate, receivedDate, number, year);
+    }
+
     public string Narration { get; private set; }
 
     public bool PricesIncludeTax { get; private set; }

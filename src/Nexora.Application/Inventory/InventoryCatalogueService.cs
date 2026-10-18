@@ -13,7 +13,10 @@ public sealed record ProductRow(Guid Id, string Sku, string Name, string Display
     string? Barcode, string? QrCode, string HsnCode, Guid UnitId, string UnitCode, Guid? TaxCategoryId, string TaxCategoryName,
     decimal? PurchasePrice, decimal SellingPrice, decimal Mrp, decimal ReorderLevel, TrackingMode Tracking, bool TracksExpiry,
     Guid? ParentProductId, string VariantSize, string VariantColour, string VariantModel, bool HasVariants, bool IsArchived,
-    decimal OnHand, decimal Available, int WarrantyMonths = 0);
+    decimal OnHand, decimal Available, int WarrantyMonths = 0)
+{
+    public string LookupLabel => $"{Sku} · {DisplayName}";
+}
 
 public sealed record ProductInput(Guid? Id, ProductDetails Details, Guid UnitId, TrackingMode Tracking, bool TracksExpiry);
 
@@ -64,6 +67,32 @@ public sealed class InventoryCatalogueService(IUnitOfWorkFactory units, IAuthori
         return products.FirstOrDefault(p => p.Barcode == clean)
             ?? products.FirstOrDefault(p => p.QrCode == clean)
             ?? products.FirstOrDefault(p => string.Equals(p.Sku, clean, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>Purchase entry explicitly adds a new item, or reuses its exact code without changing its stored details.</summary>
+    public async Task<Guid> AddPurchaseItemAsync(ProductInput input, CancellationToken cancellationToken = default)
+    {
+        var session = authorizer.Demand(Permissions.PurchasesCreate);
+        authorizer.Demand(Permissions.InventoryManage);
+        if (input.Id is not null) throw new WorkspaceValidationException("Choose an existing item from the list to use it.");
+        await using var unit = await units.BeginAsync(cancellationToken: cancellationToken);
+        var code = (input.Details.Sku ?? string.Empty).Trim().ToUpperInvariant();
+        var existing = (await unit.ListAsync<Product>(cancellationToken: cancellationToken))
+            .FirstOrDefault(p => string.Equals(p.Sku, code, StringComparison.OrdinalIgnoreCase));
+        if (existing is not null)
+        {
+            if (existing.IsArchived) throw new WorkspaceValidationException("This code belongs to an archived item. Reactivate it from Products.");
+            if (await unit.AnyAsync<Product>(p => p.ParentProductId == existing.Id, cancellationToken))
+                throw new WorkspaceValidationException("Choose the specific variant of this item.");
+            return existing.Id;
+        }
+        await EnsureUnitAndTaxAsync(unit, input.UnitId, input.Details.TaxCategoryId, cancellationToken);
+        var details = authorizer.Has(Permissions.InventoryViewCost) ? input.Details : input.Details with { PurchasePrice = 0 };
+        var product = new Product(Guid.NewGuid(), session.CompanyId, details, input.UnitId, input.Tracking, input.TracksExpiry, null);
+        await EnsureUniqueAsync(unit, product, cancellationToken);
+        unit.Add(product);
+        await unit.CommitAsync(cancellationToken);
+        return product.Id;
     }
 
     /// <summary>Creates or updates a product. Users without inventory.view-cost keep the stored purchase price unchanged.</summary>

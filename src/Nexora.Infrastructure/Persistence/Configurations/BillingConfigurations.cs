@@ -48,6 +48,8 @@ internal sealed class BillingDocumentConfiguration : IEntityTypeConfiguration<Bi
         builder.Property(d => d.PartyGstin).HasMaxLength(15);
         builder.Property(d => d.PlaceOfSupply).HasMaxLength(2);
         builder.Property(d => d.Reference).HasMaxLength(40);
+        builder.Property(d => d.PurchaseOrderNumber).HasMaxLength(40);
+        builder.Property(d => d.PurchaseOrderYear).HasMaxLength(12);
         builder.Property(d => d.Narration).HasMaxLength(300);
         foreach (var name in new[] { nameof(BillingDocument.GrossAmount), nameof(BillingDocument.DiscountAmount), nameof(BillingDocument.TaxableAmount),
                      nameof(BillingDocument.Cgst), nameof(BillingDocument.Sgst), nameof(BillingDocument.Igst), nameof(BillingDocument.RoundOff),
