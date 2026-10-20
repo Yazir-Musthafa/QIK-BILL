@@ -23,6 +23,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nexora.Tests", "tests\Nexor
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nexora.Reporting", "src\Nexora.Reporting\Nexora.Reporting.csproj", "{4CD7751D-ACCD-4E5F-AAD1-2E3D4C38ABCF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nexora.Desktop.Smoke", "tests\Nexora.Desktop.Smoke\Nexora.Desktop.Smoke.csproj", "{23037445-494F-44D5-94C8-410725C59A24}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -129,6 +131,18 @@ Global
 		{4CD7751D-ACCD-4E5F-AAD1-2E3D4C38ABCF}.Release|x64.Build.0 = Release|Any CPU
 		{4CD7751D-ACCD-4E5F-AAD1-2E3D4C38ABCF}.Release|x86.ActiveCfg = Release|Any CPU
 		{4CD7751D-ACCD-4E5F-AAD1-2E3D4C38ABCF}.Release|x86.Build.0 = Release|Any CPU
+		{23037445-494F-44D5-94C8-410725C59A24}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{23037445-494F-44D5-94C8-410725C59A24}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{23037445-494F-44D5-94C8-410725C59A24}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{23037445-494F-44D5-94C8-410725C59A24}.Debug|x64.Build.0 = Debug|Any CPU
+		{23037445-494F-44D5-94C8-410725C59A24}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{23037445-494F-44D5-94C8-410725C59A24}.Debug|x86.Build.0 = Debug|Any CPU
+		{23037445-494F-44D5-94C8-410725C59A24}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{23037445-494F-44D5-94C8-410725C59A24}.Release|Any CPU.Build.0 = Release|Any CPU
+		{23037445-494F-44D5-94C8-410725C59A24}.Release|x64.ActiveCfg = Release|Any CPU
+		{23037445-494F-44D5-94C8-410725C59A24}.Release|x64.Build.0 = Release|Any CPU
+		{23037445-494F-44D5-94C8-410725C59A24}.Release|x86.ActiveCfg = Release|Any CPU
+		{23037445-494F-44D5-94C8-410725C59A24}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -142,5 +156,6 @@ Global
 		{C9BD5C1B-E163-4308-B27D-D8F16644AA1D} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{298EB51C-B5AF-4504-9464-AEDE16E61630} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{4CD7751D-ACCD-4E5F-AAD1-2E3D4C38ABCF} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{23037445-494F-44D5-94C8-410725C59A24} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

@@ -57,6 +57,10 @@ if (-not $SkipTests) {
         dotnet test (Join-Path $root 'tests/Nexora.Tests/Nexora.Tests.csproj') --configuration $Configuration --no-build @filter `
             --logger 'trx;LogFileName=results.trx' --results-directory $testResults
     }
+    Invoke-Step 'Windows screen and workflow audit' {
+        dotnet run --project (Join-Path $root 'tests/Nexora.Desktop.Smoke') --configuration $Configuration --no-build -- `
+            (Join-Path $root 'artifacts/windows-ui')
+    }
 }
 
 if (Test-Path $publishDir) { Remove-Item $publishDir -Recurse -Force }
