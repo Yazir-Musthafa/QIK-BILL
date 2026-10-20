@@ -26,7 +26,8 @@
                  Visibility="{Binding CanChangePolicy, Converter={StaticResource VisibleWhen}, ConverterParameter=invert}" />
 
       <TextBlock Text="Units" Style="{StaticResource Text.Section}" Margin="0,24,0,8" />
-      <controls:QikDataGrid LayoutKey="inventory-units" ItemsSource="{Binding Units}" MaxHeight="280" AutomationProperties.Name="Units">
+      <TextBlock Text="Select a row to edit, or choose New unit. Codes and precision are protected once the unit is in use." Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,0,0,8" />
+      <controls:QikDataGrid LayoutKey="inventory-units" ItemsSource="{Binding Units}" SelectedItem="{Binding SelectedUnit}" SelectionMode="Single" MaxHeight="280" AutomationProperties.Name="Units">
         <DataGrid.Columns>
           <DataGridTextColumn Header="Code" Binding="{Binding Code}" Width="90" />
           <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
@@ -37,13 +38,14 @@
         <TextBox Text="{Binding UnitCode, UpdateSourceTrigger=PropertyChanged}" Width="80" MaxLength="10" CharacterCasing="Upper" Margin="0,0,8,0" AutomationProperties.Name="New unit code" />
         <TextBox Text="{Binding UnitName, UpdateSourceTrigger=PropertyChanged}" Width="200" MaxLength="40" Margin="0,0,8,0" AutomationProperties.Name="New unit name" />
         <TextBox Text="{Binding UnitDecimals, UpdateSourceTrigger=PropertyChanged}" Width="50" MaxLength="1" TextAlignment="Right" Margin="0,0,8,0" AutomationProperties.Name="New unit decimal places" />
-        <Button Content="Add unit" Command="{Binding AddUnitCommand}" />
+        <Button Content="Save unit" Command="{Binding AddUnitCommand}" Margin="0,0,8,0" />
+        <Button Content="New unit" Command="{Binding NewUnitCommand}" />
       </StackPanel>
 
       <TextBlock Text="Tax categories" Style="{StaticResource Text.Section}" Margin="0,24,0,8" />
       <TextBlock Style="{StaticResource Text.Caption}" Margin="0,0,0,8" TextWrapping="Wrap"
-                 Text="Reference rates only. Sales and purchases with GST (Phase 5) will use dated rates, so posted documents keep the rate that applied. Check current GST rates before relying on these." />
-      <controls:QikDataGrid LayoutKey="inventory-tax" ItemsSource="{Binding TaxCategories}" MaxHeight="240" AutomationProperties.Name="Tax categories">
+                 Text="Select a category to edit, or choose New category. New calculations use the configured rate; posted documents retain their recorded rate. There is no effective-date schedule. Check the applicable GST rate before changing it." />
+      <controls:QikDataGrid LayoutKey="inventory-tax" ItemsSource="{Binding TaxCategories}" SelectedItem="{Binding SelectedTaxCategory}" SelectionMode="Single" MaxHeight="240" AutomationProperties.Name="Tax categories">
         <DataGrid.Columns>
           <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
           <DataGridTextColumn Header="Reference rate %" Binding="{Binding ReferenceRatePercent}" Width="130" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
@@ -52,7 +54,8 @@
       <StackPanel Orientation="Horizontal" Margin="0,8,0,0" IsEnabled="{Binding CanEdit}">
         <TextBox Text="{Binding TaxName, UpdateSourceTrigger=PropertyChanged}" Width="200" MaxLength="60" Margin="0,0,8,0" AutomationProperties.Name="New tax category name" />
         <TextBox Text="{Binding TaxRate, UpdateSourceTrigger=PropertyChanged}" Width="70" TextAlignment="Right" Margin="0,0,8,0" AutomationProperties.Name="Reference rate percent" />
-        <Button Content="Add tax category" Command="{Binding AddTaxCategoryCommand}" />
+        <Button Content="Save category" Command="{Binding AddTaxCategoryCommand}" Margin="0,0,8,0" />
+        <Button Content="New category" Command="{Binding NewTaxCategoryCommand}" />
       </StackPanel>
       <TextBlock Text="{Binding Error}" Style="{StaticResource Text.Error}" Visibility="{Binding Error, Converter={StaticResource VisibleWhen}}" />
     </StackPanel>

@@ -1,0 +1,19 @@
+<UserControl x:Class="Nexora.Desktop.Views.Settings.BillingSettingsView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel MaxWidth="640" HorizontalAlignment="Left" Margin="0,0,0,24" IsEnabled="{Binding IsBusy, Converter={StaticResource Inverse}}">
+      <TextBlock Text="Billing defaults" Style="{StaticResource Text.Section}" Margin="0,0,0,12" />
+      <Border Style="{StaticResource Panel}" IsEnabled="{Binding CanEdit}">
+        <StackPanel>
+          <CheckBox Content="Round invoice and purchase totals to whole rupees" IsChecked="{Binding RoundToRupee}" Margin="0,0,0,12" />
+          <CheckBox Content="Sales prices include GST" IsChecked="{Binding PricesIncludeTax}" />
+          <TextBlock Text="Purchases start with tax-exclusive prices. You can change either option on an individual document before posting. Saved drafts and posted documents keep their own choices."
+                     Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,12,0,16" />
+          <Button Content="Save defaults" Style="{StaticResource Button.Primary}" Command="{Binding SaveCommand}" HorizontalAlignment="Left" />
+        </StackPanel>
+      </Border>
+      <TextBlock Text="{Binding Error}" Style="{StaticResource Text.Error}" TextWrapping="Wrap" Margin="0,12,0,0" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

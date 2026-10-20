@@ -440,14 +440,19 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
             selection.Line.Product = Products.FirstOrDefault(p => p.Id == selection.ProductId);
             selection.Line.Unit = Units.FirstOrDefault(u => u.Id == selection.UnitId);
         }
+        await RefreshDefaultsAsync();
+        _referenceDataLoaded = true;
+    }
+
+    private async Task RefreshDefaultsAsync()
+    {
         var settings = await _billing.GetSettingsAsync();
+        (_defaultPricesIncludeTax, _defaultRoundToRupee) = (IsSales && settings.PricesIncludeTax, settings.RoundToRupee);
         if (!_defaultsLoaded)
         {
-            (_defaultPricesIncludeTax, _defaultRoundToRupee) = (settings.PricesIncludeTax, settings.RoundToRupee);
             (PricesIncludeTax, RoundToRupee) = (_defaultPricesIncludeTax, _defaultRoundToRupee);
             _defaultsLoaded = true;
         }
-        _referenceDataLoaded = true;
     }
 
     private async Task ReloadPartiesAsync()
@@ -860,7 +865,7 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
     {
         if (Lines.Any(l => l.Product is not null || !string.IsNullOrWhiteSpace(l.ProductSearch) || !string.IsNullOrWhiteSpace(l.Rate))
             && !await _dialogs.ConfirmAsync("Start a new bill?", "Unsaved changes in this entry will be cleared. Saved drafts stay in the list.", "Start new")) return;
-        StartDocument();
+        if (await RunAsync(RefreshDefaultsAsync)) StartDocument();
     }
 
     [RelayCommand]

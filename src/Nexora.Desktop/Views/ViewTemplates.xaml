@@ -59,6 +59,7 @@
   <DataTemplate DataType="{x:Type rvm:ReportsViewModel}"><rviews:ReportsView /></DataTemplate>
   <DataTemplate DataType="{x:Type svm:ImportExportViewModel}"><sviews:ImportExportView /></DataTemplate>
   <DataTemplate DataType="{x:Type svm:BackupViewModel}"><sviews:BackupView /></DataTemplate>
+  <DataTemplate DataType="{x:Type svm:BillingSettingsViewModel}"><sviews:BillingSettingsView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:HelpViewModel}"><views:HelpView /></DataTemplate>
   <DataTemplate DataType="{x:Type vm:GalleryViewModel}"><views:GalleryView /></DataTemplate>
 </ResourceDictionary>

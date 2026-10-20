@@ -237,8 +237,14 @@ public sealed class InventoryCatalogueService(IUnitOfWorkFactory units, IAuthori
         if (id is { } existing)
         {
             entity = await unit.FindAsync<Unit>(existing, cancellationToken) ?? throw new WorkspaceValidationException("That unit no longer exists.");
-            if (decimalPlaces < entity.DecimalPlaces && await unit.AnyAsync<Product>(p => p.UnitId == existing, cancellationToken))
-                throw new WorkspaceValidationException("Products use this unit, so its decimal places cannot be reduced.");
+            var inUse = await unit.AnyAsync<Product>(p => p.UnitId == existing, cancellationToken)
+                || await unit.AnyAsync<UnitConversion>(c => c.UnitId == existing, cancellationToken)
+                || await unit.AnyAsync<Domain.Billing.BillingLine>(l => l.UnitId == existing, cancellationToken)
+                || await unit.AnyAsync<StockMovement>(m => m.EnteredUnitId == existing, cancellationToken);
+            if (inUse && entity.Code != clean)
+                throw new WorkspaceValidationException("This unit is in use. Keep its code to preserve existing documents; create a new unit for a different code.");
+            if (inUse && decimalPlaces < entity.DecimalPlaces)
+                throw new WorkspaceValidationException("Products or documents use this unit, so its decimal places cannot be reduced.");
             entity.Update(clean, name, decimalPlaces);
         }
         else

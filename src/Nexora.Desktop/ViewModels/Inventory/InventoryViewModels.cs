@@ -535,6 +535,32 @@ public sealed partial class InventorySettingsViewModel(
     [ObservableProperty] private string _unitDecimals = "0";
     [ObservableProperty] private string _taxName = string.Empty;
     [ObservableProperty] private string _taxRate = string.Empty;
+    [ObservableProperty] private UnitRow? _selectedUnit;
+    [ObservableProperty] private TaxCategoryRow? _selectedTaxCategory;
+
+    partial void OnSelectedUnitChanged(UnitRow? value)
+    {
+        if (value is not null) (UnitCode, UnitName, UnitDecimals) = (value.Code, value.Name, value.DecimalPlaces.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    partial void OnSelectedTaxCategoryChanged(TaxCategoryRow? value)
+    {
+        if (value is not null) (TaxName, TaxRate) = (value.Name, NumberText.Format(value.ReferenceRatePercent));
+    }
+
+    [RelayCommand]
+    private void NewUnit()
+    {
+        SelectedUnit = null;
+        (UnitCode, UnitName, UnitDecimals) = ("", "", "0");
+    }
+
+    [RelayCommand]
+    private void NewTaxCategory()
+    {
+        SelectedTaxCategory = null;
+        (TaxName, TaxRate) = ("", "");
+    }
 
     public async Task LoadAsync() => await RunAsync(async () =>
     {
@@ -557,20 +583,28 @@ public sealed partial class InventorySettingsViewModel(
     [RelayCommand]
     private async Task AddUnitAsync()
     {
-        if (await RunAsync(() => catalogue.SaveUnitAsync(null, UnitCode, UnitName, (int)NumberText.Parse(UnitDecimals, "Decimal places")), "Unit added."))
+        Guid savedId = Guid.Empty;
+        if (await RunAsync(async () =>
+            {
+                var places = NumberText.Parse(UnitDecimals, "Decimal places");
+                if (places != decimal.Truncate(places) || places is < 0 or > 3)
+                    throw new WorkspaceValidationException("Decimal places must be a whole number from 0 to 3.");
+                savedId = await catalogue.SaveUnitAsync(SelectedUnit?.Id, UnitCode, UnitName, (int)places);
+            }, "Unit saved."))
         {
-            (UnitCode, UnitName, UnitDecimals) = (string.Empty, string.Empty, "0");
             await LoadAsync();
+            SelectedUnit = Units.Single(u => u.Id == savedId);
         }
     }
 
     [RelayCommand]
     private async Task AddTaxCategoryAsync()
     {
-        if (await RunAsync(() => catalogue.SaveTaxCategoryAsync(null, TaxName, NumberText.Parse(TaxRate, "Rate")), "Tax category added."))
+        Guid savedId = Guid.Empty;
+        if (await RunAsync(async () => savedId = await catalogue.SaveTaxCategoryAsync(SelectedTaxCategory?.Id, TaxName, NumberText.Parse(TaxRate, "Rate")), "Tax category saved."))
         {
-            (TaxName, TaxRate) = (string.Empty, string.Empty);
             await LoadAsync();
+            SelectedTaxCategory = TaxCategories.Single(t => t.Id == savedId);
         }
     }
 }
