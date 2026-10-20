@@ -42,6 +42,7 @@ public static class DependencyInjection
         services.AddSingleton<IReportGeneratorMarker, CostCentreGenerator>();
         services.AddSingleton<IReportGeneratorMarker, ServicePerformanceGenerator>();
         services.AddSingleton<ReportService>();
+        services.AddSingleton<Gst.Gstr1ExportService>();
         services.AddSingleton<Import.DataTransferService>();
         services.AddSingleton<Application.IDashboardSource, Dashboard.DashboardSource>();
         services.AddSingleton<Export.ReportExportService>();

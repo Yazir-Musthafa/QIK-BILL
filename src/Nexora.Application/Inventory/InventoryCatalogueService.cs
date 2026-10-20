@@ -16,6 +16,12 @@ public sealed record ProductRow(Guid Id, string Sku, string Name, string Display
     decimal OnHand, decimal Available, int WarrantyMonths = 0)
 {
     public string LookupLabel => $"{Sku} · {DisplayName}";
+
+    /// <summary>Current good stock in the billing warehouse, in base units; not a reservation.</summary>
+    public decimal? WarehouseStock { get; init; }
+
+    public string BillingLookupLabel => WarehouseStock is { } quantity
+        ? $"{LookupLabel} · stock {quantity:0.###} {UnitCode}" : LookupLabel;
 }
 
 public sealed record ProductInput(Guid? Id, ProductDetails Details, Guid UnitId, TrackingMode Tracking, bool TracksExpiry);
@@ -31,11 +37,21 @@ public sealed record InventorySettingsRow(CostingMethod CostingMethod, bool Allo
 /// <summary>Products, variants, units, unit conversions, tax categories and the company's inventory settings.</summary>
 public sealed class InventoryCatalogueService(IUnitOfWorkFactory units, IAuthorizer authorizer)
 {
-    public async Task<IReadOnlyList<ProductRow>> ListProductsAsync(bool includeArchived = false, CancellationToken cancellationToken = default)
+    /// <summary>Refreshes billing choices from posted stock movements, including purchases and returns.</summary>
+    public async Task<IReadOnlyList<ProductRow>> ListBillingProductsAsync(Guid warehouseId, CancellationToken cancellationToken = default)
+    {
+        var products = await ListProductsAsync(cancellationToken: cancellationToken, warehouseId: warehouseId);
+        return products.Where(p => !p.HasVariants).OrderByDescending(p => p.WarehouseStock > 0)
+            .ThenBy(p => p.Sku, StringComparer.Ordinal).ToList();
+    }
+
+    public async Task<IReadOnlyList<ProductRow>> ListProductsAsync(bool includeArchived = false, CancellationToken cancellationToken = default, Guid? warehouseId = null)
     {
         authorizer.Demand(Permissions.InventoryView);
         var showCost = authorizer.Has(Permissions.InventoryViewCost);
         await using var unit = await units.BeginAsync(readOnly: true, cancellationToken);
+        if (warehouseId is { } wid && await unit.FindAsync<Domain.Companies.Warehouse>(wid, cancellationToken) is null)
+            throw new WorkspaceValidationException("Choose a warehouse in this company.");
         var products = await unit.ListAsync<Product>(p => includeArchived || !p.IsArchived, cancellationToken);
         var unitCodes = (await unit.ListAsync<Unit>(cancellationToken: cancellationToken)).ToDictionary(u => u.Id, u => u.Code);
         var taxes = (await unit.ListAsync<TaxCategory>(cancellationToken: cancellationToken)).ToDictionary(t => t.Id, t => t.Name);
@@ -44,6 +60,9 @@ public sealed class InventoryCatalogueService(IUnitOfWorkFactory units, IAuthori
         var onHand = movements.GroupBy(m => m.ProductId).ToDictionary(g => g.Key, g => g.Sum(m => m.Quantity));
         var available = movements.Where(m => m.State == StockState.Good).GroupBy(m => m.ProductId).ToDictionary(g => g.Key, g => g.Sum(m => m.Quantity));
 
+        var warehouseStock = movements.Where(m => m.WarehouseId == warehouseId && m.State == StockState.Good)
+            .GroupBy(m => m.ProductId).ToDictionary(g => g.Key, g => g.Sum(m => m.Quantity));
+
         return products
             .OrderBy(p => p.Sku, StringComparer.Ordinal)
             .Select(p => new ProductRow(p.Id, p.Sku, p.Name, p.DisplayName, p.Description, p.Category, p.Brand, p.Barcode, p.QrCode, p.HsnCode,
@@ -51,7 +70,8 @@ public sealed class InventoryCatalogueService(IUnitOfWorkFactory units, IAuthori
                 p.TaxCategoryId is { } t ? taxes.GetValueOrDefault(t, string.Empty) : string.Empty,
                 showCost ? p.PurchasePrice : null, p.SellingPrice, p.Mrp, p.ReorderLevel, p.Tracking, p.TracksExpiry,
                 p.ParentProductId, p.VariantSize, p.VariantColour, p.VariantModel, parents.Contains(p.Id), p.IsArchived,
-                onHand.GetValueOrDefault(p.Id), available.GetValueOrDefault(p.Id), p.WarrantyMonths))
+                onHand.GetValueOrDefault(p.Id), available.GetValueOrDefault(p.Id), p.WarrantyMonths)
+                { WarehouseStock = warehouseId is null ? null : warehouseStock.GetValueOrDefault(p.Id) })
             .ToList();
     }
 

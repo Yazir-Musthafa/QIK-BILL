@@ -43,7 +43,7 @@ public sealed class CreditLimitExceededException(string message, decimal limit, 
 public sealed record BillingDraftInput(Guid? Id, BillingDocumentKind Kind, DateOnly Date, Guid? PartyId, Guid WarehouseId, SettlementMode Mode,
     IReadOnlyList<BillingLineInput> Lines, Guid? CashAccountId = null, Guid? OriginalDocumentId = null, string Reference = "", string Narration = "",
     bool? PricesIncludeTax = null, bool? RoundToRupee = null, string? WalkInName = null, DateOnly? SupplierInvoiceDate = null,
-    DateOnly? ReceivedDate = null, string PurchaseOrderNumber = "", string PurchaseOrderYear = "");
+    DateOnly? ReceivedDate = null, string PurchaseOrderNumber = "", string PurchaseOrderYear = "", string? PlaceOfSupply = null);
 
 public enum PaymentStatus
 {
@@ -189,7 +189,7 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
                 l.LineType, l.TaxCategoryId, l.HsnCode, l.SourceId)).ToList(),
             document.CashAccountId, document.OriginalDocumentId, document.Reference, document.Narration, document.PricesIncludeTax, document.RoundToRupee,
             document.PartyId is null ? document.PartyName : null, document.SupplierInvoiceDate, document.ReceivedDate,
-            document.PurchaseOrderNumber, document.PurchaseOrderYear);
+            document.PurchaseOrderNumber, document.PurchaseOrderYear, document.PlaceOfSupply);
         foreach (var line in stored) unit.Remove(line);
         var lines = await ComposeAsync(unit, session, document, input, cancellationToken);
         if (lines.Count == 0) throw new WorkspaceValidationException("Add at least one line.");
@@ -458,11 +458,15 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
         }
 
         // Place of supply: the party's state (the company's own state when unknown). Returns keep the original's.
-        var placeOfSupply = original?.PlaceOfSupply ?? (party is { StateCode.Length: > 0 } ? party.StateCode : company.StateCode);
+        var requestedState = input.PlaceOfSupply?.Trim();
+        if (!string.IsNullOrEmpty(requestedState) && IndianState.FromCode(requestedState) is null)
+            throw new WorkspaceValidationException("Choose a valid place of supply state.");
+        var placeOfSupply = original?.PlaceOfSupply ?? (!string.IsNullOrEmpty(requestedState) ? requestedState
+            : party is { StateCode.Length: > 0 } ? party.StateCode : company.StateCode);
         var interState = original?.IsInterState ?? (placeOfSupply != company.StateCode);
-        var name = party?.Name ?? (string.IsNullOrWhiteSpace(input.WalkInName) ? string.Empty : input.WalkInName.Trim());
+        var name = original?.PartyName ?? party?.Name ?? (string.IsNullOrWhiteSpace(input.WalkInName) ? string.Empty : input.WalkInName.Trim());
         Guard(() => document.SetPurchaseDetails(input.SupplierInvoiceDate, input.ReceivedDate, input.PurchaseOrderNumber, input.PurchaseOrderYear));
-        Guard(() => document.UpdateDraft(input.Date, partyId, name, party?.Gstin ?? string.Empty, placeOfSupply, interState, mode, cashAccountId,
+        Guard(() => document.UpdateDraft(input.Date, partyId, name, original?.PartyGstin ?? party?.Gstin ?? string.Empty, placeOfSupply, interState, mode, cashAccountId,
             warehouse.Id, original?.Id, input.Reference, input.Narration, pricesIncludeTax, roundToRupee));
 
         var productIds = input.Lines.Where(l => l.LineType != BillingLineType.Service).Select(l => l.ProductId)

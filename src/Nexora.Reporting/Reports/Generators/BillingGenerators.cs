@@ -85,15 +85,15 @@ internal sealed class RegisterGenerator(string key, bool sales) : Generator(key)
             var s = BillingFacts.Sign(f.Kind, f.IsCancellation);
             var type = f.IsCancellation ? $"{f.Kind.Label()} cancelled" : f.Kind.Label();
             return new ReportRow([f.Date, f.Number ?? string.Empty, type, f.PartyName.Length > 0 ? f.PartyName : "Walk-in", f.Gstin, f.PlaceOfSupply,
-                s * f.Taxable, s * f.Cgst, s * f.Sgst, s * f.Igst, 0m, s * f.RoundOff, s * f.Total], new DrillTarget(DrillKind.BillingDocument, f.Id));
+                s * f.Taxable, s * f.Cgst, s * f.Sgst, s * f.Igst, 0m, s * f.RoundOff, s * f.Total, f.Gstin.Length > 0 ? "B2B" : "B2C"], new DrillTarget(DrillKind.BillingDocument, f.Id));
         }).ToList();
 
-        var totals = new object?[] { null, null, null, null, null, null, Total(x => x.T), Total(x => x.C), Total(x => x.S), Total(x => x.I), 0m, Total(x => x.R), Total(x => x.Tot) };
+        var totals = new object?[] { null, null, null, null, null, null, Total(x => x.T), Total(x => x.C), Total(x => x.S), Total(x => x.I), 0m, Total(x => x.R), Total(x => x.Tot), null };
         return new ReportData(
         [
             Date("date", "Date"), Text("number", "Number"), Text("type", "Type"), Text("party", sales ? "Customer" : "Supplier"), Text("gstin", "GSTIN"),
             Text("pos", "Place of supply"), Money("taxable", "Taxable value"), Money("cgst", "CGST"), Money("sgst", "SGST"), Money("igst", "IGST"),
-            Money("cess", "Cess"), Money("roundoff", "Round off"), Money("total", "Total"),
+            Money("cess", "Cess"), Money("roundoff", "Round off"), Money("total", "Total"), Text("registration", "B2B / B2C"),
         ], rows, c.RangeText, totals, groups.Sum(g => g.Count));
     }
 }
