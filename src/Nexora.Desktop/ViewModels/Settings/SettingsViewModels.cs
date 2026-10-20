@@ -15,7 +15,24 @@ using Nexora.Desktop.Services;
 
 namespace Nexora.Desktop.ViewModels.Settings;
 
-public sealed record SettingsSection(string Key, string Label, string Glyph, string? Permission, Type ViewModelType);
+public sealed record SettingsSection(string Key, string Label, string Glyph, string? Permission, Type ViewModelType)
+{
+    public string Guidance => Key switch
+    {
+        "general" => "Choose your theme here. Your companies lists the workspaces you can open; create a company for a separate set of books.",
+        "profile" => "Enter the business name and state, then Save profile. Add address, phone and logo when useful. Your GSTIN is needed for GST export; PAN must agree with it.",
+        "locations" => "Add a warehouse for each place you keep stock. A branch is optional. Select an existing row to edit it; deactivate a location to keep its history.",
+        "numbering" => "Choose a document type and change its prefix and number width. Existing document numbers stay the same. For GST invoices and credit notes keep the full number within 16 characters.",
+        "users" => "Create a login for each staff member and choose a role. Give them the temporary password; they must change it at first sign-in. Select a user to manage access or reset their password.",
+        "roles" => "Choose a role to review its permissions. New roles start with the access you select. Give staff only the actions they need; keep an active administrator.",
+        "inventory" => "Choose the costing policy before stock moves. Units describe quantities; tax categories supply the rates used on new bills. Once stock has moved, the costing method is fixed.",
+        "years" => "Open the next year when you need to enter its transactions. Close a year only after its drafts are resolved and books checked. Closing prevents changes dated in that year.",
+        "transfer" => "Get a template, fill it, choose the file and review the preview. Fix errors before Import. Imports add new entries; they do not update existing ones. Export saves the selected data kind.",
+        "backup" => "Choose a folder and Create backup. A password is optional for manual backups; keep it safely if used. Expand Verify or restore to check a backup, or Automatic backups to set a schedule.",
+        "audit" => "Select an entry to see who changed what and the before/after values. Verify integrity checks whether the recorded history has been altered.",
+        _ => "Review the settings, then use the section's Save action to apply changes.",
+    };
+}
 
 /// <summary>Settings host: a section list on the left, the selected section on the right.</summary>
 public sealed partial class SettingsViewModel : ObservableObject

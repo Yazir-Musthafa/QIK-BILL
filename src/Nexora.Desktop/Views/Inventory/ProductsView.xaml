@@ -75,38 +75,42 @@
                 <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" MaxLength="120" AutomationProperties.Name="Product name" />
               </StackPanel>
             </Grid>
-            <TextBlock Text="Description" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
-            <TextBox Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}" MaxLength="1000" AutomationProperties.Name="Description" />
-            <Grid Margin="0,12,0,0">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition />
-                <ColumnDefinition Width="12" />
-                <ColumnDefinition />
-              </Grid.ColumnDefinitions>
+            <Expander Header="Description, category and barcodes (optional)" >
               <StackPanel>
-                <TextBlock Text="Category" Style="{StaticResource Text.Label}" />
-                <TextBox Text="{Binding Category, UpdateSourceTrigger=PropertyChanged}" MaxLength="60" AutomationProperties.Name="Category" />
+                <TextBlock Text="Description (optional)" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
+                <TextBox Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}" MaxLength="1000" AutomationProperties.Name="Description" />
+                <Grid Margin="0,12,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition />
+                  </Grid.ColumnDefinitions>
+                  <StackPanel>
+                    <TextBlock Text="Category (optional)" Style="{StaticResource Text.Label}" />
+                    <TextBox Text="{Binding Category, UpdateSourceTrigger=PropertyChanged}" MaxLength="60" AutomationProperties.Name="Category" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="2">
+                    <TextBlock Text="Brand (optional)" Style="{StaticResource Text.Label}" />
+                    <TextBox Text="{Binding Brand, UpdateSourceTrigger=PropertyChanged}" MaxLength="60" AutomationProperties.Name="Brand" />
+                  </StackPanel>
+                </Grid>
+                <Grid Margin="0,12,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition />
+                  </Grid.ColumnDefinitions>
+                  <StackPanel>
+                    <TextBlock Text="Barcode (EAN-13, EAN-8 or text)" Style="{StaticResource Text.Label}" />
+                    <TextBox Text="{Binding Barcode, UpdateSourceTrigger=PropertyChanged}" MaxLength="48" AutomationProperties.Name="Barcode" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="2">
+                    <TextBlock Text="QR identifier (optional)" Style="{StaticResource Text.Label}" />
+                    <TextBox Text="{Binding QrCode, UpdateSourceTrigger=PropertyChanged}" MaxLength="120" AutomationProperties.Name="QR identifier" />
+                  </StackPanel>
+                </Grid>
               </StackPanel>
-              <StackPanel Grid.Column="2">
-                <TextBlock Text="Brand" Style="{StaticResource Text.Label}" />
-                <TextBox Text="{Binding Brand, UpdateSourceTrigger=PropertyChanged}" MaxLength="60" AutomationProperties.Name="Brand" />
-              </StackPanel>
-            </Grid>
-            <Grid Margin="0,12,0,0">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition />
-                <ColumnDefinition Width="12" />
-                <ColumnDefinition />
-              </Grid.ColumnDefinitions>
-              <StackPanel>
-                <TextBlock Text="Barcode (EAN-13, EAN-8 or text)" Style="{StaticResource Text.Label}" />
-                <TextBox Text="{Binding Barcode, UpdateSourceTrigger=PropertyChanged}" MaxLength="48" AutomationProperties.Name="Barcode" />
-              </StackPanel>
-              <StackPanel Grid.Column="2">
-                <TextBlock Text="QR identifier" Style="{StaticResource Text.Label}" />
-                <TextBox Text="{Binding QrCode, UpdateSourceTrigger=PropertyChanged}" MaxLength="120" AutomationProperties.Name="QR identifier" />
-              </StackPanel>
-            </Grid>
+            </Expander>
             <Grid Margin="0,12,0,0">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="110" />
@@ -167,10 +171,14 @@
               </StackPanel>
             </Grid>
             <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-              <StackPanel Width="120">
-                <TextBlock Text="Warranty (months)" Style="{StaticResource Text.Label}" />
-                <TextBox Text="{Binding WarrantyMonths, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Warranty in months" />
-              </StackPanel>
+              <Expander Header="Warranty (optional)" >
+                <StackPanel>
+                  <StackPanel Width="120">
+                    <TextBlock Text="Warranty (months) (optional)" Style="{StaticResource Text.Label}" />
+                    <TextBox Text="{Binding WarrantyMonths, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Warranty in months" />
+                  </StackPanel>
+                </StackPanel>
+              </Expander>
               <TextBlock Style="{StaticResource Text.Caption}" VerticalAlignment="Bottom" Margin="12,0,0,4" TextWrapping="Wrap" Width="220"
                          Text="Service jobs for a serial sold by you are under warranty for this long from the sale date." />
             </StackPanel>
@@ -194,102 +202,108 @@
 
         <!-- Variants -->
         <Border Style="{StaticResource Panel}" Margin="0,16,0,0" Visibility="{Binding CanAddVariant, Converter={StaticResource VisibleWhen}}">
-          <StackPanel>
-            <TextBlock Text="Add a variant" Style="{StaticResource Text.Section}" />
-            <TextBlock Style="{StaticResource Text.Caption}" Margin="0,4,0,12" TextWrapping="Wrap"
+          <Expander Header="Variants">
+            <StackPanel>
+              <TextBlock Text="Add a variant" Style="{StaticResource Text.Section}" />
+              <TextBlock Style="{StaticResource Text.Caption}" Margin="0,4,0,12" TextWrapping="Wrap"
                        Text="Each variant has its own SKU, barcode and stock. Once a product has variants, stock is kept on the variants only." />
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition />
-                <ColumnDefinition Width="8" />
-                <ColumnDefinition />
-                <ColumnDefinition Width="8" />
-                <ColumnDefinition />
-              </Grid.ColumnDefinitions>
-              <StackPanel>
-                <TextBlock Text="Size" Style="{StaticResource Text.Label}" />
-                <TextBox Text="{Binding VariantSize, UpdateSourceTrigger=PropertyChanged}" MaxLength="30" AutomationProperties.Name="Variant size" />
-              </StackPanel>
-              <StackPanel Grid.Column="2">
-                <TextBlock Text="Colour" Style="{StaticResource Text.Label}" />
-                <TextBox Text="{Binding VariantColour, UpdateSourceTrigger=PropertyChanged}" MaxLength="30" AutomationProperties.Name="Variant colour" />
-              </StackPanel>
-              <StackPanel Grid.Column="4">
-                <TextBlock Text="Model" Style="{StaticResource Text.Label}" />
-                <TextBox Text="{Binding VariantModel, UpdateSourceTrigger=PropertyChanged}" MaxLength="30" AutomationProperties.Name="Variant model" />
-              </StackPanel>
-            </Grid>
-            <Grid Margin="0,12,0,0">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition />
-                <ColumnDefinition Width="8" />
-                <ColumnDefinition />
-              </Grid.ColumnDefinitions>
-              <StackPanel>
-                <TextBlock Text="Variant SKU" Style="{StaticResource Text.Label}" />
-                <TextBox Text="{Binding VariantSku, UpdateSourceTrigger=PropertyChanged}" MaxLength="30" CharacterCasing="Upper" AutomationProperties.Name="Variant SKU" />
-              </StackPanel>
-              <StackPanel Grid.Column="2">
-                <TextBlock Text="Variant barcode" Style="{StaticResource Text.Label}" />
-                <TextBox Text="{Binding VariantBarcode, UpdateSourceTrigger=PropertyChanged}" MaxLength="48" AutomationProperties.Name="Variant barcode" />
-              </StackPanel>
-            </Grid>
-            <Button Content="Add variant" Command="{Binding AddVariantCommand}" HorizontalAlignment="Left" Margin="0,12,0,0" />
-          </StackPanel>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition />
+                  <ColumnDefinition Width="8" />
+                  <ColumnDefinition />
+                  <ColumnDefinition Width="8" />
+                  <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                  <TextBlock Text="Size" Style="{StaticResource Text.Label}" />
+                  <TextBox Text="{Binding VariantSize, UpdateSourceTrigger=PropertyChanged}" MaxLength="30" AutomationProperties.Name="Variant size" />
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                  <TextBlock Text="Colour" Style="{StaticResource Text.Label}" />
+                  <TextBox Text="{Binding VariantColour, UpdateSourceTrigger=PropertyChanged}" MaxLength="30" AutomationProperties.Name="Variant colour" />
+                </StackPanel>
+                <StackPanel Grid.Column="4">
+                  <TextBlock Text="Model" Style="{StaticResource Text.Label}" />
+                  <TextBox Text="{Binding VariantModel, UpdateSourceTrigger=PropertyChanged}" MaxLength="30" AutomationProperties.Name="Variant model" />
+                </StackPanel>
+              </Grid>
+              <Grid Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition />
+                  <ColumnDefinition Width="8" />
+                  <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                  <TextBlock Text="Variant SKU" Style="{StaticResource Text.Label}" />
+                  <TextBox Text="{Binding VariantSku, UpdateSourceTrigger=PropertyChanged}" MaxLength="30" CharacterCasing="Upper" AutomationProperties.Name="Variant SKU" />
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                  <TextBlock Text="Variant barcode" Style="{StaticResource Text.Label}" />
+                  <TextBox Text="{Binding VariantBarcode, UpdateSourceTrigger=PropertyChanged}" MaxLength="48" AutomationProperties.Name="Variant barcode" />
+                </StackPanel>
+              </Grid>
+              <Button Content="Add variant" Command="{Binding AddVariantCommand}" HorizontalAlignment="Left" Margin="0,12,0,0" />
+            </StackPanel>
+          </Expander>
         </Border>
 
         <!-- Unit conversions -->
         <Border Style="{StaticResource Panel}" Margin="0,16,0,0" Visibility="{Binding IsNew, Converter={StaticResource VisibleWhen}, ConverterParameter=invert}">
-          <StackPanel>
-            <TextBlock Text="Alternate units" Style="{StaticResource Text.Section}" Margin="0,0,0,8" />
-            <ItemsControl ItemsSource="{Binding Conversions}" Focusable="False">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <DockPanel Margin="0,0,0,4">
-                    <Button DockPanel.Dock="Right" Style="{StaticResource Button.Icon}" Content="&#xE711;" FontSize="{StaticResource IconSizeSmall}"
+          <Expander Header="Alternate units">
+            <StackPanel>
+              <TextBlock Text="Alternate units" Style="{StaticResource Text.Section}" Margin="0,0,0,8" />
+              <ItemsControl ItemsSource="{Binding Conversions}" Focusable="False">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <DockPanel Margin="0,0,0,4">
+                      <Button DockPanel.Dock="Right" Style="{StaticResource Button.Icon}" Content="&#xE711;" FontSize="{StaticResource IconSizeSmall}"
                             AutomationProperties.Name="Remove conversion" ToolTip="Remove"
                             Command="{Binding DataContext.RemoveConversionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
-                    <TextBlock VerticalAlignment="Center">
-                      <Run Text="1" /><Run Text=" " /><Run Text="{Binding UnitCode, Mode=OneWay}" /><Run Text=" = " /><Run Text="{Binding Factor, Mode=OneWay}" /><Run Text=" base units" />
-                    </TextBlock>
-                  </DockPanel>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-            <DockPanel Margin="0,8,0,0" IsEnabled="{Binding CanEdit}">
-              <Button DockPanel.Dock="Right" Content="Add" Command="{Binding AddConversionCommand}" Margin="8,0,0,0" />
-              <TextBox DockPanel.Dock="Right" Width="80" Text="{Binding ConversionFactor, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right"
+                      <TextBlock VerticalAlignment="Center">
+                        <Run Text="1" /><Run Text=" " /><Run Text="{Binding UnitCode, Mode=OneWay}" /><Run Text=" = " /><Run Text="{Binding Factor, Mode=OneWay}" /><Run Text=" base units" />
+                      </TextBlock>
+                    </DockPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <DockPanel Margin="0,8,0,0" IsEnabled="{Binding CanEdit}">
+                <Button DockPanel.Dock="Right" Content="Add" Command="{Binding AddConversionCommand}" Margin="8,0,0,0" />
+                <TextBox DockPanel.Dock="Right" Width="80" Text="{Binding ConversionFactor, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right"
                        Margin="8,0,0,0" AutomationProperties.Name="Base units per alternate unit" />
-              <ComboBox ItemsSource="{Binding Units}" SelectedItem="{Binding ConversionUnit}" DisplayMemberPath="Code" AutomationProperties.Name="Alternate unit" />
-            </DockPanel>
-            <TextBlock Style="{StaticResource Text.Caption}" Margin="0,4,0,0" TextWrapping="Wrap" Text="For example BOX and 12 means 1 box = 12 of the base unit." />
-          </StackPanel>
+                <ComboBox ItemsSource="{Binding Units}" SelectedItem="{Binding ConversionUnit}" DisplayMemberPath="Code" AutomationProperties.Name="Alternate unit" />
+              </DockPanel>
+              <TextBlock Style="{StaticResource Text.Caption}" Margin="0,4,0,0" TextWrapping="Wrap" Text="For example BOX and 12 means 1 box = 12 of the base unit." />
+            </StackPanel>
+          </Expander>
         </Border>
         <Border Style="{StaticResource Panel}" Margin="0,16,0,0" Visibility="{Binding IsNew, Converter={StaticResource VisibleWhen}, ConverterParameter=invert}">
-          <StackPanel>
-            <TextBlock Text="Labels" Style="{StaticResource Text.Section}" Margin="0,0,0,8" />
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition />
-                <ColumnDefinition Width="12" />
-                <ColumnDefinition Width="80" />
-              </Grid.ColumnDefinitions>
-              <StackPanel>
-                <TextBlock Text="Layout" Style="{StaticResource Text.Label}" />
-                <ComboBox ItemsSource="{Binding LabelLayouts}" SelectedItem="{Binding LabelLayout}" DisplayMemberPath="Name" AutomationProperties.Name="Label layout" />
+          <Expander Header="Print product labels">
+            <StackPanel>
+              <TextBlock Text="Labels" Style="{StaticResource Text.Section}" Margin="0,0,0,8" />
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition />
+                  <ColumnDefinition Width="12" />
+                  <ColumnDefinition Width="80" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                  <TextBlock Text="Layout" Style="{StaticResource Text.Label}" />
+                  <ComboBox ItemsSource="{Binding LabelLayouts}" SelectedItem="{Binding LabelLayout}" DisplayMemberPath="Name" AutomationProperties.Name="Label layout" />
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                  <TextBlock Text="Labels" Style="{StaticResource Text.Label}" />
+                  <TextBox Text="{Binding LabelQuantity, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Number of labels" />
+                </StackPanel>
+              </Grid>
+              <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                <Button Content="Preview labels" Command="{Binding PreviewLabelsCommand}" Margin="0,0,8,0" />
+                <Button Content="Print labels" Command="{Binding PrintLabelsCommand}" />
               </StackPanel>
-              <StackPanel Grid.Column="2">
-                <TextBlock Text="Labels" Style="{StaticResource Text.Label}" />
-                <TextBox Text="{Binding LabelQuantity, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Number of labels" />
-              </StackPanel>
-            </Grid>
-            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-              <Button Content="Preview labels" Command="{Binding PreviewLabelsCommand}" Margin="0,0,8,0" />
-              <Button Content="Print labels" Command="{Binding PrintLabelsCommand}" />
-            </StackPanel>
-            <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
+              <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
                        Text="Several products at once: Print centre → Labels. A scanned barcode selects its product on this page." />
-          </StackPanel>
+            </StackPanel>
+          </Expander>
         </Border>
       </StackPanel>
     </ScrollViewer>

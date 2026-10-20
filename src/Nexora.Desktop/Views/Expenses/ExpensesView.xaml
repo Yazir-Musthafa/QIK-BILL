@@ -4,11 +4,11 @@
              xmlns:controls="clr-namespace:Nexora.Desktop.Controls">
   <DockPanel Margin="24,20,24,24">
     <TextBlock DockPanel.Dock="Top" Text="{Binding Title}" Style="{StaticResource Text.Title}" Margin="0,0,0,12" />
-    <ListBox DockPanel.Dock="Top" ItemsSource="{Binding Sections}" SelectedItem="{Binding Section}" DisplayMemberPath="Label" Margin="0,0,0,16"
+    <ListBox ScrollViewer.HorizontalScrollBarVisibility="Disabled" DockPanel.Dock="Top" ItemsSource="{Binding Sections}" SelectedItem="{Binding Section}" DisplayMemberPath="Label" Margin="0,0,0,16"
              AutomationProperties.Name="Expense sections">
       <ListBox.ItemsPanel>
         <ItemsPanelTemplate>
-          <StackPanel Orientation="Horizontal" />
+          <WrapPanel />
         </ItemsPanelTemplate>
       </ListBox.ItemsPanel>
     </ListBox>
@@ -147,41 +147,44 @@
             </StackPanel>
             <StackPanel Width="190" Margin="0,0,12,8">
               <TextBlock Text="Paid from (cash or bank)" Style="{StaticResource Text.Label}" />
-              <ComboBox ItemsSource="{Binding CashAccounts}" SelectedItem="{Binding PaidFrom}" DisplayMemberPath="Name" AutomationProperties.Name="Paid from" />
+              <controls:SearchComboBox Choices="{Binding CashAccounts}" SelectedItem="{Binding PaidFrom}" DisplayMemberPath="Name" AutomationProperties.Name="Paid from" />
             </StackPanel>
             <StackPanel Width="130" Margin="0,0,12,8">
               <TextBlock Text="Method" Style="{StaticResource Text.Label}" />
               <ComboBox ItemsSource="{Binding Methods}" SelectedItem="{Binding Method}" AutomationProperties.Name="Payment method" />
             </StackPanel>
-            <StackPanel Width="200" Margin="0,0,12,8">
-              <TextBlock Text="Supplier (optional)" Style="{StaticResource Text.Label}" />
-              <ComboBox ItemsSource="{Binding Suppliers}" SelectedItem="{Binding Supplier}" DisplayMemberPath="Name" AutomationProperties.Name="Supplier" />
-            </StackPanel>
-            <StackPanel Width="170" Margin="0,0,12,8">
-              <TextBlock Text="Employee (user)" Style="{StaticResource Text.Label}" />
-              <ComboBox ItemsSource="{Binding Employees}" SelectedItem="{Binding Employee}" DisplayMemberPath="Name" AutomationProperties.Name="Employee" />
-            </StackPanel>
-            <StackPanel Width="160" Margin="0,0,12,8">
-              <TextBlock Text="Or employee name" Style="{StaticResource Text.Label}" />
-              <TextBox Text="{Binding EmployeeName, UpdateSourceTrigger=PropertyChanged}" MaxLength="80" AutomationProperties.Name="Employee name" />
-            </StackPanel>
-            <StackPanel Width="160" Margin="0,0,12,8">
-              <TextBlock Text="Branch" Style="{StaticResource Text.Label}" />
-              <ComboBox ItemsSource="{Binding Branches}" SelectedItem="{Binding Branch}" DisplayMemberPath="Name" AutomationProperties.Name="Branch" />
-            </StackPanel>
-            <StackPanel Width="140" Margin="0,0,12,8">
-              <TextBlock Text="Department" Style="{StaticResource Text.Label}" />
-              <TextBox Text="{Binding Department, UpdateSourceTrigger=PropertyChanged}" MaxLength="60" AutomationProperties.Name="Department" />
-            </StackPanel>
-            <StackPanel Width="140" Margin="0,0,12,8">
-              <TextBlock Text="Bill or receipt no." Style="{StaticResource Text.Label}" />
-              <TextBox Text="{Binding Reference, UpdateSourceTrigger=PropertyChanged}" MaxLength="40" AutomationProperties.Name="Reference" />
-            </StackPanel>
-            <StackPanel Width="280" Margin="0,0,12,8">
-              <TextBlock Text="Narration" Style="{StaticResource Text.Label}" />
-              <TextBox Text="{Binding Narration, UpdateSourceTrigger=PropertyChanged}" MaxLength="300" AutomationProperties.Name="Narration" />
-            </StackPanel>
+
           </WrapPanel>
+          <Expander Header="Supplier, employee and reference (optional)" DockPanel.Dock="Top"><WrapPanel>
+              <StackPanel Width="200" Margin="0,0,12,8">
+                <TextBlock Text="Supplier (optional)" Style="{StaticResource Text.Label}" />
+                <controls:SearchComboBox Choices="{Binding Suppliers}" SelectedItem="{Binding Supplier}" DisplayMemberPath="Name" AutomationProperties.Name="Supplier" />
+              </StackPanel>
+              <StackPanel Width="170" Margin="0,0,12,8">
+                <TextBlock Text="Employee (user)" Style="{StaticResource Text.Label}" />
+                <controls:SearchComboBox Choices="{Binding Employees}" SelectedItem="{Binding Employee}" DisplayMemberPath="Name" AutomationProperties.Name="Employee" />
+              </StackPanel>
+              <StackPanel Width="160" Margin="0,0,12,8">
+                <TextBlock Text="Or employee name" Style="{StaticResource Text.Label}" />
+                <TextBox Text="{Binding EmployeeName, UpdateSourceTrigger=PropertyChanged}" MaxLength="80" AutomationProperties.Name="Employee name" />
+              </StackPanel>
+              <StackPanel Width="160" Margin="0,0,12,8">
+                <TextBlock Text="Branch" Style="{StaticResource Text.Label}" />
+                <ComboBox ItemsSource="{Binding Branches}" SelectedItem="{Binding Branch}" DisplayMemberPath="Name" AutomationProperties.Name="Branch" />
+              </StackPanel>
+              <StackPanel Width="140" Margin="0,0,12,8">
+                <TextBlock Text="Department" Style="{StaticResource Text.Label}" />
+                <TextBox Text="{Binding Department, UpdateSourceTrigger=PropertyChanged}" MaxLength="60" AutomationProperties.Name="Department" />
+              </StackPanel>
+              <StackPanel Width="140" Margin="0,0,12,8">
+                <TextBlock Text="Bill or receipt no." Style="{StaticResource Text.Label}" />
+                <TextBox Text="{Binding Reference, UpdateSourceTrigger=PropertyChanged}" MaxLength="40" AutomationProperties.Name="Reference" />
+              </StackPanel>
+              <StackPanel Width="280" Margin="0,0,12,8">
+                <TextBlock Text="Narration" Style="{StaticResource Text.Label}" />
+                <TextBox Text="{Binding Narration, UpdateSourceTrigger=PropertyChanged}" MaxLength="300" AutomationProperties.Name="Narration" />
+              </StackPanel>
+            </WrapPanel></Expander>
           <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,16,0,0">
             <Button Content="Save draft" Command="{Binding SaveDraftCommand}" Margin="0,0,8,0" />
             <Button Content="Save and submit for approval" Style="{StaticResource Button.Primary}" Command="{Binding SaveAndSubmitCommand}" Margin="0,0,8,0" />
@@ -217,7 +220,7 @@
                         <ColumnDefinition Width="110" />
                         <ColumnDefinition Width="36" />
                       </Grid.ColumnDefinitions>
-                      <ComboBox ItemsSource="{Binding DataContext.Categories, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Category}"
+                      <controls:SearchComboBox Choices="{Binding DataContext.Categories, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Category}"
                                 DisplayMemberPath="Name" Margin="0,0,8,0" AutomationProperties.Name="Category" />
                       <TextBox Grid.Column="1" Text="{Binding Amount, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" Margin="0,0,8,0" AutomationProperties.Name="Amount" />
                       <TextBox Grid.Column="2" Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}" MaxLength="200" Margin="0,0,8,0" AutomationProperties.Name="Description" />
@@ -330,7 +333,7 @@
               </StackPanel>
             </UniformGrid>
             <TextBlock Text="Paid from" Style="{StaticResource Text.Label}" />
-            <ComboBox ItemsSource="{Binding CashAccounts}" SelectedItem="{Binding RecurringPaidFrom}" DisplayMemberPath="Name" AutomationProperties.Name="Paid from" />
+            <controls:SearchComboBox Choices="{Binding CashAccounts}" SelectedItem="{Binding RecurringPaidFrom}" DisplayMemberPath="Name" AutomationProperties.Name="Paid from" />
             <TextBlock Text="GST" Style="{StaticResource Text.Label}" Margin="0,8,0,4" />
             <ComboBox ItemsSource="{Binding TaxCategories}" SelectedItem="{Binding RecurringTax}" DisplayMemberPath="Name" AutomationProperties.Name="GST category" />
             <StackPanel Orientation="Horizontal" Margin="0,16,0,0">

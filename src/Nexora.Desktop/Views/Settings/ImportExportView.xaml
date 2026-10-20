@@ -6,11 +6,11 @@
     <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,12">
       <StackPanel Width="180" Margin="0,0,8,8"><TextBlock Text="Data kind" Style="{StaticResource Text.Label}" /><ComboBox ItemsSource="{Binding Kinds}" SelectedItem="{Binding Kind}" /></StackPanel>
       <StackPanel Width="110" Margin="0,0,8,8"><TextBlock Text="Format" Style="{StaticResource Text.Label}" /><ComboBox ItemsSource="{Binding Formats}" SelectedItem="{Binding Format}" /></StackPanel>
-      <Button Content="Template" Command="{Binding TemplateCommand}" Margin="0,0,8,8" VerticalAlignment="Bottom" />
+      <Button Content="1. Get template" Command="{Binding TemplateCommand}" Margin="0,0,8,8" VerticalAlignment="Bottom" />
       <Button Content="Export" Command="{Binding ExportCommand}" Margin="0,0,8,8" VerticalAlignment="Bottom" />
-      <Button Content="Choose file…" Command="{Binding ChooseFileCommand}" Margin="0,0,8,8" VerticalAlignment="Bottom" />
+      <Button Content="2. Choose filled file…" Command="{Binding ChooseFileCommand}" Margin="0,0,8,8" VerticalAlignment="Bottom" />
       <Button Content="Preview again" Command="{Binding PreviewCommand}" Margin="0,0,8,8" VerticalAlignment="Bottom" />
-      <Button Content="Import" Command="{Binding ImportCommand}" IsEnabled="{Binding CanImport}" Style="{StaticResource Button.Primary}" Margin="0,0,0,8" VerticalAlignment="Bottom" />
+      <Button Content="3. Import checked rows" Command="{Binding ImportCommand}" IsEnabled="{Binding CanImport}" Style="{StaticResource Button.Primary}" Margin="0,0,0,8" VerticalAlignment="Bottom" />
     </WrapPanel>
     <TextBlock DockPanel.Dock="Top" Text="{Binding FileName}" FontWeight="SemiBold" />
     <TextBlock DockPanel.Dock="Top" Text="{Binding Summary}" TextWrapping="Wrap" Margin="0,8,0,8" />

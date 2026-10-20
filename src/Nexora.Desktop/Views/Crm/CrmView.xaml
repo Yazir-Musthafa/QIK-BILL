@@ -18,11 +18,11 @@
       <Button DockPanel.Dock="Right" Content="Refresh" Command="{Binding RefreshCommand}" />
       <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Title}" />
     </DockPanel>
-    <ListBox DockPanel.Dock="Top" ItemsSource="{Binding Sections}" SelectedItem="{Binding Section}" DisplayMemberPath="Label" Margin="0,0,0,16"
+    <ListBox ScrollViewer.HorizontalScrollBarVisibility="Disabled" DockPanel.Dock="Top" ItemsSource="{Binding Sections}" SelectedItem="{Binding Section}" DisplayMemberPath="Label" Margin="0,0,0,16"
              AutomationProperties.Name="CRM sections">
       <ListBox.ItemsPanel>
         <ItemsPanelTemplate>
-          <StackPanel Orientation="Horizontal" />
+          <WrapPanel />
         </ItemsPanelTemplate>
       </ListBox.ItemsPanel>
     </ListBox>
@@ -79,24 +79,28 @@
                     <TextBox Text="{Binding LeadEmail, UpdateSourceTrigger=PropertyChanged}" MaxLength="120" AutomationProperties.Name="Lead email" />
                   </StackPanel>
                 </Grid>
-                <Grid Margin="0,0,0,8">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="8" />
-                    <ColumnDefinition Width="*" />
-                  </Grid.ColumnDefinitions>
+                <Expander Header="Source, owner and notes (optional)" >
                   <StackPanel>
-                    <TextBlock Text="Source" Style="{StaticResource Text.Label}" />
-                    <ComboBox ItemsSource="{Binding Sources}" SelectedItem="{Binding LeadSource}" AutomationProperties.Name="Lead source" />
-                  </StackPanel>
-                  <StackPanel Grid.Column="2">
-                    <TextBlock Text="Owner" Style="{StaticResource Text.Label}" />
-                    <ComboBox ItemsSource="{Binding Members}" SelectedItem="{Binding LeadOwner}" DisplayMemberPath="Name" AutomationProperties.Name="Lead owner" />
-                  </StackPanel>
-                </Grid>
-                <TextBlock Text="Notes" Style="{StaticResource Text.Label}" />
-                <TextBox Text="{Binding LeadNotes, UpdateSourceTrigger=PropertyChanged}" MaxLength="1000" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" Margin="0,0,0,8"
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="8" />
+                        <ColumnDefinition Width="*" />
+                      </Grid.ColumnDefinitions>
+                      <StackPanel>
+                        <TextBlock Text="Source" Style="{StaticResource Text.Label}" />
+                        <ComboBox ItemsSource="{Binding Sources}" SelectedItem="{Binding LeadSource}" AutomationProperties.Name="Lead source" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="2">
+                        <TextBlock Text="Owner" Style="{StaticResource Text.Label}" />
+                        <controls:SearchComboBox Choices="{Binding Members}" SelectedItem="{Binding LeadOwner}" DisplayMemberPath="Name" AutomationProperties.Name="Lead owner" />
+                      </StackPanel>
+                    </Grid>
+                    <TextBlock Text="Notes" Style="{StaticResource Text.Label}" />
+                    <TextBox Text="{Binding LeadNotes, UpdateSourceTrigger=PropertyChanged}" MaxLength="1000" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" Margin="0,0,0,8"
                          AutomationProperties.Name="Lead notes" />
+                  </StackPanel>
+                </Expander>
                 <Button Content="Save lead" Style="{StaticResource Button.Primary}" Command="{Binding SaveLeadCommand}" HorizontalAlignment="Left" Margin="0,0,0,12" />
 
                 <TextBlock Text="Status" Style="{StaticResource Text.Label}" />
@@ -104,11 +108,15 @@
                   <ComboBox ItemsSource="{Binding OpenStatuses}" SelectedItem="{Binding LeadStatus}" Width="160" Margin="0,0,8,0" AutomationProperties.Name="Lead status" />
                   <Button Content="Set status" Command="{Binding SetLeadStatusCommand}" />
                 </StackPanel>
-                <TextBlock Text="Reason lost" Style="{StaticResource Text.Label}" />
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                  <TextBox Text="{Binding LostReason, UpdateSourceTrigger=PropertyChanged}" Width="220" MaxLength="300" Margin="0,0,8,0" AutomationProperties.Name="Reason lost" />
-                  <Button Content="Mark lost" Style="{StaticResource Button.Danger}" Command="{Binding MarkLostCommand}" />
-                </StackPanel>
+                <Expander Header="Close as lost" >
+                  <StackPanel>
+                    <TextBlock Text="Reason lost" Style="{StaticResource Text.Label}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                      <TextBox Text="{Binding LostReason, UpdateSourceTrigger=PropertyChanged}" Width="220" MaxLength="300" Margin="0,0,8,0" AutomationProperties.Name="Reason lost" />
+                      <Button Content="Mark lost" Style="{StaticResource Button.Danger}" Command="{Binding MarkLostCommand}" />
+                    </StackPanel>
+                  </StackPanel>
+                </Expander>
 
                 <Button Content="Convert to customer" Command="{Binding ConvertCommand}" HorizontalAlignment="Left" Margin="0,0,0,8" />
                 <StackPanel Visibility="{Binding HasDuplicates, Converter={StaticResource VisibleWhen}}" Margin="0,0,0,12">
@@ -118,13 +126,17 @@
                   <Button Content="Link to this customer" Command="{Binding LinkToCustomerCommand}" HorizontalAlignment="Left" />
                 </StackPanel>
 
-                <TextBlock Text="Call note or activity" Style="{StaticResource Text.Label}" />
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                  <ComboBox ItemsSource="{Binding ActivityKinds}" SelectedItem="{Binding ActivityKind}" Width="110" Margin="0,0,8,0" AutomationProperties.Name="Activity kind" />
-                  <Button Content="Record" Command="{Binding AddActivityCommand}" />
-                </StackPanel>
-                <TextBox Text="{Binding ActivitySummary, UpdateSourceTrigger=PropertyChanged}" MaxLength="1000" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="48" Margin="0,0,0,12"
+                <Expander Header="Record a call or activity" >
+                  <StackPanel>
+                    <TextBlock Text="Call note or activity" Style="{StaticResource Text.Label}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                      <ComboBox ItemsSource="{Binding ActivityKinds}" SelectedItem="{Binding ActivityKind}" Width="110" Margin="0,0,8,0" AutomationProperties.Name="Activity kind" />
+                      <Button Content="Record" Command="{Binding AddActivityCommand}" />
+                    </StackPanel>
+                    <TextBox Text="{Binding ActivitySummary, UpdateSourceTrigger=PropertyChanged}" MaxLength="1000" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="48" Margin="0,0,0,12"
                          AutomationProperties.Name="Activity summary" />
+                  </StackPanel>
+                </Expander>
               </StackPanel>
               <TextBlock Text="Timeline" Style="{StaticResource Text.Section}" Margin="0,0,0,8" />
               <ItemsControl ItemsSource="{Binding Timeline}" ItemTemplate="{StaticResource TimelineItem}" Focusable="False" />
@@ -165,7 +177,7 @@
             <TextBox Text="{Binding FollowUpDue, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" Width="110" HorizontalAlignment="Left" Margin="0,0,0,8"
                      AutomationProperties.Name="Due date (dd-mm-yyyy)" />
             <TextBlock Text="Assignee" Style="{StaticResource Text.Label}" />
-            <ComboBox ItemsSource="{Binding Members}" SelectedItem="{Binding FollowUpAssignee}" DisplayMemberPath="Name" Margin="0,0,0,8" AutomationProperties.Name="Assignee" />
+            <controls:SearchComboBox Choices="{Binding Members}" SelectedItem="{Binding FollowUpAssignee}" DisplayMemberPath="Name" Margin="0,0,0,8" AutomationProperties.Name="Assignee" />
             <TextBlock Text="Customer" Style="{StaticResource Text.Label}" />
             <ComboBox ItemsSource="{Binding CustomerChoices}" SelectedItem="{Binding FollowUpCustomer}" DisplayMemberPath="Name" Margin="0,0,0,8" AutomationProperties.Name="Customer" />
             <TextBlock Text="Notes" Style="{StaticResource Text.Label}" />

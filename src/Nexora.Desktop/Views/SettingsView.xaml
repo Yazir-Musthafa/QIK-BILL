@@ -5,7 +5,7 @@
   <DockPanel Margin="24,20,24,0">
     <TextBlock DockPanel.Dock="Top" Text="{Binding Title}" Style="{StaticResource Text.Title}" Margin="0,0,0,16" />
     <!-- Section list: only sections the role may open are listed -->
-    <ListBox DockPanel.Dock="Left" Width="220" ItemsSource="{Binding Sections}" SelectedItem="{Binding SelectedSection}"
+    <ListBox ScrollViewer.HorizontalScrollBarVisibility="Disabled" DockPanel.Dock="Left" Width="220" ItemsSource="{Binding Sections}" SelectedItem="{Binding SelectedSection}"
              AutomationProperties.Name="Settings sections" VerticalAlignment="Top" Margin="0,0,24,0">
       <ListBox.ItemTemplate>
         <DataTemplate>
@@ -17,6 +17,9 @@
         </DataTemplate>
       </ListBox.ItemTemplate>
     </ListBox>
-    <controls:TransitionPresenter Content="{Binding Current}" Focusable="False" />
+    <DockPanel>
+      <TextBlock DockPanel.Dock="Top" Text="{Binding SelectedSection.Guidance}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="20,0,20,8" />
+      <controls:TransitionPresenter Content="{Binding Current}" Focusable="False" />
+    </DockPanel>
   </DockPanel>
 </UserControl>

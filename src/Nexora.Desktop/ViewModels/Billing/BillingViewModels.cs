@@ -27,7 +27,7 @@ public sealed record CashAccountChoice(Guid Id, string Name);
 
 public sealed record StateChoice(string Code, string Name)
 {
-    public string Display => Code.Length == 0 ? "(not set)" : $"{Code} · {Name}";
+    public string Display => Code.Length == 0 ? (Name.Length == 0 ? "(not set)" : Name) : $"{Code} · {Name}";
 }
 
 /// <summary>One editable document line. Numbers and dates stay text so partial input does not fight the user.</summary>
@@ -171,7 +171,7 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
                 new Domain.Inventory.ProductDetails(NewItemCode, NewItemName, HsnCode: NewItemHsn, TaxCategoryId: NewItemTax?.Id,
                     PurchasePrice: NumberText.Parse(NewItemRate, "Purchase rate"), SellingPrice: NumberText.Parse(NewItemSellingPrice, "Selling price"),
                     Mrp: NumberText.Parse(NewItemMrp, "MRP")), NewItemUnit.Id, NewItemTracking, NewItemTracksExpiry));
-            var product = (await _catalogue.ListProductsAsync()).Single(p => p.Id == id);
+            var product = (await _catalogue.ListProductsAsync(warehouseId: Warehouse?.Id)).Single(p => p.Id == id);
             if (Products.All(p => p.Id != id)) Products.Add(product);
             var line = Lines.FirstOrDefault(l => l.Product is null && string.IsNullOrWhiteSpace(l.Rate));
             if (line is null) { line = new BillingLineEditor(); Lines.Add(line); }
@@ -255,6 +255,35 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
     [ObservableProperty] private string _purchaseOrderYear = string.Empty;
     [ObservableProperty] private string _narration = string.Empty;
     [ObservableProperty] private string _walkInName = string.Empty;
+    [ObservableProperty] private StateChoice? _supplyState;
+    public IReadOnlyList<StateChoice> SupplyStates { get; } =
+        new[] { new StateChoice("", "Use customer / company state") }.Concat(IndianState.All.Select(s => new StateChoice(s.Code, s.Name))).ToList();
+    public string CustomerTaxHint => Party is { Gstin.Length: > 0 }
+        ? "B2B · registered customer. GSTIN is taken from the customer profile."
+        : "B2C · consumer / unregistered customer. For a walk-in sale choose Cash; a customer is needed for credit.";
+    partial void OnPartyChanged(PartyRow? value) => OnPropertyChanged(nameof(CustomerTaxHint));
+    private int _stockRequest;
+    partial void OnWarehouseChanged(WarehouseRow? value)
+    {
+        if (_referenceDataLoaded) _ = RefreshStockAsync();
+    }
+
+    [RelayCommand]
+    private Task RefreshStockAsync() => RunAsync(ReloadProductsAsync);
+
+    private async Task ReloadProductsAsync()
+    {
+        var request = ++_stockRequest;
+        var warehouseId = Warehouse?.Id;
+        if (warehouseId is null) return;
+        var rows = await _catalogue.ListBillingProductsAsync(warehouseId.Value);
+        if (request != _stockRequest || warehouseId != Warehouse?.Id) return;
+        var selections = Lines.Select(l => (Line: l, Id: l.Product?.Id)).ToList();
+        Products.Clear();
+        foreach (var row in rows) Products.Add(row);
+        foreach (var selection in selections)
+            selection.Line.Product = Products.FirstOrDefault(p => p.Id == selection.Id);
+    }
     [ObservableProperty] private bool _pricesIncludeTax;
     [ObservableProperty] private bool _roundToRupee = true;
     [ObservableProperty] private BillingDocumentView? _draftTotals;
@@ -356,6 +385,7 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
     {
         if (!_referenceDataLoaded) await EnsureReferenceDataAsync();
         else await ReloadPartiesAsync();
+        await ReloadProductsAsync();
         switch (Section.Key)
         {
             case "documents":
@@ -469,6 +499,7 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
         if (_defaultsLoaded) (PricesIncludeTax, RoundToRupee) = (_defaultPricesIncludeTax, _defaultRoundToRupee);
         EditorHeading = IsSales ? "New sales invoice" : "New purchase bill";
         (Party, Mode, Reference, Narration, WalkInName) = (null, SettlementMode.Credit, string.Empty, string.Empty, string.Empty);
+        SupplyState = SupplyStates[0];
         Date = DateText.From(DateText.Today);
         (SupplierInvoiceDate, ReceivedDate, PurchaseOrderNumber, PurchaseOrderYear) = ("", "", "", "");
         Section = Sections[1];
@@ -545,7 +576,8 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
             ShowWalkIn ? NullIfBlank(WalkInName) : null,
             IsPurchase && !IsReturnEditor && !string.IsNullOrWhiteSpace(SupplierInvoiceDate) ? DateText.Parse(SupplierInvoiceDate, "Invoice date") : null,
             IsPurchase && !IsReturnEditor && !string.IsNullOrWhiteSpace(ReceivedDate) ? DateText.Parse(ReceivedDate, "Received date") : null,
-            IsPurchase && !IsReturnEditor ? PurchaseOrderNumber : "", IsPurchase && !IsReturnEditor ? PurchaseOrderYear : ""));
+            IsPurchase && !IsReturnEditor ? PurchaseOrderNumber : "", IsPurchase && !IsReturnEditor ? PurchaseOrderYear : "",
+            IsSales ? SupplyState?.Code : null));
     }
 
     private async Task LoadDraftTotalsAsync()
@@ -576,6 +608,7 @@ public abstract partial class BillingViewModel : PageViewModel, ILoadable, IScan
             Warehouse = Warehouses.FirstOrDefault(w => w.Id == draft.WarehouseId) ?? Warehouse;
             Date = DateText.From(draft.Date);
             WalkInName = draft.PartyId is null ? draft.PartyName : string.Empty;
+            SupplyState = SupplyStates.FirstOrDefault(s => s.Code == draft.PlaceOfSupply);
             Lines.Clear();
             foreach (var line in draft.Lines)
             {

@@ -125,6 +125,38 @@
     </Setter>
   </Style>
 
+  <!-- Optional sections keep their content alive when collapsed, including unsaved input. -->
+  <Style TargetType="Expander">
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+    <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Expander">
+          <StackPanel>
+            <ToggleButton x:Name="HeaderToggle" Style="{StaticResource Button.Subtle}" HorizontalContentAlignment="Stretch"
+                          IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                          AutomationProperties.Name="{Binding Header, RelativeSource={RelativeSource TemplatedParent}}">
+              <DockPanel>
+                <TextBlock x:Name="Chevron" DockPanel.Dock="Left" Text="&#xE76C;" FontFamily="{StaticResource IconFont}"
+                           FontSize="{StaticResource IconSizeSmall}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center" />
+              </DockPanel>
+            </ToggleButton>
+            <ContentPresenter x:Name="Body" ContentSource="Content" Visibility="Collapsed" Margin="0,8,0,8"
+                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+          </StackPanel>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsExpanded" Value="True">
+              <Setter TargetName="Body" Property="Visibility" Value="Visible" />
+              <Setter TargetName="Chevron" Property="Text" Value="&#xE70D;" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <!-- ===== Text input ===== -->
   <Style x:Key="Input.Base" TargetType="Control">
     <Setter Property="FocusVisualStyle" Value="{x:Null}" />

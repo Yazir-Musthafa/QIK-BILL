@@ -7,11 +7,11 @@
       <Button DockPanel.Dock="Right" Content="Refresh" Command="{Binding RefreshCommand}" />
       <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Title}" />
     </DockPanel>
-    <ListBox DockPanel.Dock="Top" ItemsSource="{Binding Sections}" SelectedItem="{Binding Section}" DisplayMemberPath="Label" Margin="0,0,0,16"
+    <ListBox ScrollViewer.HorizontalScrollBarVisibility="Disabled" DockPanel.Dock="Top" ItemsSource="{Binding Sections}" SelectedItem="{Binding Section}" DisplayMemberPath="Label" Margin="0,0,0,16"
              AutomationProperties.Name="Service sections">
       <ListBox.ItemsPanel>
         <ItemsPanelTemplate>
-          <StackPanel Orientation="Horizontal" />
+          <WrapPanel />
         </ItemsPanelTemplate>
       </ListBox.ItemsPanel>
     </ListBox>
@@ -106,61 +106,69 @@
                 </StackPanel>
               </StackPanel>
 
-              <TextBlock Text="Spare parts" Style="{StaticResource Text.Section}" Margin="0,16,0,4" />
-              <controls:QikDataGrid LayoutKey="service.parts" ItemsSource="{Binding Detail.Parts}" SelectedItem="{Binding SelectedPart}" SelectionMode="Single" MaxHeight="180"
+              <Expander Header="Spare parts" >
+                <StackPanel>
+                  <TextBlock Text="Spare parts" Style="{StaticResource Text.Section}" Margin="0,16,0,4" />
+                  <controls:QikDataGrid LayoutKey="service.parts" ItemsSource="{Binding Detail.Parts}" SelectedItem="{Binding SelectedPart}" SelectionMode="Single" MaxHeight="180"
                                     AutomationProperties.Name="Spare parts">
-                <DataGrid.Columns>
-                  <DataGridTextColumn Header="Date" Binding="{Binding Date, StringFormat=dd-MM-yyyy}" SortMemberPath="Date" Width="80" />
-                  <DataGridTextColumn Header="Part" Binding="{Binding Sku}" Width="*" />
-                  <DataGridTextColumn Header="Qty" Binding="{Binding Quantity}" Width="50" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
-                  <DataGridTextColumn Header="Batch" Binding="{Binding Batch}" Width="70" />
-                  <DataGridTextColumn Header="Serial" Binding="{Binding SerialNumber}" Width="90" />
-                  <DataGridTextColumn Header="Cost" Binding="{Binding Cost, Converter={StaticResource Amount}}" SortMemberPath="Cost" Width="80"
+                    <DataGrid.Columns>
+                      <DataGridTextColumn Header="Date" Binding="{Binding Date, StringFormat=dd-MM-yyyy}" SortMemberPath="Date" Width="80" />
+                      <DataGridTextColumn Header="Part" Binding="{Binding Sku}" Width="*" />
+                      <DataGridTextColumn Header="Qty" Binding="{Binding Quantity}" Width="50" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+                      <DataGridTextColumn Header="Batch" Binding="{Binding Batch}" Width="70" />
+                      <DataGridTextColumn Header="Serial" Binding="{Binding SerialNumber}" Width="90" />
+                      <DataGridTextColumn Header="Cost" Binding="{Binding Cost, Converter={StaticResource Amount}}" SortMemberPath="Cost" Width="80"
                                       HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
-                  <DataGridCheckBoxColumn Header="Returned" Binding="{Binding IsReturned}" Width="70" />
-                  <DataGridCheckBoxColumn Header="Billed" Binding="{Binding IsBilled}" Width="60" />
-                </DataGrid.Columns>
-              </controls:QikDataGrid>
-              <StackPanel Visibility="{Binding DetailCanChange, Converter={StaticResource VisibleWhen}}" Margin="0,4,0,0">
-                <ComboBox ItemsSource="{Binding PartChoices}" SelectedItem="{Binding PartProduct}" DisplayMemberPath="Name" Margin="0,0,0,4" AutomationProperties.Name="Part" />
-                <StackPanel Orientation="Horizontal">
-                  <TextBox Text="{Binding PartQuantity, UpdateSourceTrigger=PropertyChanged}" Width="60" MaxLength="10" Margin="0,0,8,0" AutomationProperties.Name="Part quantity" />
-                  <TextBox Text="{Binding PartBatch, UpdateSourceTrigger=PropertyChanged}" Width="100" MaxLength="40" Margin="0,0,8,0" AutomationProperties.Name="Batch number (batch-tracked parts)" />
-                  <TextBox Text="{Binding PartSerial, UpdateSourceTrigger=PropertyChanged}" Width="110" MaxLength="60" Margin="0,0,8,0" AutomationProperties.Name="Serial number (serial-tracked parts)" />
-                  <Button Content="Issue" Command="{Binding IssuePartCommand}" />
+                      <DataGridCheckBoxColumn Header="Returned" Binding="{Binding IsReturned}" Width="70" />
+                      <DataGridCheckBoxColumn Header="Billed" Binding="{Binding IsBilled}" Width="60" />
+                    </DataGrid.Columns>
+                  </controls:QikDataGrid>
+                  <StackPanel Visibility="{Binding DetailCanChange, Converter={StaticResource VisibleWhen}}" Margin="0,4,0,0">
+                    <controls:SearchComboBox Choices="{Binding PartChoices}" SelectedItem="{Binding PartProduct}" DisplayMemberPath="Name" Margin="0,0,0,4" AutomationProperties.Name="Part" />
+                    <StackPanel Orientation="Horizontal">
+                      <TextBox Text="{Binding PartQuantity, UpdateSourceTrigger=PropertyChanged}" Width="60" MaxLength="10" Margin="0,0,8,0" AutomationProperties.Name="Part quantity" />
+                      <TextBox Text="{Binding PartBatch, UpdateSourceTrigger=PropertyChanged}" Width="100" MaxLength="40" Margin="0,0,8,0" AutomationProperties.Name="Batch number (batch-tracked parts)" />
+                      <TextBox Text="{Binding PartSerial, UpdateSourceTrigger=PropertyChanged}" Width="110" MaxLength="60" Margin="0,0,8,0" AutomationProperties.Name="Serial number (serial-tracked parts)" />
+                      <Button Content="Issue" Command="{Binding IssuePartCommand}" />
+                    </StackPanel>
+                    <Button Content="Return selected part" Command="{Binding ReturnPartCommand}" HorizontalAlignment="Left" Margin="0,4,0,0" />
+                  </StackPanel>
                 </StackPanel>
-                <Button Content="Return selected part" Command="{Binding ReturnPartCommand}" HorizontalAlignment="Left" Margin="0,4,0,0" />
-              </StackPanel>
+              </Expander>
 
-              <TextBlock Text="Labour" Style="{StaticResource Text.Section}" Margin="0,16,0,4" />
-              <controls:QikDataGrid LayoutKey="service.labour" ItemsSource="{Binding Detail.Labour}" SelectedItem="{Binding SelectedLabour}" SelectionMode="Single" MaxHeight="150"
+              <Expander Header="Labour and service invoice" >
+                <StackPanel>
+                  <TextBlock Text="Labour" Style="{StaticResource Text.Section}" Margin="0,16,0,4" />
+                  <controls:QikDataGrid LayoutKey="service.labour" ItemsSource="{Binding Detail.Labour}" SelectedItem="{Binding SelectedLabour}" SelectionMode="Single" MaxHeight="150"
                                     AutomationProperties.Name="Labour">
-                <DataGrid.Columns>
-                  <DataGridTextColumn Header="Work" Binding="{Binding Description}" Width="*" />
-                  <DataGridTextColumn Header="SAC" Binding="{Binding SacCode}" Width="70" />
-                  <DataGridTextColumn Header="Qty" Binding="{Binding Quantity}" Width="50" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
-                  <DataGridTextColumn Header="Rate" Binding="{Binding Rate, Converter={StaticResource Amount}}" Width="80" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
-                  <DataGridTextColumn Header="Amount" Binding="{Binding Amount, Converter={StaticResource Amount}}" SortMemberPath="Amount" Width="90"
+                    <DataGrid.Columns>
+                      <DataGridTextColumn Header="Work" Binding="{Binding Description}" Width="*" />
+                      <DataGridTextColumn Header="SAC" Binding="{Binding SacCode}" Width="70" />
+                      <DataGridTextColumn Header="Qty" Binding="{Binding Quantity}" Width="50" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+                      <DataGridTextColumn Header="Rate" Binding="{Binding Rate, Converter={StaticResource Amount}}" Width="80" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
+                      <DataGridTextColumn Header="Amount" Binding="{Binding Amount, Converter={StaticResource Amount}}" SortMemberPath="Amount" Width="90"
                                       controls:Table.Total="True" HeaderStyle="{StaticResource Header.Amount}" ElementStyle="{StaticResource Cell.Amount}" />
-                </DataGrid.Columns>
-              </controls:QikDataGrid>
-              <StackPanel Visibility="{Binding DetailCanChange, Converter={StaticResource VisibleWhen}}" Margin="0,4,0,0">
-                <TextBox Text="{Binding LabourDescription, UpdateSourceTrigger=PropertyChanged}" MaxLength="200" Margin="0,0,0,4" AutomationProperties.Name="Labour description" />
-                <StackPanel Orientation="Horizontal">
-                  <TextBox Text="{Binding LabourQuantity, UpdateSourceTrigger=PropertyChanged}" Width="50" MaxLength="8" Margin="0,0,8,0" AutomationProperties.Name="Labour quantity" />
-                  <TextBox Text="{Binding LabourRate, UpdateSourceTrigger=PropertyChanged}" Width="80" MaxLength="12" Margin="0,0,8,0" AutomationProperties.Name="Labour rate" />
-                  <TextBox Text="{Binding LabourSac, UpdateSourceTrigger=PropertyChanged}" Width="70" MaxLength="8" Margin="0,0,8,0" AutomationProperties.Name="SAC code" />
-                  <ComboBox ItemsSource="{Binding TaxCategories}" SelectedItem="{Binding LabourTax}" DisplayMemberPath="Name" Width="110" Margin="0,0,8,0" AutomationProperties.Name="Labour tax category" />
-                  <Button Content="Add" Command="{Binding AddLabourCommand}" />
-                </StackPanel>
-                <WrapPanel Margin="0,4,0,0">
-                  <Button Content="Remove selected labour" Command="{Binding RemoveLabourCommand}" Margin="0,0,8,4" />
-                  <Button Content="Create service invoice" Style="{StaticResource Button.Primary}" Command="{Binding CreateInvoiceCommand}" Margin="0,0,8,4"
+                    </DataGrid.Columns>
+                  </controls:QikDataGrid>
+                  <StackPanel Visibility="{Binding DetailCanChange, Converter={StaticResource VisibleWhen}}" Margin="0,4,0,0">
+                    <TextBox Text="{Binding LabourDescription, UpdateSourceTrigger=PropertyChanged}" MaxLength="200" Margin="0,0,0,4" AutomationProperties.Name="Labour description" />
+                    <StackPanel Orientation="Horizontal">
+                      <TextBox Text="{Binding LabourQuantity, UpdateSourceTrigger=PropertyChanged}" Width="50" MaxLength="8" Margin="0,0,8,0" AutomationProperties.Name="Labour quantity" />
+                      <TextBox Text="{Binding LabourRate, UpdateSourceTrigger=PropertyChanged}" Width="80" MaxLength="12" Margin="0,0,8,0" AutomationProperties.Name="Labour rate" />
+                      <TextBox Text="{Binding LabourSac, UpdateSourceTrigger=PropertyChanged}" Width="70" MaxLength="8" Margin="0,0,8,0" AutomationProperties.Name="SAC code" />
+                      <ComboBox ItemsSource="{Binding TaxCategories}" SelectedItem="{Binding LabourTax}" DisplayMemberPath="Name" Width="110" Margin="0,0,8,0" AutomationProperties.Name="Labour tax category" />
+                      <Button Content="Add" Command="{Binding AddLabourCommand}" />
+                    </StackPanel>
+                    <WrapPanel Margin="0,4,0,0">
+                      <Button Content="Remove selected labour" Command="{Binding RemoveLabourCommand}" Margin="0,0,8,4" />
+                      <Button Content="Create service invoice" Style="{StaticResource Button.Primary}" Command="{Binding CreateInvoiceCommand}" Margin="0,0,8,4"
                           Visibility="{Binding CanInvoice, Converter={StaticResource VisibleWhen}}" />
-                </WrapPanel>
-                <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap"
+                    </WrapPanel>
+                    <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap"
                            Text="Warranty jobs are not invoiced; their parts cost goes to Warranty and Service Costs. The invoice is created as a draft to post in Sales invoices." />
-              </StackPanel>
+                  </StackPanel>
+                </StackPanel>
+              </Expander>
             </StackPanel>
           </ScrollViewer>
         </Border>
@@ -182,7 +190,7 @@
                 <TextBox Text="{Binding ReceivedOn, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" Width="110" HorizontalAlignment="Left" Margin="0,0,0,8"
                          AutomationProperties.Name="Received on (dd-mm-yyyy)" />
                 <TextBlock Text="Customer" Style="{StaticResource Text.Label}" />
-                <ComboBox ItemsSource="{Binding CustomerChoices}" SelectedItem="{Binding JobCustomer}" DisplayMemberPath="Name" IsEditable="True" IsTextSearchEnabled="True" Margin="0,0,0,8"
+                <controls:SearchComboBox Choices="{Binding CustomerChoices}" SelectedItem="{Binding JobCustomer}" DisplayMemberPath="Name" Margin="0,0,0,8"
                           AutomationProperties.Name="Customer" />
                 <TextBlock Text="Serial number" Style="{StaticResource Text.Label}" />
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
@@ -191,7 +199,7 @@
                 </StackPanel>
                 <TextBlock Text="{Binding WarrantyText}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,0,0,8" />
                 <TextBlock Text="Product (if it is one of ours)" Style="{StaticResource Text.Label}" />
-                <ComboBox ItemsSource="{Binding ProductChoices}" SelectedItem="{Binding JobProduct}" DisplayMemberPath="Name" Margin="0,0,0,8" AutomationProperties.Name="Product" />
+                <controls:SearchComboBox Choices="{Binding ProductChoices}" SelectedItem="{Binding JobProduct}" DisplayMemberPath="Name" Margin="0,0,0,8" AutomationProperties.Name="Product" />
                 <TextBlock Text="Item" Style="{StaticResource Text.Label}" />
                 <TextBox Text="{Binding JobItem, UpdateSourceTrigger=PropertyChanged}" MaxLength="200" Margin="0,0,0,8" AutomationProperties.Name="Item description" />
                 <TextBlock Text="Accessories received" Style="{StaticResource Text.Label}" />
@@ -201,16 +209,20 @@
                 <TextBlock Text="Fault reported" Style="{StaticResource Text.Label}" />
                 <TextBox Text="{Binding JobFault, UpdateSourceTrigger=PropertyChanged}" MaxLength="1000" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" Margin="0,0,0,8"
                          AutomationProperties.Name="Fault" />
-                <TextBlock Text="Diagnosis" Style="{StaticResource Text.Label}" />
-                <TextBox Text="{Binding JobDiagnosis, UpdateSourceTrigger=PropertyChanged}" MaxLength="1000" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" Margin="0,0,0,8"
+                <Expander Header="Diagnosis, technician and parts warehouse" >
+                  <StackPanel>
+                    <TextBlock Text="Diagnosis" Style="{StaticResource Text.Label}" />
+                    <TextBox Text="{Binding JobDiagnosis, UpdateSourceTrigger=PropertyChanged}" MaxLength="1000" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" Margin="0,0,0,8"
                          AutomationProperties.Name="Diagnosis" />
-                <TextBlock Text="Technician" Style="{StaticResource Text.Label}" />
-                <ComboBox ItemsSource="{Binding Technicians}" SelectedItem="{Binding JobTechnician}" DisplayMemberPath="Name" Margin="0,0,0,8" AutomationProperties.Name="Technician" />
-                <TextBlock Text="Estimated completion" Style="{StaticResource Text.Label}" />
-                <TextBox Text="{Binding JobEstimate, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" Width="110" HorizontalAlignment="Left" Margin="0,0,0,8"
+                    <TextBlock Text="Technician" Style="{StaticResource Text.Label}" />
+                    <controls:SearchComboBox Choices="{Binding Technicians}" SelectedItem="{Binding JobTechnician}" DisplayMemberPath="Name" Margin="0,0,0,8" AutomationProperties.Name="Technician" />
+                    <TextBlock Text="Estimated completion" Style="{StaticResource Text.Label}" />
+                    <TextBox Text="{Binding JobEstimate, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" Width="110" HorizontalAlignment="Left" Margin="0,0,0,8"
                          AutomationProperties.Name="Estimated completion (dd-mm-yyyy)" />
-                <TextBlock Text="Parts warehouse" Style="{StaticResource Text.Label}" />
-                <ComboBox ItemsSource="{Binding Warehouses}" SelectedItem="{Binding JobWarehouse}" DisplayMemberPath="Name" Margin="0,0,0,8" AutomationProperties.Name="Parts warehouse" />
+                    <TextBlock Text="Parts warehouse" Style="{StaticResource Text.Label}" />
+                    <ComboBox ItemsSource="{Binding Warehouses}" SelectedItem="{Binding JobWarehouse}" DisplayMemberPath="Name" Margin="0,0,0,8" AutomationProperties.Name="Parts warehouse" />
+                  </StackPanel>
+                </Expander>
               </StackPanel>
             </Grid>
             <WrapPanel Margin="0,8,0,0">
@@ -250,7 +262,7 @@
           <StackPanel>
             <TextBlock Text="Schedule" Style="{StaticResource Text.Section}" Margin="0,0,0,8" />
             <TextBlock Text="Customer" Style="{StaticResource Text.Label}" />
-            <ComboBox ItemsSource="{Binding CustomerChoices}" SelectedItem="{Binding ScheduleCustomer}" DisplayMemberPath="Name" Margin="0,0,0,8" AutomationProperties.Name="Schedule customer" />
+            <controls:SearchComboBox Choices="{Binding CustomerChoices}" SelectedItem="{Binding ScheduleCustomer}" DisplayMemberPath="Name" Margin="0,0,0,8" AutomationProperties.Name="Schedule customer" />
             <TextBlock Text="Item" Style="{StaticResource Text.Label}" />
             <TextBox Text="{Binding ScheduleItem, UpdateSourceTrigger=PropertyChanged}" MaxLength="200" Margin="0,0,0,8" AutomationProperties.Name="Schedule item" />
             <TextBlock Text="Serial number" Style="{StaticResource Text.Label}" />
@@ -271,7 +283,7 @@
               </StackPanel>
             </Grid>
             <TextBlock Text="Assignee" Style="{StaticResource Text.Label}" />
-            <ComboBox ItemsSource="{Binding Technicians}" SelectedItem="{Binding ScheduleAssignee}" DisplayMemberPath="Name" Margin="0,0,0,8" AutomationProperties.Name="Schedule assignee" />
+            <controls:SearchComboBox Choices="{Binding Technicians}" SelectedItem="{Binding ScheduleAssignee}" DisplayMemberPath="Name" Margin="0,0,0,8" AutomationProperties.Name="Schedule assignee" />
             <TextBlock Text="Notes" Style="{StaticResource Text.Label}" />
             <TextBox Text="{Binding ScheduleNotes, UpdateSourceTrigger=PropertyChanged}" MaxLength="500" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="48" Margin="0,0,0,8"
                      AutomationProperties.Name="Schedule notes" />
@@ -290,7 +302,7 @@
         <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,12">
           <StackPanel Width="240" Margin="0,0,8,4">
             <TextBlock Text="Customer" Style="{StaticResource Text.Label}" />
-            <ComboBox ItemsSource="{Binding CustomerChoices}" SelectedItem="{Binding HistoryCustomer}" DisplayMemberPath="Name" AutomationProperties.Name="History customer" />
+            <controls:SearchComboBox Choices="{Binding CustomerChoices}" SelectedItem="{Binding HistoryCustomer}" DisplayMemberPath="Name" AutomationProperties.Name="History customer" />
           </StackPanel>
           <StackPanel Width="180" Margin="0,0,8,4">
             <TextBlock Text="or serial number" Style="{StaticResource Text.Label}" />

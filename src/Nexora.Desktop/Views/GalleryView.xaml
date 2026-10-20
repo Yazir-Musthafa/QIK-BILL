@@ -84,6 +84,10 @@
         </StackPanel>
       </Border>
 
+      <TextBlock Text="Optional sections" Style="{StaticResource GalleryHeading}" />
+      <Expander Header="Optional details (collapsed)"><TextBox Text="Input stays here when collapsed" AutomationProperties.Name="Optional detail example" /></Expander>
+      <Expander Header="Optional details (expanded)" IsExpanded="True"><TextBlock Text="Tab to the header and press Space to toggle." Style="{StaticResource Text.Caption}" /></Expander>
+      <Expander Header="Disabled optional section" IsEnabled="False"><TextBlock Text="Unavailable" /></Expander>
       <!-- Inputs -->
       <TextBlock Text="Inputs" Style="{StaticResource GalleryHeading}" />
       <Border Style="{StaticResource Panel}">

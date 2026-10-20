@@ -4,11 +4,11 @@
              xmlns:controls="clr-namespace:Nexora.Desktop.Controls">
   <DockPanel Margin="24,20,24,24">
     <TextBlock DockPanel.Dock="Top" Text="{Binding Title}" Style="{StaticResource Text.Title}" Margin="0,0,0,12" />
-    <ListBox DockPanel.Dock="Top" ItemsSource="{Binding Sections}" SelectedItem="{Binding Section}" DisplayMemberPath="Label" Margin="0,0,0,16"
+    <ListBox ScrollViewer.HorizontalScrollBarVisibility="Disabled" DockPanel.Dock="Top" ItemsSource="{Binding Sections}" SelectedItem="{Binding Section}" DisplayMemberPath="Label" Margin="0,0,0,16"
              AutomationProperties.Name="Stock sections">
       <ListBox.ItemsPanel>
         <ItemsPanelTemplate>
-          <StackPanel Orientation="Horizontal" />
+          <WrapPanel />
         </ItemsPanelTemplate>
       </ListBox.ItemsPanel>
     </ListBox>
@@ -78,8 +78,7 @@
             </StackPanel>
             <StackPanel Width="320" Margin="0,0,12,0" Visibility="{Binding NeedsCounterAccount, Converter={StaticResource VisibleWhen}}">
               <TextBlock Text="{Binding CounterAccountLabel}" Style="{StaticResource Text.Label}" />
-              <ComboBox ItemsSource="{Binding Accounts}" SelectedItem="{Binding CounterAccount}" DisplayMemberPath="Display" IsTextSearchEnabled="True"
-                        TextSearch.TextPath="Name" MaxDropDownHeight="360" AutomationProperties.Name="Counter account" />
+              <controls:SearchComboBox Choices="{Binding Accounts}" SelectedItem="{Binding CounterAccount}" DisplayMemberPath="Display" MaxDropDownHeight="360" AutomationProperties.Name="Counter account" />
             </StackPanel>
           </WrapPanel>
 
@@ -92,53 +91,36 @@
 
           <DockPanel Margin="0,16,0,0">
             <Grid DockPanel.Dock="Top" Margin="0,0,0,4">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition />
-                <ColumnDefinition Width="90" />
-                <ColumnDefinition Width="80" />
-                <ColumnDefinition Width="100" />
-                <ColumnDefinition Width="90" />
-                <ColumnDefinition Width="100" />
-                <ColumnDefinition Width="110" />
-                <ColumnDefinition Width="36" />
-              </Grid.ColumnDefinitions>
+              <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="100" /><ColumnDefinition Width="90" /><ColumnDefinition Width="110" /><ColumnDefinition Width="36" /></Grid.ColumnDefinitions>
               <TextBlock Text="Product" Style="{StaticResource Text.Label}" />
               <TextBlock Grid.Column="1" Text="{Binding QuantityLabel}" Style="{StaticResource Text.Label}" />
               <TextBlock Grid.Column="2" Text="Unit" Style="{StaticResource Text.Label}" />
               <TextBlock Grid.Column="3" Text="Unit cost" Style="{StaticResource Text.Label}" Visibility="{Binding NeedsCost, Converter={StaticResource VisibleWhen}}" />
-              <TextBlock Grid.Column="4" Text="Batch" Style="{StaticResource Text.Label}" />
-              <TextBlock Grid.Column="5" Text="Expiry" Style="{StaticResource Text.Label}" />
-              <TextBlock Grid.Column="6" Text="Serial" Style="{StaticResource Text.Label}" />
             </Grid>
             <Button DockPanel.Dock="Bottom" Content="Add line" Style="{StaticResource Button.Subtle}" HorizontalAlignment="Left" Margin="0,4,0,0" Command="{Binding AddLineCommand}" />
             <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
               <ItemsControl ItemsSource="{Binding Lines}" Focusable="False">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
-                    <Grid Margin="0,0,0,4">
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition />
-                        <ColumnDefinition Width="90" />
-                        <ColumnDefinition Width="80" />
-                        <ColumnDefinition Width="100" />
-                        <ColumnDefinition Width="90" />
-                        <ColumnDefinition Width="100" />
-                        <ColumnDefinition Width="110" />
-                        <ColumnDefinition Width="36" />
-                      </Grid.ColumnDefinitions>
-                      <ComboBox ItemsSource="{Binding DataContext.Products, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Product}"
-                                DisplayMemberPath="DisplayName" IsTextSearchEnabled="True" TextSearch.TextPath="Sku" MaxDropDownHeight="360" Margin="0,0,8,0"
+                    <Grid Margin="0,0,0,8">
+                      <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                      <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="100" /><ColumnDefinition Width="90" /><ColumnDefinition Width="110" /><ColumnDefinition Width="36" /></Grid.ColumnDefinitions>
+                      <controls:SearchComboBox Choices="{Binding DataContext.Products, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Product}"
+                                DisplayMemberPath="LookupLabel" MaxDropDownHeight="360" Margin="0,0,8,0"
                                 AutomationProperties.Name="Product" />
                       <TextBox Grid.Column="1" Text="{Binding Quantity, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" Margin="0,0,8,0" AutomationProperties.Name="Quantity" />
                       <ComboBox Grid.Column="2" ItemsSource="{Binding DataContext.Units, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Unit}"
                                 DisplayMemberPath="Code" Margin="0,0,8,0" AutomationProperties.Name="Unit (blank: base unit)" />
                       <TextBox Grid.Column="3" Text="{Binding UnitCost, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" Margin="0,0,8,0" AutomationProperties.Name="Unit cost"
                                Visibility="{Binding DataContext.NeedsCost, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource VisibleWhen}}" />
-                      <TextBox Grid.Column="4" Text="{Binding Batch, UpdateSourceTrigger=PropertyChanged}" MaxLength="40" CharacterCasing="Upper" Margin="0,0,8,0" AutomationProperties.Name="Batch number" />
-                      <TextBox Grid.Column="5" Text="{Binding Expires, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" Margin="0,0,8,0" AutomationProperties.Name="Expiry date (dd-mm-yyyy)" />
-                      <TextBox Grid.Column="6" Text="{Binding Serial, UpdateSourceTrigger=PropertyChanged}" MaxLength="60" CharacterCasing="Upper" Margin="0,0,8,0" AutomationProperties.Name="Serial number" />
-                      <Button Grid.Column="7" Style="{StaticResource Button.Icon}" Content="&#xE711;" FontSize="{StaticResource IconSizeSmall}" AutomationProperties.Name="Remove line"
+                      <Button Grid.Column="4" Style="{StaticResource Button.Icon}" Content="&#xE711;" FontSize="{StaticResource IconSizeSmall}" AutomationProperties.Name="Remove line"
                               ToolTip="Remove line" Command="{Binding DataContext.RemoveLineCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                      <Expander Grid.Row="1" Grid.ColumnSpan="5" Header="Batch, expiry and serial (for tracked items)" IsExpanded="{Binding NeedsTracking, Mode=OneWay}">
+                        <WrapPanel><StackPanel Width="180" Margin="0,0,8,0"><TextBlock Text="Batch number" Style="{StaticResource Text.Label}" /><TextBox Text="{Binding Batch, UpdateSourceTrigger=PropertyChanged}" MaxLength="40" CharacterCasing="Upper" Margin="0,0,8,0" AutomationProperties.Name="Batch number" /></StackPanel>
+                          <StackPanel Width="180" Margin="0,0,8,0"><TextBlock Text="Expiry (dd-mm-yyyy)" Style="{StaticResource Text.Label}" /><TextBox Text="{Binding Expires, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" Margin="0,0,8,0" AutomationProperties.Name="Expiry date (dd-mm-yyyy)" /></StackPanel>
+                          <StackPanel Width="180" Margin="0,0,8,0"><TextBlock Text="Serial number" Style="{StaticResource Text.Label}" /><TextBox Text="{Binding Serial, UpdateSourceTrigger=PropertyChanged}" MaxLength="60" CharacterCasing="Upper" Margin="0,0,8,0" AutomationProperties.Name="Serial number" /></StackPanel>
+                        </WrapPanel>
+                      </Expander>
                     </Grid>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>

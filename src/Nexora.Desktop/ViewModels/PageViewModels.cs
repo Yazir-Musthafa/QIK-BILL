@@ -26,6 +26,8 @@ public sealed partial class PlaceholderViewModel(NavItem item, Action<string> na
 public sealed class HelpViewModel
 {
     public string Title => "Help";
+    public IReadOnlyList<HelpTopic> Topics { get; } = NavCatalog.Items.Where(n => n.IsAvailable && n.Key != NavCatalog.Help)
+        .Select(n => new HelpTopic(n.Label, ScreenGuidance.For(n.Key))).ToList();
 
     public IReadOnlyList<Shortcut> Shortcuts { get; } =
     [
@@ -43,6 +45,8 @@ public sealed class HelpViewModel
     public string Note =>
         "To buy stock: Add Supplier → Purchase → choose supplier → add items → Save purchase. To pay later, use Credit; record the payment under Purchase → Payments. Open Suppliers for bills, balances, ledgers and journals. Show all tools reveals advanced accounts and business tools; Ctrl+K searches them too. Save a draft before signing out or switching company.";
 }
+
+public sealed record HelpTopic(string Title, string Steps);
 
 public sealed record GalleryRow(string Number, string Party, DateOnly Date, decimal Amount, string Status)
 {

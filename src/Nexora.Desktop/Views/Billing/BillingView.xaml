@@ -5,10 +5,10 @@
       <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Title}" />
     </DockPanel>
     <TextBlock DockPanel.Dock="Top" Text="{Binding WorkflowHint}" Style="{StaticResource Text.Secondary}" Margin="0,0,0,12" />
-    <ListBox DockPanel.Dock="Top" ItemsSource="{Binding Sections}" SelectedItem="{Binding Section}" DisplayMemberPath="Label" Margin="0,0,0,16" AutomationProperties.Name="Sections">
+    <ListBox ScrollViewer.HorizontalScrollBarVisibility="Disabled" DockPanel.Dock="Top" ItemsSource="{Binding Sections}" SelectedItem="{Binding Section}" DisplayMemberPath="Label" Margin="0,0,0,16" AutomationProperties.Name="Sections">
       <ListBox.ItemsPanel>
         <ItemsPanelTemplate>
-          <StackPanel Orientation="Horizontal" />
+          <WrapPanel />
         </ItemsPanelTemplate>
       </ListBox.ItemsPanel>
     </ListBox>
@@ -301,6 +301,17 @@
                   </StackPanel>
                 </WrapPanel>
               </Expander>
+              <StackPanel Visibility="{Binding IsSales, Converter={StaticResource VisibleWhen}}" Margin="0,0,0,8">
+                <TextBlock Text="{Binding CustomerTaxHint}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" />
+                <TextBlock Text="Place of supply (default: customer / company state)" Style="{StaticResource Text.Label}" Margin="0,8,0,4" />
+                <ComboBox ItemsSource="{Binding SupplyStates}" SelectedItem="{Binding SupplyState}" DisplayMemberPath="Display" Width="300" HorizontalAlignment="Left"
+                          IsEnabled="{Binding CanEditHeader}" AutomationProperties.Name="Place of supply" />
+                <TextBlock Text="GST follows the place of supply. GSTIN is needed for B2B; leave it blank for consumers. HSN/SAC is needed for the tax export." Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,4,0,0" />
+              </StackPanel>
+              <WrapPanel Margin="0,0,0,8">
+                <Button Content="Refresh stock" Command="{Binding RefreshStockCommand}" Margin="0,0,8,0" />
+                <TextBlock Text="Posted purchases appear here. Good stock in the selected warehouse is shown in base units; items in stock appear first. Posting checks stock again." Style="{StaticResource Text.Caption}" TextWrapping="Wrap" MaxWidth="600" VerticalAlignment="Center" />
+              </WrapPanel>
               <TextBlock Text="Items" Style="{StaticResource Text.Section}" Margin="0,4,0,8" />
               <DockPanel Margin="0,0,0,12" Visibility="{Binding CanEditHeader, Converter={StaticResource VisibleWhen}}">
                 <TextBlock DockPanel.Dock="Left" Text="Scan code + Enter" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" Margin="0,0,12,0" />
@@ -325,7 +336,7 @@
                           </Grid.ColumnDefinitions>
                           <StackPanel Margin="0,0,12,0">
                             <TextBlock Text="Item code / name" Style="{StaticResource Text.Label}" />
-                            <controls:SearchComboBox Choices="{Binding DataContext.Products, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Product}" Text="{Binding ProductSearch, UpdateSourceTrigger=PropertyChanged}" DisplayMemberPath="LookupLabel" IsEnabled="{Binding IsReturnLine, Converter={StaticResource Inverse}}" AutomationProperties.Name="Search item by code or name" />
+                            <controls:SearchComboBox Choices="{Binding DataContext.Products, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Product}" Text="{Binding ProductSearch, UpdateSourceTrigger=PropertyChanged}" DisplayMemberPath="BillingLookupLabel" IsEnabled="{Binding IsReturnLine, Converter={StaticResource Inverse}}" AutomationProperties.Name="Search item by code or name" />
                           </StackPanel>
                           <StackPanel Grid.Column="1" Margin="0,0,12,0">
                             <TextBlock Text="Quantity" Style="{StaticResource Text.Label}" />

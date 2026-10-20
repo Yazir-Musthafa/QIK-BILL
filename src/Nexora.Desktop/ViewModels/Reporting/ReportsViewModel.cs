@@ -21,7 +21,7 @@ using Nexora.Reporting.Reports;
 
 namespace Nexora.Desktop.ViewModels.Reporting;
 
-public sealed partial class ReportsViewModel(ReportService reports, ReportExportService export, PartyService parties,
+public sealed partial class ReportsViewModel(ReportService reports, ReportExportService export, Nexora.Reporting.Gst.Gstr1ExportService gstExport, PartyService parties,
     InventoryCatalogueService inventory, CompanyService companies, ChartOfAccountsService chart, IAuthorizer authorizer,
     PrintActions printing, ReportDrillActions drill, ToastService toasts, ILogger<ReportsViewModel> logger) : PageViewModel(logger, toasts), ILoadable
 {
@@ -30,6 +30,12 @@ public sealed partial class ReportsViewModel(ReportService reports, ReportExport
     private ReportRequest? _lastRequest;
     public string Title => "Reports";
     public bool CanExport => authorizer.Has(Permissions.DataExport);
+    public bool CanExportGst => CanExport && authorizer.Has(Permissions.SalesView);
+    [ObservableProperty] private bool _sixDigitHsn;
+    [ObservableProperty] private string _gstFrom = DateText.From(new DateOnly(DateText.Today.Year, DateText.Today.Month, 1));
+    [ObservableProperty] private string _gstTo = DateText.From(new DateOnly(DateText.Today.Year, DateText.Today.Month, 1).AddMonths(1).AddDays(-1));
+    [RelayCommand] private Task ExportGstr1Async() => RunAsync(async () =>
+        await DataFiles.SaveAsync(await gstExport.ExportAsync(DateText.Parse(GstFrom, "Period start"), DateText.Parse(GstTo, "Period end"), SixDigitHsn)));
     public IReadOnlyList<ReportPeriod> Periods { get; } = Enum.GetValues<ReportPeriod>();
     public IReadOnlyList<string> Groupings { get; } = ["Category", "Date", "Month", "Branch", "Department", "Method"];
     public IReadOnlyList<int> PageSizes { get; } = [50, 100, 200, 500];

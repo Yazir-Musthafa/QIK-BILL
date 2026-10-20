@@ -17,7 +17,7 @@
             <TextBlock Text="Role" Style="{StaticResource Text.Label}" />
             <DockPanel>
               <Button DockPanel.Dock="Right" Content="Apply" Command="{Binding ChangeRoleCommand}" Margin="8,0,0,0" />
-              <ComboBox ItemsSource="{Binding Roles}" SelectedItem="{Binding SelectedRole}" DisplayMemberPath="Name" AutomationProperties.Name="Role" />
+              <controls:SearchComboBox Choices="{Binding Roles}" SelectedItem="{Binding SelectedRole}" DisplayMemberPath="Name" AutomationProperties.Name="Role" />
             </DockPanel>
             <TextBlock Text="Temporary password" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
             <DockPanel>
@@ -48,7 +48,7 @@
             <TextBlock Text="Temporary password" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
             <PasswordBox x:Name="NewPassword" PasswordChanged="OnNewPasswordChanged" MaxLength="128" AutomationProperties.Name="New user temporary password" />
             <TextBlock Text="Role" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
-            <ComboBox ItemsSource="{Binding Roles}" SelectedItem="{Binding NewRole}" DisplayMemberPath="Name" AutomationProperties.Name="New user role" />
+            <controls:SearchComboBox Choices="{Binding Roles}" SelectedItem="{Binding NewRole}" DisplayMemberPath="Name" AutomationProperties.Name="New user role" />
             <Button Content="Create user" Style="{StaticResource Button.Primary}" Command="{Binding CreateCommand}" HorizontalAlignment="Left" Margin="0,16,0,0" />
             <Separator Margin="0,16" />
             <TextBlock Text="Or give an existing account access" Style="{StaticResource Text.Label}" />

@@ -84,6 +84,8 @@ public sealed partial class ShellViewModel : ObservableObject
     [ObservableProperty]
     private object? _currentPage;
 
+    [ObservableProperty] private string _pageGuidance = string.Empty;
+
     [ObservableProperty]
     private bool _isSidebarCollapsed;
 
@@ -138,6 +140,7 @@ public sealed partial class ShellViewModel : ObservableObject
         if (item.Permission is { } permission && !_authorizer.Has(permission)) item = NavCatalog.Find(NavCatalog.Dashboard);
         // Set the key first so the selection change below does not navigate a second time.
         CurrentPageKey = item.Key;
+        PageGuidance = ScreenGuidance.For(item.Key);
         SelectedNavItem = NavItems.Contains(item) ? item : null;
         CurrentPage = CreatePage(item);
     }

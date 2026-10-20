@@ -195,6 +195,9 @@
         </DockPanel>
       </Border>
 
+      <Expander DockPanel.Dock="Top" Header="How to use this page" Margin="24,8,24,0">
+        <TextBlock Text="{Binding PageGuidance}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" MaxWidth="1000" HorizontalAlignment="Left" />
+      </Expander>
       <!-- Page content -->
       <controls:TransitionPresenter Content="{Binding CurrentPage}" Focusable="False" />
     </DockPanel>

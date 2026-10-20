@@ -258,7 +258,8 @@ public sealed partial class ProductsViewModel(
 /// <summary>One editable line of a stock document. Numbers and dates are text so partial input does not fight the user.</summary>
 public sealed partial class StockLineEditor : ObservableObject
 {
-    [ObservableProperty] private ProductRow? _product;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(NeedsTracking))] private ProductRow? _product;
+    public bool NeedsTracking => Product is { Tracking: not TrackingMode.None };
     [ObservableProperty] private string _quantity = string.Empty;
     [ObservableProperty] private UnitRow? _unit;
     [ObservableProperty] private string _unitCost = string.Empty;

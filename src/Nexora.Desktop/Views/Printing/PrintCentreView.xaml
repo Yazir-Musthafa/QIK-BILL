@@ -7,11 +7,11 @@
       <Button DockPanel.Dock="Right" Content="Refresh" Style="{StaticResource Button.Subtle}" Command="{Binding RefreshCommand}" />
       <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Title}" />
     </DockPanel>
-    <ListBox DockPanel.Dock="Top" ItemsSource="{Binding Sections}" SelectedItem="{Binding Section}" DisplayMemberPath="Label" Margin="0,0,0,16"
+    <ListBox ScrollViewer.HorizontalScrollBarVisibility="Disabled" DockPanel.Dock="Top" ItemsSource="{Binding Sections}" SelectedItem="{Binding Section}" DisplayMemberPath="Label" Margin="0,0,0,16"
              AutomationProperties.Name="Print centre sections">
       <ListBox.ItemsPanel>
         <ItemsPanelTemplate>
-          <StackPanel Orientation="Horizontal" />
+          <WrapPanel />
         </ItemsPanelTemplate>
       </ListBox.ItemsPanel>
     </ListBox>
@@ -99,35 +99,38 @@
                         <TextBlock Text="Orientation" Style="{StaticResource Text.Label}" />
                         <ComboBox ItemsSource="{Binding DataContext.Orientations, RelativeSource={RelativeSource AncestorType=UserControl}}" SelectedItem="{Binding Orientation}" AutomationProperties.Name="Orientation" />
                       </StackPanel>
-                      <StackPanel Width="70" Margin="0,0,8,8">
-                        <TextBlock Text="Top" Style="{StaticResource Text.Label}" />
-                        <TextBox Text="{Binding Top, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Top margin (mm)" />
-                      </StackPanel>
-                      <StackPanel Width="70" Margin="0,0,8,8">
-                        <TextBlock Text="Right" Style="{StaticResource Text.Label}" />
-                        <TextBox Text="{Binding Right, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Right margin (mm)" />
-                      </StackPanel>
-                      <StackPanel Width="70" Margin="0,0,8,8">
-                        <TextBlock Text="Bottom" Style="{StaticResource Text.Label}" />
-                        <TextBox Text="{Binding Bottom, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Bottom margin (mm)" />
-                      </StackPanel>
-                      <StackPanel Width="70" Margin="0,0,12,8">
-                        <TextBlock Text="Left" Style="{StaticResource Text.Label}" />
-                        <TextBox Text="{Binding Left, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Left margin (mm)" />
-                      </StackPanel>
-                      <StackPanel Width="80" Margin="0,0,8,8">
-                        <TextBlock Text="Scale %" Style="{StaticResource Text.Label}" />
-                        <TextBox Text="{Binding Scale, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Scale percent" />
-                      </StackPanel>
-                      <StackPanel Width="80" Margin="0,0,8,8">
-                        <TextBlock Text="Font pt" Style="{StaticResource Text.Label}" />
-                        <TextBox Text="{Binding FontSize, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Font size (points)" />
-                      </StackPanel>
+
                       <StackPanel Width="70" Margin="0,0,12,8">
                         <TextBlock Text="Copies" Style="{StaticResource Text.Label}" />
                         <TextBox Text="{Binding Copies, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Copies" />
                       </StackPanel>
                     </WrapPanel>
+                    <Expander Header="Margins, scale and font (optional)" ><WrapPanel>
+                        <StackPanel Width="70" Margin="0,0,8,8">
+                          <TextBlock Text="Top" Style="{StaticResource Text.Label}" />
+                          <TextBox Text="{Binding Top, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Top margin (mm)" />
+                        </StackPanel>
+                        <StackPanel Width="70" Margin="0,0,8,8">
+                          <TextBlock Text="Right" Style="{StaticResource Text.Label}" />
+                          <TextBox Text="{Binding Right, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Right margin (mm)" />
+                        </StackPanel>
+                        <StackPanel Width="70" Margin="0,0,8,8">
+                          <TextBlock Text="Bottom" Style="{StaticResource Text.Label}" />
+                          <TextBox Text="{Binding Bottom, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Bottom margin (mm)" />
+                        </StackPanel>
+                        <StackPanel Width="70" Margin="0,0,12,8">
+                          <TextBlock Text="Left" Style="{StaticResource Text.Label}" />
+                          <TextBox Text="{Binding Left, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Left margin (mm)" />
+                        </StackPanel>
+                        <StackPanel Width="80" Margin="0,0,8,8">
+                          <TextBlock Text="Scale %" Style="{StaticResource Text.Label}" />
+                          <TextBox Text="{Binding Scale, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Scale percent" />
+                        </StackPanel>
+                        <StackPanel Width="80" Margin="0,0,8,8">
+                          <TextBlock Text="Font pt" Style="{StaticResource Text.Label}" />
+                          <TextBox Text="{Binding FontSize, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Font size (points)" />
+                        </StackPanel>
+                      </WrapPanel></Expander>
                     <CheckBox Content="Send as raw ESC/POS (experimental, receipts on thermal paper only)" IsChecked="{Binding UseEscPos}"
                               Visibility="{Binding CanUseEscPos, Converter={StaticResource VisibleWhen}}" Margin="0,0,0,8" />
                     <Button Content="Save" HorizontalAlignment="Left" Style="{StaticResource Button.Primary}"
