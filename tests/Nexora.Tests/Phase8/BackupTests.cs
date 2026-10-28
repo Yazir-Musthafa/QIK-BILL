@@ -15,6 +15,7 @@ using Nexora.Infrastructure.Persistence.Providers;
 
 namespace Nexora.Tests.Phase8;
 
+[Collection("SQLite pool lifecycle")]
 public sealed class BackupTests : ReportTestBase
 {
     private BackupService Backups => Db.Get<BackupService>();

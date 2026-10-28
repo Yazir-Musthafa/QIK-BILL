@@ -44,7 +44,7 @@ public sealed class Phase8UpgradeTests : BillingTestBase
 
 public sealed class ReturnRoundOffTests : BillingTestBase
 {
-    /// <summary>A rounded invoice returned in three parts: the credit notes add up exactly to the invoice, and the last one takes the round-off difference.</summary>
+    /// <summary>Cumulative rounding keeps partial refunds proportional and makes the final total equal the invoice.</summary>
     [Fact]
     public async Task Returns_in_several_parts_add_up_to_the_rounded_invoice()
     {
@@ -59,7 +59,8 @@ public sealed class ReturnRoundOffTests : BillingTestBase
             totals.Add((await Billing.GetAsync(returnId)).Total);
         }
 
-        Assert.Equal([176m, 176m, 177m], totals);
+        // Cumulative credits are 176, 353 and 529; each note pays only the increment.
+        Assert.Equal([176m, 177m, 176m], totals);
         Assert.Equal(invoice.Total, totals.Sum());
         Assert.Equal(0m, (await Parties.ListAsync(PartyKind.Customer)).Single(p => p.Id == Local).LedgerBalance);
         await AssertBooksBalanceAsync();

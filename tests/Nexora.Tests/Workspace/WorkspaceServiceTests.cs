@@ -198,9 +198,9 @@ public sealed class WorkspaceServiceTests : IAsyncLifetime
     {
         await Workspace.CompleteSetupAsync(ValidRequest());
 
-        // Closing every pooled connection checkpoints the write-ahead log into the main file, so all stored
+        // Closing this database's pooled connections checkpoints the write-ahead log into the main file, so all stored
         // data is in one place. (Reading the -wal file directly raced with background checkpoints.)
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        await _db.ClearPoolAsync();
         var bytes = await ReadSharedAsync(_db.DatabasePath);
         var walPath = _db.DatabasePath + "-wal";
         var wal = File.Exists(walPath) ? await TryReadSharedAsync(walPath) : [];

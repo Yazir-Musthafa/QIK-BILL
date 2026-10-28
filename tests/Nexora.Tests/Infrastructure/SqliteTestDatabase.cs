@@ -1,5 +1,6 @@
 using Nexora.Reporting;
 using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Nexora.Accounting;
@@ -7,6 +8,7 @@ using Nexora.Application;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Security;
 using Nexora.Infrastructure;
+using Nexora.Infrastructure.Persistence;
 using Nexora.Infrastructure.Persistence.Providers;
 using Nexora.Printing;
 
@@ -52,15 +54,15 @@ public sealed class SqliteTestDatabase : IAsyncDisposable
     /// <summary>Opens a raw connection for database-level assertions that bypass the application.</summary>
     public SqliteConnection OpenRawConnection()
     {
-        var connection = new SqliteConnection($"Data Source={DatabasePath};Foreign Keys=True");
+        var connection = new SqliteConnection($"Data Source={DatabasePath};Foreign Keys=True;Pooling=False");
         connection.Open();
         return connection;
     }
 
     public async ValueTask DisposeAsync()
     {
+        await ClearPoolAsync();
         await Services.DisposeAsync();
-        SqliteConnection.ClearAllPools();
         try
         {
             Directory.Delete(_directory, recursive: true);
@@ -69,6 +71,13 @@ public sealed class SqliteTestDatabase : IAsyncDisposable
         {
             // Best effort; the OS temp folder is cleaned eventually.
         }
+    }
+
+    // Each test owns a database. Never invalidate another concurrently running test's native connections.
+    public async Task ClearPoolAsync()
+    {
+        await using var context = await Get<IDbContextFactory<NexoraDbContext>>().CreateDbContextAsync();
+        SqliteConnection.ClearPool((SqliteConnection)context.Database.GetDbConnection());
     }
 }
 

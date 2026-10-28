@@ -82,8 +82,8 @@ public static class BillingCalculator
     }
 
     /// <summary>
-    /// The share of an original line returned now: proportional to quantity, rounded to the paisa, except that the last
-    /// return of a line takes exactly what remains, so returning everything always reverses the original amounts exactly.
+    /// The share of an original line returned now: the rounded cumulative share less what was already returned.
+    /// This prevents repeated rounding from over-refunding a component; the last return takes exactly what remains.
     /// </summary>
     public static LineAmounts Portion(LineAmounts original, decimal originalQuantity, LineAmounts alreadyReturned, decimal alreadyReturnedQuantity,
         decimal quantity)
@@ -92,13 +92,16 @@ public static class BillingCalculator
         if (alreadyReturnedQuantity + quantity > originalQuantity)
             throw new DomainException($"Only {originalQuantity - alreadyReturnedQuantity:0.###} can still be returned.");
         if (alreadyReturnedQuantity + quantity == originalQuantity) return original.Minus(alreadyReturned);
-        decimal Share(decimal amount) => Money.Round(amount * quantity / originalQuantity);
-        return new LineAmounts(Share(original.Gross), Share(original.Discount), Share(original.Taxable), Share(original.Cgst), Share(original.Sgst), Share(original.Igst));
+        decimal Share(decimal amount, decimal prior) => PortionOf(amount, originalQuantity, prior, alreadyReturnedQuantity, quantity);
+        return new LineAmounts(Share(original.Gross, alreadyReturned.Gross), Share(original.Discount, alreadyReturned.Discount),
+            Share(original.Taxable, alreadyReturned.Taxable), Share(original.Cgst, alreadyReturned.Cgst),
+            Share(original.Sgst, alreadyReturned.Sgst), Share(original.Igst, alreadyReturned.Igst));
     }
 
     /// <summary>The same proportional rule for a single amount, such as the cost of goods returned.</summary>
     public static decimal PortionOf(decimal original, decimal originalQuantity, decimal alreadyReturned, decimal alreadyReturnedQuantity, decimal quantity) =>
-        alreadyReturnedQuantity + quantity == originalQuantity ? original - alreadyReturned : Money.Round(original * quantity / originalQuantity);
+        alreadyReturnedQuantity + quantity == originalQuantity ? original - alreadyReturned
+            : Math.Clamp(Money.Round(original * (alreadyReturnedQuantity + quantity) / originalQuantity) - alreadyReturned, 0, original - alreadyReturned);
 
     private static (decimal Cgst, decimal Sgst, decimal Igst) Taxes(decimal taxable, decimal ratePercent, bool interState)
     {

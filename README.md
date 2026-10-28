@@ -72,6 +72,8 @@ dotnet build Nexora.sln
 dotnet test tests/Nexora.Tests
 ```
 
+The optional local working-guide check reports as skipped when `docs/WORKING_GUIDE.md` is absent from a checkout. All application tests still run, including billing, returns, inventory, accounting, reports, backups and service workflows. A passing build and test suite does not replace checking the Windows screens and physical printers.
+
 ## Licence
 
 Third-party packages are MIT or Apache-2.0, and the bundled Noto Sans font is under the SIL Open Font License.

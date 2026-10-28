@@ -8,6 +8,7 @@ using Nexora.Domain.Common;
 using Nexora.Domain.Companies;
 using Nexora.Domain.Inventory;
 using Nexora.Domain.Security;
+using Nexora.Domain.Service;
 
 namespace Nexora.Application.Billing;
 
@@ -111,7 +112,13 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
 
     // ----- Drafts -----
 
-    public async Task<Guid> SaveDraftAsync(BillingDraftInput input, CancellationToken cancellationToken = default)
+    public Task<Guid> SaveDraftAsync(BillingDraftInput input, CancellationToken cancellationToken = default) =>
+        SaveDraftCoreAsync(input, null, cancellationToken);
+
+    internal Task<Guid> SaveServiceDraftAsync(BillingDraftInput input, Guid jobId, CancellationToken cancellationToken) =>
+        SaveDraftCoreAsync(input, jobId, cancellationToken);
+
+    private async Task<Guid> SaveDraftCoreAsync(BillingDraftInput input, Guid? serviceJobId, CancellationToken cancellationToken)
     {
         var session = authorizer.Demand(CreatePermission(input.Kind));
         if (input.Lines.Count == 0) throw new WorkspaceValidationException("Add at least one line.");
@@ -132,6 +139,18 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
         {
             document = new BillingDocument(Guid.NewGuid(), session.CompanyId, input.Kind, input.Date, clock.UtcNow, session.UserId);
             unit.Add(document);
+        }
+
+        if (serviceJobId is { } jobId)
+        {
+            authorizer.Demand(Permissions.ServiceManage);
+            var job = await unit.FindAsync<ServiceJob>(jobId, cancellationToken) ?? throw new WorkspaceValidationException("That job no longer exists.");
+            Guard(job.EnsureOpen);
+            if (job.InvoiceId is { } invoiceId && await unit.FindAsync<BillingDocument>(invoiceId, cancellationToken) is not null
+                && !await unit.AnyAsync<BillingCancellation>(c => c.DocumentId == invoiceId, cancellationToken))
+                throw new WorkspaceValidationException("An invoice already exists for this job.");
+            job.LinkInvoice(document.Id);
+            unit.Record(new AuditEvent("Invoiced", nameof(ServiceJob), jobId.ToString(), $"Invoice draft created for job {job.Number}"));
         }
 
         await ComposeAsync(unit, session, document, input, cancellationToken);
@@ -434,6 +453,7 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
             mode = original.Mode;
             cashAccountId = mode == SettlementMode.Cash ? input.CashAccountId ?? original.CashAccountId : null;
             pricesIncludeTax = original.PricesIncludeTax;
+            roundToRupee = original.RoundToRupee;
         }
 
         Party? party = null;
@@ -471,12 +491,14 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
         var taxCategories = (await unit.ListAsync<TaxCategory>(cancellationToken: cancellationToken)).ToDictionary(t => t.Id);
         var returned = original is null ? [] : await ReturnedAsync(unit, originalLines.Keys.ToList(), document.Id, cancellationToken);
         var thisReturn = new HashSet<Guid>();
+        var issuedParts = new HashSet<Guid>();
 
         var lines = new List<BillingLine>();
         for (var i = 0; i < input.Lines.Count; i++)
         {
             var entry = input.Lines[i];
             var lineNumber = i + 1;
+            if (!Enum.IsDefined(entry.LineType)) throw new WorkspaceValidationException($"Line {lineNumber}: choose a valid line type.");
             BillingLine line;
             if (original is not null)
             {
@@ -521,6 +543,18 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
                 var factor = Factor(product, unitId, conversions, lineNumber);
                 var quantity = Quantity(entry.Quantity, lineNumber);
                 var baseQuantity = quantity * factor;
+                if (entry.LineType == BillingLineType.IssuedPart)
+                {
+                    var part = await unit.FindAsync<ServicePart>(entry.SourceId!.Value, cancellationToken);
+                    var job = part is null ? null : await unit.FindAsync<ServiceJob>(part.JobId, cancellationToken);
+                    if (part is null || job is null || job.InvoiceId != document.Id || job.Charge != ServiceCharge.Chargeable
+                        || job.Status == ServiceStatus.Cancelled || job.CustomerId != partyId || job.WarehouseId != warehouse.Id
+                        || part.ProductId != product.Id || part.Quantity != baseQuantity || part.BatchId != entry.BatchId
+                        || part.SerialNumber != NullIfEmpty((entry.SerialNumber ?? string.Empty).Trim().ToUpperInvariant())
+                        || input.Date < part.Date || !issuedParts.Add(part.Id)
+                        || await unit.AnyAsync<ServicePartReturn>(r => r.PartId == part.Id, cancellationToken))
+                        throw new WorkspaceValidationException($"Line {lineNumber}: issued parts must match an unreturned part on this invoice's service job.");
+                }
                 var baseUnit = unitRows[product.UnitId];
                 if (decimal.Round(baseQuantity, baseUnit.DecimalPlaces) != baseQuantity)
                     throw new WorkspaceValidationException($"Line {lineNumber}: {quantity:0.###} is not a valid quantity of {product.Sku} in {baseUnit.Code}.");
@@ -543,15 +577,19 @@ public sealed class BillingService(IUnitOfWorkFactory units, IAuthorizer authori
         }
 
         var totals = BillingCalculator.Totals(lines.Select(l => l.Amounts), roundToRupee);
-        if (original is { RoundToRupee: true } && ReturnsEverything(originalLines.Values, returned, lines))
+        if (original is { RoundToRupee: true })
         {
-            // The return that completes the document takes the round-off that makes all its returns add up to the original's total.
+            // Round the cumulative returned value, not each credit independently: many small returns must not
+            // refund more than the invoice. The final return reconciles exactly to the original total.
             var earlier = (await unit.ListAsync<BillingDocument>(d => d.OriginalDocumentId == original.Id && d.Id != document.Id && d.Status == BillingStatus.Posted,
                 cancellationToken)).Select(d => (d.Id, d.Total)).ToList();
             var earlierIds = earlier.Select(e => e.Id).ToList();
             var cancelled = (await unit.ListAsync<BillingCancellation>(c => earlierIds.Contains(c.DocumentId), cancellationToken)).Select(c => c.DocumentId).ToHashSet();
             var earlierTotal = earlier.Where(e => !cancelled.Contains(e.Id)).Sum(e => e.Total);
-            totals = totals with { RoundOff = original.Total - earlierTotal - (totals.Taxable + totals.Tax) };
+            var cumulative = returned.Values.Sum(r => r.Amounts.Total) + totals.Taxable + totals.Tax;
+            var target = ReturnsEverything(originalLines.Values, returned, lines) ? original.Total
+                : Math.Min(original.Total, cumulative + BillingCalculator.RoundOff(cumulative, true));
+            totals = totals with { RoundOff = Math.Max(0, target - earlierTotal) - (totals.Taxable + totals.Tax) };
         }
 
         Guard(() => document.SetTotals(totals));

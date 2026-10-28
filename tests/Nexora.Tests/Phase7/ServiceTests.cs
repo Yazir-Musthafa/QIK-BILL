@@ -109,6 +109,52 @@ public sealed class ServiceWorkflowTests : ServiceTestBase
 public sealed class ServicePartsAndBillingTests : ServiceTestBase
 {
     [Fact]
+    public async Task Parts_cannot_change_while_an_invoice_draft_exists()
+    {
+        var job = await JobAsync();
+        var part = await Service.IssuePartAsync(job, new ServicePartInput(Led, 2, October));
+        var invoice = await Service.CreateInvoiceAsync(job);
+
+        await Assert.ThrowsAsync<WorkspaceValidationException>(() => Service.IssuePartAsync(job, new ServicePartInput(Led, 1, October)));
+        await Assert.ThrowsAsync<WorkspaceValidationException>(() => Service.ReturnPartAsync(part, October));
+        Assert.Equal(18m, await OnHandAsync(Led));
+        await Billing.DeleteDraftAsync(invoice);
+        await Service.ReturnPartAsync(part, October);
+        Assert.Equal(20m, await OnHandAsync(Led));
+        await AssertBooksBalanceAsync();
+    }
+
+    [Fact]
+    public async Task A_real_service_part_cannot_be_billed_on_an_unlinked_invoice()
+    {
+        var job = await JobAsync();
+        var part = await Service.IssuePartAsync(job, new ServicePartInput(Led, 1, October));
+        await Assert.ThrowsAsync<WorkspaceValidationException>(() => DraftAsync(BillingDocumentKind.SalesInvoice, Local,
+            new BillingLineInput(Led, 1, LineType: BillingLineType.IssuedPart, SourceId: part)));
+        var invoice = await Service.CreateInvoiceAsync(job);
+        await Billing.PostAsync(invoice);
+        Assert.Equal(19m, await OnHandAsync(Led));
+        await AssertBooksBalanceAsync();
+    }
+
+    [Fact]
+    public async Task Concurrent_service_invoice_creation_links_exactly_one_draft()
+    {
+        var job = await JobAsync();
+        await Service.IssuePartAsync(job, new ServicePartInput(Led, 1, October));
+        var outcomes = await Task.WhenAll(Enumerable.Range(0, 3).Select(_ => Task.Run(async () =>
+        {
+            try { return (Guid?)await Service.CreateInvoiceAsync(job); }
+            catch (WorkspaceValidationException) { return null; }
+        })));
+        var invoice = Assert.Single(outcomes, id => id is not null)!.Value;
+        Assert.Single(await Billing.ListAsync(new BillingListFilter([BillingDocumentKind.SalesInvoice])), d => d.Status == PaymentStatus.Draft);
+        await Billing.PostAsync(invoice);
+        Assert.Equal(19m, await OnHandAsync(Led));
+        await AssertBooksBalanceAsync();
+    }
+
+    [Fact]
     public async Task Chargeable_job_issues_parts_through_stock_and_invoices_parts_and_labour_once()
     {
         var id = await JobAsync();

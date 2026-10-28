@@ -5,9 +5,8 @@ namespace Nexora.Tests.Design;
 /// <summary>
 /// Keeps docs/WORKING_GUIDE.md from going stale: every sidebar destination in NavCatalog and every Settings
 /// section must have a row in the guide's status table, with one of the agreed status labels.
-/// The guide stays local (it is not in the published repository), so builds without it skip the "Docs" category.
+/// The guide stays local (it is not in the published repository), so its theory is explicitly skipped when absent.
 /// </summary>
-[Trait("Category", "Docs")]
 public sealed partial class WorkingGuideTests
 {
     private static readonly string Root = FindRepositoryRoot();
@@ -36,7 +35,8 @@ public sealed partial class WorkingGuideTests
     [Fact]
     public void Navigation_sources_were_found() => Assert.True(SidebarItems().Count >= 15 && SettingsSections().Count >= 7);
 
-    [Theory]
+    [WorkingGuideTheory]
+    [Trait("Category", "Docs")]
     [MemberData(nameof(SidebarItems))]
     [MemberData(nameof(SettingsSections))]
     public void Status_table_has_a_row_for_every_screen(string screen)
@@ -48,6 +48,15 @@ public sealed partial class WorkingGuideTests
     }
 
     private sealed record Row(string Module, string Screen, string Status);
+
+    public sealed class WorkingGuideTheoryAttribute : TheoryAttribute
+    {
+        public WorkingGuideTheoryAttribute()
+        {
+            if (!File.Exists(Path.Combine(Root, "docs", "WORKING_GUIDE.md")))
+                Skip = "The optional local docs/WORKING_GUIDE.md is not included in this checkout.";
+        }
+    }
 
     private static List<Row> StatusRows()
     {

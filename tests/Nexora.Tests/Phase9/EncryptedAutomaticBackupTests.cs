@@ -27,6 +27,7 @@ internal sealed class BrokenProtector : ISecretProtector
     public string Unprotect(string protectedSecret) => throw new WorkspaceValidationException("The saved backup password cannot be opened by this Windows account.");
 }
 
+[Collection("SQLite pool lifecycle")]
 public sealed class EncryptedAutomaticBackupTests : BillingTestBase
 {
     private const string Password = "automatic backup phrase";

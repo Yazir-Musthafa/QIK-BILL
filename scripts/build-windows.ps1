@@ -41,14 +41,8 @@ Invoke-Step 'Restore' { dotnet restore $solution --locked-mode }
 Invoke-Step 'Build' { dotnet build $solution --configuration $Configuration --no-restore @versionArgs }
 
 if (-not $SkipTests) {
-    # The working-guide checks read docs/WORKING_GUIDE.md. Checkouts without the docs folder skip only that category.
-    $filter = @()
-    if (-not (Test-Path (Join-Path $root 'docs/WORKING_GUIDE.md'))) {
-        Write-Host 'docs/WORKING_GUIDE.md is not present: skipping the documentation checks (Category=Docs).'
-        $filter = @('--filter', 'Category!=Docs')
-    }
     Invoke-Step 'Test' {
-        dotnet test (Join-Path $root 'tests/Nexora.Tests/Nexora.Tests.csproj') --configuration $Configuration --no-build @filter `
+        dotnet test (Join-Path $root 'tests/Nexora.Tests/Nexora.Tests.csproj') --configuration $Configuration --no-build `
             --logger 'trx;LogFileName=results.trx' --results-directory $testResults
     }
 }

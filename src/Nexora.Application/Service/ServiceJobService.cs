@@ -233,6 +233,7 @@ public sealed class ServiceJobService(IUnitOfWorkFactory units, IAuthorizer auth
         await using var unit = await units.BeginAsync(cancellationToken: cancellationToken);
         var job = await JobAsync(unit, jobId, cancellationToken);
         if (job.Status == ServiceStatus.Ready) throw new WorkspaceValidationException("The job is ready for delivery. Move it back to In repair to issue more parts.");
+        await EnsureNotInvoicedAsync(unit, job, cancellationToken);
         if (input.Date < job.ReceivedOn) throw new WorkspaceValidationException("Parts cannot be issued before the job was received.");
         var product = await unit.FindAsync<Product>(input.ProductId, cancellationToken) ?? throw new WorkspaceValidationException("Choose the part.");
         var issued = (await unit.ListAsync<ServicePart>(p => p.JobId == jobId, cancellationToken)).Count;
@@ -272,6 +273,7 @@ public sealed class ServiceJobService(IUnitOfWorkFactory units, IAuthorizer auth
         await using var unit = await units.BeginAsync(cancellationToken: cancellationToken);
         var part = await unit.FindAsync<ServicePart>(partId, cancellationToken) ?? throw new WorkspaceValidationException("That part no longer exists.");
         var job = await JobAsync(unit, part.JobId, cancellationToken);
+        await EnsureNotInvoicedAsync(unit, job, cancellationToken);
         if (await unit.AnyAsync<ServicePartReturn>(r => r.PartId == partId, cancellationToken)) throw new WorkspaceValidationException("That part has already been returned.");
         if ((await BilledPartsAsync(unit, [partId], cancellationToken)).Count > 0)
             throw new WorkspaceValidationException("The part is on a posted invoice. Make a credit note for it instead.");
@@ -341,6 +343,7 @@ public sealed class ServiceJobService(IUnitOfWorkFactory units, IAuthorizer auth
     {
         authorizer.Demand(Permissions.ServiceManage);
         authorizer.Demand(Permissions.SalesCreate);
+        using var lockHandle = await ledger.AcquireAsync(cancellationToken);
         BillingDraftInput draft;
         await using (var unit = await units.BeginAsync(readOnly: true, cancellationToken))
         {
@@ -361,16 +364,7 @@ public sealed class ServiceJobService(IUnitOfWorkFactory units, IAuthorizer auth
                 SettlementMode.Credit, lines, Reference: job.Number, Narration: $"Service job {job.Number}: {job.ItemDescription}");
         }
 
-        var invoiceId = await billing.SaveDraftAsync(draft, cancellationToken);
-        await using (var unit = await units.BeginAsync(cancellationToken: cancellationToken))
-        {
-            var job = await JobAsync(unit, jobId, cancellationToken);
-            job.LinkInvoice(invoiceId);
-            unit.Record(new AuditEvent("Invoiced", nameof(ServiceJob), jobId.ToString(), $"Invoice draft created for job {job.Number}"));
-            await unit.CommitAsync(cancellationToken);
-        }
-
-        return invoiceId;
+        return await billing.SaveServiceDraftAsync(draft, jobId, cancellationToken);
     }
 
     // ----- Settings -----
@@ -547,7 +541,7 @@ public sealed class ServiceJobService(IUnitOfWorkFactory units, IAuthorizer auth
     {
         Guard(job.EnsureOpen);
         if (await LiveInvoiceAsync(unit, job, cancellationToken) is { } invoice)
-            throw new WorkspaceValidationException($"Invoice {invoice.Number ?? "(draft)"} exists for this job. Delete the draft (or cancel the invoice) to change labour.");
+            throw new WorkspaceValidationException($"Invoice {invoice.Number ?? "(draft)"} exists for this job. Delete the draft (or cancel the invoice) to change parts or labour.");
     }
 
     private static async Task<bool> HasChargesAsync(IUnitOfWork unit, Guid jobId, CancellationToken cancellationToken) =>

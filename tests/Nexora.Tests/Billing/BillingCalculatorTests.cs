@@ -101,5 +101,25 @@ public sealed class BillingCalculatorTests
     {
         Assert.Equal(33.33m, BillingCalculator.PortionOf(100, 3, 0, 0, 1));
         Assert.Equal(33.34m, BillingCalculator.PortionOf(100, 3, 66.66m, 2, 1));
+        Assert.Equal(0.01m, BillingCalculator.PortionOf(0.03m, 6, 0, 0, 1));
     }
+    [Fact]
+    public void Tiny_return_portions_never_become_negative_and_sum_to_the_original()
+    {
+        var original = new LineAmounts(0.03m, 0, 0.03m, 0.03m, 0.03m, 0);
+        var returned = LineAmounts.Zero;
+        decimal cost = 0;
+        for (var i = 0; i < 5; i++)
+        {
+            var portion = BillingCalculator.Portion(original, 5, returned, i, 1);
+            var costPortion = BillingCalculator.PortionOf(0.03m, 5, cost, i, 1);
+            Assert.True(portion.Taxable >= 0 && portion.Cgst >= 0 && portion.Sgst >= 0);
+            Assert.True(costPortion >= 0);
+            returned = returned.Plus(portion);
+            cost += costPortion;
+        }
+        Assert.Equal(original, returned);
+        Assert.Equal(0.03m, cost);
+    }
+
 }
