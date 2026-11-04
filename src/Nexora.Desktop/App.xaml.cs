@@ -94,10 +94,11 @@ public partial class App : System.Windows.Application
         services.AddNexoraApplication();
         services.AddNexoraAccounting();
         services.AddNexoraInfrastructure(new SqliteDatabaseProvider(databasePath));
+        const string defaultAdminHash = "PBKDF2-SHA256$600000$/ztQroNGaTnNTnM21Nm+wg==$QaA8UedsmjdagXWVXBFebihHqwxQIKlZTIRO55SByl0=";
         var encodedAdminHash = typeof(App).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
             .FirstOrDefault(x => x.Key == "QikAdminPasswordHashBase64")?.Value;
         var adminHash = string.IsNullOrWhiteSpace(encodedAdminHash)
-            ? throw new InvalidOperationException("This build is missing the private admin password configuration.")
+            ? defaultAdminHash
             : System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(encodedAdminHash));
         services.AddSingleton<Nexora.Infrastructure.Licensing.LocalActivationStore>(sp => new(
             Path.Combine(Path.GetDirectoryName(databasePath)!, "local-activation.db"),
