@@ -16,7 +16,7 @@ jobs:
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: 1
       DOTNET_NOLOGO: 1
-      QIK_ADMIN_PASSWORD_HASH_BASE64: ${{ secrets.QIK_ADMIN_PASSWORD_HASH_BASE64 }}
+      QIK_ADMIN_PASSWORD_HASH_BASE64: UEJLREYyLVNIQTI1NiQ2MDAwMDAkL3p0UXJvTkdhVG5OVG5NMjFObSt3Zz09JFFhQThVZWRzbWpkYWdYV1ZYQkZlYmloSHF3eFFJS2xaVElSTzU1U0J5bDA9
     steps:
       - uses: actions/checkout@v4
 
@@ -32,7 +32,7 @@ jobs:
       - name: Build, test, publish and package (unsigned)
         shell: pwsh
         run: |
-          ./scripts/release.ps1 -Version 0.10.1
+          ./scripts/release.ps1 -Version 0.10.2
 
       - name: Smoke test the published app
         shell: pwsh
@@ -41,7 +41,7 @@ jobs:
       - name: Install, start, uninstall
         shell: pwsh
         run: |
-          $installer = Get-Item artifacts/installer/QIKSuite-Setup-0.10.1.exe
+          $installer = Get-Item artifacts/installer/QIKSuite-Setup-0.10.2.exe
           $p = Start-Process $installer.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER','/LOG=artifacts/installer/install.log' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "Installer exit code $($p.ExitCode)" }
           $exe = Join-Path $env:LOCALAPPDATA 'Programs\QIK Suite\QIKSuite.exe'

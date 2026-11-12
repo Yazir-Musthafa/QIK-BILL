@@ -48,10 +48,16 @@ public sealed partial class LoginViewModel(IWorkspaceService workspace, ILogger<
         {
             var username = Username;
             var password = Password;
-            if (LocalAdministrator.IsAdminUsername(username) && await Task.Run(() => admin.SignInAsync(username, password)))
-            { AdminSignedIn?.Invoke(this, EventArgs.Empty); return; }
-            if (LocalAdministrator.IsAdminUsername(username) && !activation.IsActive)
-            { Error = "The admin password is incorrect or sign-in is temporarily locked after repeated attempts."; return; }
+            if (LocalAdministrator.IsAdminUsername(username))
+            {
+                if (await Task.Run(() => admin.SignInAsync(username, password)))
+                {
+                    AdminSignedIn?.Invoke(this, EventArgs.Empty);
+                    return;
+                }
+                Error = "The admin password is incorrect.";
+                return;
+            }
             if (!activation.IsActive)
             { Error = "Your account needs activation. Contact the admin to activate or reactivate it."; return; }
             var result = await Task.Run(() => workspace.SignInAsync(username, password));
