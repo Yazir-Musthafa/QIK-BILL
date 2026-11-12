@@ -70,7 +70,7 @@ public sealed class LocalActivationStore(string databasePath, IPasswordHasher ha
             }
 
             if (row.AdminLockedUntilUtc > now) return false;
-            var valid = password.Length <= 128 && hasher.Verify(password, _hash) != PasswordVerification.Failed;
+            var valid = !string.IsNullOrEmpty(password) && password.Length <= 128 && hasher.Verify(password, _hash) != PasswordVerification.Failed;
             if (valid) { row.FailedAdminAttempts = 0; row.AdminLockedUntilUtc = null; }
             else if (++row.FailedAdminAttempts >= 5) { row.FailedAdminAttempts = 0; row.AdminLockedUntilUtc = now.AddMinutes(15); }
             await db.SaveChangesAsync(cancellationToken);
