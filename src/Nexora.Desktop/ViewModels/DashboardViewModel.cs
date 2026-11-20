@@ -23,7 +23,7 @@ public sealed partial class DashboardViewModel(
     IWorkspaceService workspace,
     ILogger<DashboardViewModel> logger,
     Action<string> navigate,
-    Nexora.Application.Crm.CrmService? crm = null) : ObservableObject
+    Nexora.Application.Crm.CrmService? crm = null) : ObservableObject, Nexora.Desktop.ViewModels.Settings.ILoadable
 {
     public string Title => "Dashboard";
 

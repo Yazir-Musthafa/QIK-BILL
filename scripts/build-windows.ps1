@@ -32,13 +32,12 @@ $testResults = Join-Path $root 'artifacts/test-results'
 $versionArgs = @()
 if ($Version) { $versionArgs = @("-p:Version=$Version") }
 
-$defaultAdminHashBase64 = 'UEJLREYyLVNIQTI1NiQ2MDAwMDAkL3p0UXJvTkdhVG5OVG5NMjFObSt3Zz09JFFhQThVZWRzbWpkYWdYV1ZYQkZlYmloSHF3eFFJS2xaVElSTzU1U0J5bDA9'
 if (-not $AdminPasswordHashBase64 -and (Test-Path (Join-Path $root 'admin-build.props'))) {
     [xml] $privateSettings = Get-Content (Join-Path $root 'admin-build.props') -Raw
     $AdminPasswordHashBase64 = [string] $privateSettings.Project.PropertyGroup.QikAdminPasswordHashBase64
 }
 if (-not $AdminPasswordHashBase64) {
-    $AdminPasswordHashBase64 = $defaultAdminHashBase64
+    throw 'No administrator password verifier was supplied. Set QIK_ADMIN_PASSWORD_HASH_BASE64 or provide admin-build.props.'
 }
 if ($AdminPasswordHashBase64) { $versionArgs += "-p:QikAdminPasswordHashBase64=$AdminPasswordHashBase64" }
 

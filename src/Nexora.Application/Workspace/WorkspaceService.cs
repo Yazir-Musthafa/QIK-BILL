@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Security;
@@ -16,8 +17,10 @@ public sealed class WorkspaceService(
     IClock clock,
     ILogger<WorkspaceService> logger,
     IEnumerable<IDashboardSource> dashboardSources,
-    Licensing.IActivationAccess? activation = null) : IWorkspaceService
+    Licensing.IActivationAccess? activation = null,
+    Abstractions.ISessionPersistence? sessionPersistence = null) : IWorkspaceService
 {
+    private readonly Abstractions.ISessionPersistence? _sessionPersistence = sessionPersistence;
     public const string DemoCompanyName = "Demonstration Company (sample data)";
     public const string GenericSignInError = "The username or password is incorrect.";
     public const string NoAccessError = "Your account does not have access to any company. Ask an administrator to add you.";
@@ -76,7 +79,9 @@ public sealed class WorkspaceService(
             provisioning.Count, request.CreateDemoCompany);
         var access = (await store.GetAccessAsync(administrator.Id, cancellationToken)).Single(a => a.Company.Id == company.Id);
         await RememberCompanyAsync(company.Id, cancellationToken);
-        return activation is not null && !activation.IsActive ? DescribeSession(administrator, access) : Open(administrator, access);
+        var session = activation is not null && !activation.IsActive ? DescribeSession(administrator, access) : Open(administrator, access);
+        if (activation is null || activation.IsActive) PersistSession(session);
+        return session;
     }
 
     public async Task<LoginResult> SignInAsync(string username, string password, CancellationToken cancellationToken = default)
@@ -140,15 +145,76 @@ public sealed class WorkspaceService(
             ?? accessible.OrderBy(a => a.Company.IsDemo).ThenBy(a => a.Company.CreatedUtc).First();
 
         var session = Open(user, access);
+        PersistSession(session);
         await RecordAsync(new AuditEvent("SignedIn", nameof(User), user.Id.ToString(), $"{user.Username} signed in"), cancellationToken);
         logger.LogInformation("Sign-in succeeded; user {UserId}", user.Id);
         return new LoginResult(true, null, session);
+    }
+
+    public async Task<SessionInfo?> TryResumeSessionAsync(CancellationToken cancellationToken = default)
+    {
+        var persisted = _sessionPersistence?.Load();
+        if (persisted is null || persisted.Kind != SessionKind.User) return null;
+        try
+        {
+            activation?.Demand();
+            var user = await store.FindUserAsync(persisted.UserId, cancellationToken);
+            if (user is null || !user.IsActive || user.IsLockedOut(clock.UtcNow))
+            {
+                ClearPersistedUser();
+                return null;
+            }
+            if (user.PasswordChangedUtc != persisted.PasswordChangedUtc)
+            {
+                ClearPersistedUser();
+                return null;
+            }
+
+            var access = (await store.GetAccessAsync(user.Id, cancellationToken))
+                .FirstOrDefault(a => a.Company.Id == persisted.CompanyId);
+            if (access is null)
+            {
+                ClearPersistedUser();
+                return null;
+            }
+
+            var session = Open(user, access);
+            await RecordAsync(new AuditEvent("SessionResumed", nameof(User), user.Id.ToString(), $"{user.Username} session restored"),
+                cancellationToken);
+            _sessionPersistence?.Save(persisted with { PasswordChangedUtc = user.PasswordChangedUtc });
+            return session;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning("Session restore failed; error type {ErrorType}", ex.GetType().FullName);
+            ClearPersistedUser();
+            return null;
+        }
+    }
+
+    private void PersistSession(SessionInfo session)
+    {
+        if (_sessionPersistence is null) return;
+        _sessionPersistence.Save(new PersistedSession(SessionKind.User, session.UserId, session.CompanyId,
+            session.PasswordChangedUtc, new DateTimeOffset(clock.UtcNow, TimeSpan.Zero), Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))));
+    }
+
+    private void ClearPersistedUser()
+    {
+        if (_sessionPersistence is null) return;
+        var persisted = _sessionPersistence.Load();
+        if (persisted?.Kind == SessionKind.User) _sessionPersistence.Clear();
     }
 
     public void SignOut()
     {
         if (CurrentSession is { } session) logger.LogInformation("Signed out; user {UserId}", session.UserId);
         sessionContext.Set(null);
+        ClearPersistedUser();
     }
 
     public async Task<IReadOnlyList<CompanySummary>> GetCompaniesAsync(CancellationToken cancellationToken = default)
@@ -173,6 +239,7 @@ public sealed class WorkspaceService(
         await RememberCompanyAsync(access.Company.Id, cancellationToken);
         var opened = DescribeSession(user, access);
         UpdateSession(session, opened);
+        PersistSession(opened);
         logger.LogInformation("Company switched; user {UserId}; company {CompanyId}", session.UserId, access.Company.Id);
         return opened;
     }
@@ -195,6 +262,7 @@ public sealed class WorkspaceService(
         // Keep the same identity object for unchanged permissions, so an in-flight unit of work stays valid.
         if (updated with { Permissions = session.Permissions } != session || !updated.Permissions.SetEquals(session.Permissions))
             UpdateSession(session, updated);
+        if (_sessionPersistence is not null && sessionContext.Current is { } refreshed) PersistSession(refreshed);
     }
 
     /// <summary>The demonstration company shows labelled sample figures; real companies show figures from posted data.</summary>
@@ -275,6 +343,7 @@ public sealed class WorkspaceService(
         user.ChangePassword(passwordHasher.Hash(newPassword), clock.UtcNow, mustChangeOnNextSignIn: false);
         await store.UpdateUserAsync(user, cancellationToken);
         UpdateSession(session, session with { MustChangePassword = false, PasswordChangedUtc = user.PasswordChangedUtc });
+        if (sessionContext.Current is { } refreshed) PersistSession(refreshed);
         await RecordAsync(new AuditEvent("PasswordChanged", nameof(User), user.Id.ToString(), $"{user.Username} changed their password"),
             cancellationToken);
         logger.LogInformation("Password changed; user {UserId}", user.Id);

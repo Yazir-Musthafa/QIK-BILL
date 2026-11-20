@@ -37,6 +37,7 @@ public interface IWorkspaceService
     Task<bool> NeedsSetupAsync(CancellationToken cancellationToken = default);
     Task<SessionInfo> CompleteSetupAsync(SetupRequest request, CancellationToken cancellationToken = default);
     Task<LoginResult> SignInAsync(string username, string password, CancellationToken cancellationToken = default);
+    Task<SessionInfo?> TryResumeSessionAsync(CancellationToken cancellationToken = default);
     void SignOut();
     Task<IReadOnlyList<CompanySummary>> GetCompaniesAsync(CancellationToken cancellationToken = default);
     Task<SessionInfo> SwitchCompanyAsync(Guid companyId, CancellationToken cancellationToken = default);

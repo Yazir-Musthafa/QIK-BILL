@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Nexora.Application.Abstractions;
 using Nexora.Application.Security;
 
@@ -12,16 +13,19 @@ public interface ILocalActivationStore
     Task InitializeAsync(CancellationToken cancellationToken = default);
     Task<InstallationStatus> GetAsync(CancellationToken cancellationToken = default);
     Task<bool> VerifyAdministratorAsync(string password, CancellationToken cancellationToken = default);
+    Task<bool> IsAdministratorResumeAllowedAsync(CancellationToken cancellationToken = default);
     Task ChangeAsync(string status, string note, string actor, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ActivationHistory>> HistoryAsync(CancellationToken cancellationToken = default);
 }
 
 // This session is deliberately separate from company/staff permissions.
-public sealed class LocalAdministrator(ILocalActivationStore store, TimeProvider? time = null) : IAuthorizer
+public sealed class LocalAdministrator(ILocalActivationStore store, TimeProvider? time = null, ISessionPersistence? sessionPersistence = null) : IAuthorizer
 {
     public const string Username = "admin";
     public const string ManagePermission = "licensing.manage";
     private readonly SessionContext _session = new(time);
+    private readonly TimeProvider _time = time ?? TimeProvider.System;
+    private readonly ISessionPersistence? _sessionPersistence = sessionPersistence;
     public bool IsSignedIn => _session.Current is not null;
     public static bool IsAdminUsername(string? username) => string.Equals(username?.Trim(), Username, StringComparison.OrdinalIgnoreCase);
     public async Task<bool> SignInAsync(string username, string password)
@@ -30,9 +34,38 @@ public sealed class LocalAdministrator(ILocalActivationStore store, TimeProvider
         if (!IsAdminUsername(username) || !await store.VerifyAdministratorAsync(password)) return false;
         _session.Set(new SessionInfo(Guid.Empty, Username, "Activation administrator", Guid.Empty, "This installation", false, 2026,
             Guid.Empty, "Activation administrator", new HashSet<string> { ManagePermission }, 0, false));
+        _sessionPersistence?.Save(new PersistedSession(SessionKind.Administrator, Guid.Empty, Guid.Empty, null,
+            _time.GetUtcNow(), Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))));
         return true;
     }
-    public void SignOut() => _session.Set(null);
+    public void SignOut()
+    {
+        _session.Set(null);
+        ClearPersistedAdministrator();
+    }
+    public async Task<bool> TryResumeAsync()
+    {
+        var persisted = _sessionPersistence?.Load();
+        if (persisted is null || persisted.Kind != SessionKind.Administrator) return false;
+        try
+        {
+            if (!await store.IsAdministratorResumeAllowedAsync()) { ClearPersistedAdministrator(); return false; }
+            _session.Set(new SessionInfo(Guid.Empty, Username, "Activation administrator", Guid.Empty, "This installation", false, 2026,
+                Guid.Empty, "Activation administrator", new HashSet<string> { ManagePermission }, 0, false));
+            return true;
+        }
+        catch
+        {
+            ClearPersistedAdministrator();
+            return false;
+        }
+    }
+    private void ClearPersistedAdministrator()
+    {
+        if (_sessionPersistence is null) return;
+        var persisted = _sessionPersistence.Load();
+        if (persisted?.Kind == SessionKind.Administrator) _sessionPersistence.Clear();
+    }
     public void RecordActivity() => _session.RecordActivity();
     public SessionInfo RequireSession() => _session.Current ?? throw new AccessDeniedException("Sign in as the activation administrator.");
     public SessionInfo Demand(string permission)

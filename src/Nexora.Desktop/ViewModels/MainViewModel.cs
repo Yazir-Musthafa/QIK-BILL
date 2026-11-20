@@ -34,6 +34,19 @@ public sealed partial class MainViewModel(
         _preferences = await workspace.GetPreferencesAsync();
         theme.Apply(_preferences.Theme);
         await services.GetRequiredService<Nexora.Application.Licensing.ILocalActivationStore>().InitializeAsync();
+
+        if (await services.GetRequiredService<Nexora.Application.Licensing.LocalAdministrator>().TryResumeAsync())
+        {
+            ShowAdminResumed();
+            return;
+        }
+
+        if (await workspace.TryResumeSessionAsync() is { } session)
+        {
+            await ShowShellAsync(session, welcome: false);
+            return;
+        }
+
         ShowLogin();
     }
 
@@ -48,6 +61,16 @@ public sealed partial class MainViewModel(
     private void ShowAdmin()
     {
         workspace.SignOut();
+        Dialogs.CancelActive();
+        Toasts.Items.Clear();
+        var admin = services.GetRequiredService<LocalAdminViewModel>();
+        admin.SignedOut += (_, _) => ShowLogin();
+        Current = admin;
+        admin.RefreshCommand.Execute(null);
+    }
+
+    private void ShowAdminResumed()
+    {
         Dialogs.CancelActive();
         Toasts.Items.Clear();
         var admin = services.GetRequiredService<LocalAdminViewModel>();

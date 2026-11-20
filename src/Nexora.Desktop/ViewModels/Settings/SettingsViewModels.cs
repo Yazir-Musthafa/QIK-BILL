@@ -28,7 +28,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _services = services;
         _shell = shell;
         Sections = AllSections.Where(s => s.Permission is null || authorizer.Has(s.Permission)).ToList();
-        SelectedSection = Sections[0];
+        SelectedSection = Sections.Count > 0 ? Sections[0] : AllSections[0];
     }
 
     public static IReadOnlyList<SettingsSection> AllSections { get; } =
@@ -46,6 +46,12 @@ public sealed partial class SettingsViewModel : ObservableObject
         new("audit", "Audit trail", "", Permissions.AuditView, typeof(AuditViewModel)),
     ];
 
+    private static async Task LoadSectionAsync(ILoadable loadable)
+    {
+        try { await loadable.LoadAsync(); }
+        catch { /* PageViewModel reports its own errors; this only prevents an unhandled load failure. */ }
+    }
+
     public string Title => "Settings";
 
     public IReadOnlyList<SettingsSection> Sections { get; }
@@ -61,7 +67,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         var wantsShell = value.ViewModelType.GetConstructors().Single().GetParameters().Any(p => p.ParameterType == typeof(ShellContext));
         var page = ActivatorUtilities.CreateInstance(_services, value.ViewModelType, wantsShell ? [_shell] : []);
         Current = page;
-        if (page is ILoadable loadable) _ = loadable.LoadAsync();
+        if (page is ILoadable loadable) _ = LoadSectionAsync(loadable);
     }
 
     public void SyncTheme(bool dark)

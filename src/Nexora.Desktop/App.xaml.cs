@@ -94,15 +94,17 @@ public partial class App : System.Windows.Application
         services.AddNexoraApplication();
         services.AddNexoraAccounting();
         services.AddNexoraInfrastructure(new SqliteDatabaseProvider(databasePath));
-        const string defaultAdminHash = "PBKDF2-SHA256$600000$/ztQroNGaTnNTnM21Nm+wg==$QaA8UedsmjdagXWVXBFebihHqwxQIKlZTIRO55SByl0=";
         var encodedAdminHash = typeof(App).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
             .FirstOrDefault(x => x.Key == "QikAdminPasswordHashBase64")?.Value;
-        var adminHash = string.IsNullOrWhiteSpace(encodedAdminHash)
-            ? defaultAdminHash
-            : System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(encodedAdminHash));
+        if (string.IsNullOrWhiteSpace(encodedAdminHash))
+            throw new InvalidOperationException("QIK Suite was not built with the private administrator password verifier. Configure QIK_ADMIN_PASSWORD_HASH_BASE64 or admin-build.props before building.");
+        var adminHash = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(encodedAdminHash));
         services.AddSingleton<Nexora.Infrastructure.Licensing.LocalActivationStore>(sp => new(
             Path.Combine(Path.GetDirectoryName(databasePath)!, "local-activation.db"),
             sp.GetRequiredService<Nexora.Application.Security.IPasswordHasher>(), adminPasswordHash: adminHash));
+        services.AddSingleton<Nexora.Application.Abstractions.ISessionPersistence>(sp =>
+            new Nexora.Infrastructure.SessionPersistence.FileSessionPersistence(
+                Path.Combine(Path.GetDirectoryName(databasePath)!, "session.dat")));
         services.AddSingleton<Nexora.Application.Licensing.ILocalActivationStore>(sp => sp.GetRequiredService<Nexora.Infrastructure.Licensing.LocalActivationStore>());
         services.AddSingleton<Nexora.Application.Licensing.IActivationAccess>(sp => sp.GetRequiredService<Nexora.Infrastructure.Licensing.LocalActivationStore>());
         services.AddSingleton<Nexora.Application.Licensing.LocalAdministrator>();
@@ -131,13 +133,26 @@ public partial class App : System.Windows.Application
         return services;
     }
 
+    private int _fatalDialogShown;
+
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
-        Log.Error("Unhandled interface error; error type {ErrorType}", e.Exception.GetType().FullName);
+        Log.Error("Unhandled interface error; error type {ErrorType}; stack trace {StackTrace}", e.Exception.GetType().FullName, e.Exception.StackTrace);
         e.Handled = true;
-        MessageBox.Show("QIK Suite encountered an unexpected error and must close. Reopen the application and retry your last action. " +
-            "If the problem continues, contact your administrator with the time of the error.",
-            "QIK Suite needs to close", MessageBoxButton.OK, MessageBoxImage.Error);
+
+        // One unexpected UI error must never be allowed to spawn hundreds of modal dialogs.
+        if (Interlocked.Exchange(ref _fatalDialogShown, 1) != 0) return;
+
+        try
+        {
+            MessageBox.Show("QIK Suite encountered an unexpected error and must close. Reopen the application and retry your last action. " +
+                "If the problem continues, contact your administrator with the time of the error.",
+                "QIK Suite needs to close", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        catch
+        {
+            // The message box itself can fail while the dispatcher is unwinding; logging above is enough.
+        }
         Shutdown(1);
     }
 

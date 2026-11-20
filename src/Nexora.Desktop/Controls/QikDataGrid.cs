@@ -93,9 +93,14 @@ public class QikDataGrid : DataGrid
         _saveTimer.Tick += async (_, _) =>
         {
             _saveTimer.Stop();
-            await SaveLayoutAsync();
+            try { await SaveLayoutAsync(); }
+            catch (Exception) { /* Layout saving is a convenience and must not crash navigation. */ }
         };
-        Loaded += async (_, _) => await ApplySavedLayoutAsync();
+        Loaded += async (_, _) =>
+        {
+            try { await ApplySavedLayoutAsync(); }
+            catch (Exception) { /* Layout loading is a convenience and must not crash navigation. */ }
+        };
         ColumnReordered += (_, _) => LayoutChanged();
     }
 

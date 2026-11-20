@@ -117,12 +117,31 @@ public sealed partial class ShellViewModel : ObservableObject
     public void Navigate(string key)
     {
         if (Backups.IsRestoring) return;
-        var item = NavCatalog.Find(key);
-        if (item.Permission is { } permission && !_authorizer.Has(permission)) item = NavCatalog.Find(NavCatalog.Dashboard);
+        NavItem item;
+        try
+        {
+            item = NavCatalog.Find(key);
+            if (item.Permission is { } permission && !_authorizer.Has(permission)) item = NavCatalog.Find(NavCatalog.Dashboard);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError("Navigation failed; key {Key}; error type {ErrorType}", key, exception.GetType().FullName);
+            _toasts.Show("That page could not be opened. Try again.", ToastKind.Error);
+            return;
+        }
+
         // Set the key first so the selection change below does not navigate a second time.
         CurrentPageKey = item.Key;
         SelectedNavItem = NavItems.Contains(item) ? item : null;
-        CurrentPage = CreatePage(item);
+        try
+        {
+            CurrentPage = CreatePage(item);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError("Page could not be created; page {Page}; error type {ErrorType}", item.Key, exception.GetType().FullName);
+            _toasts.Show("That page could not be opened. Try again; if it keeps happening, restart QIK Suite.", ToastKind.Error);
+        }
     }
 
     partial void OnSelectedNavItemChanged(NavItem? value)
@@ -249,6 +268,24 @@ public sealed partial class ShellViewModel : ObservableObject
         _ = SavePreferencesAsync();
     }
 
+    private void ScheduleLoad(ILoadable loadable)
+    {
+        _ = LoadPageAsync(loadable);
+    }
+
+    private async Task LoadPageAsync(ILoadable loadable)
+    {
+        try
+        {
+            await loadable.LoadAsync();
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError("Page load failed; page {Page}; error type {ErrorType}", loadable.GetType().Name, exception.GetType().FullName);
+            _toasts.Show("That page could not be loaded. Try again; if it keeps happening, restart QIK Suite.", ToastKind.Error);
+        }
+    }
+
     private object CreatePage(NavItem item)
     {
         switch (item.Key)
@@ -256,7 +293,7 @@ public sealed partial class ShellViewModel : ObservableObject
             case NavCatalog.Dashboard:
                 var dashboard = new DashboardViewModel(_workspace, _loggers.CreateLogger<DashboardViewModel>(), Navigate,
                     _services.GetService(typeof(Nexora.Application.Crm.CrmService)) as Nexora.Application.Crm.CrmService);
-                _ = dashboard.LoadAsync();
+                ScheduleLoad(dashboard);
                 return dashboard;
             case NavCatalog.Settings:
                 var context = new ShellContext(() => _theme.Current, t => { if (t != _theme.Current) SetTheme(t); }, SessionChangedAsync, Navigate);
@@ -273,7 +310,7 @@ public sealed partial class ShellViewModel : ObservableObject
                 if (PageTypes.TryGetValue(item.Key, out var pageType))
                 {
                     var page = ActivatorUtilities.CreateInstance(_services, pageType);
-                    if (page is ILoadable loadable) _ = loadable.LoadAsync();
+                    if (page is ILoadable loadable) ScheduleLoad(loadable);
                     return page;
                 }
 
