@@ -32,7 +32,7 @@ jobs:
       - name: Build, test, publish and package (unsigned)
         shell: pwsh
         run: |
-          ./scripts/release.ps1 -Version 0.10.2
+          ./scripts/release.ps1 -Version 0.10.3
 
       - name: Smoke test the published app
         shell: pwsh
@@ -41,7 +41,7 @@ jobs:
       - name: Install, start, uninstall
         shell: pwsh
         run: |
-          $installer = Get-Item artifacts/installer/QIKSuite-Setup-0.10.2.exe
+          $installer = Get-Item artifacts/installer/QIKSuite-Setup-0.10.3.exe
           $p = Start-Process $installer.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER','/LOG=artifacts/installer/install.log' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "Installer exit code $($p.ExitCode)" }
           $exe = Join-Path $env:LOCALAPPDATA 'Programs\QIK Suite\QIKSuite.exe'
